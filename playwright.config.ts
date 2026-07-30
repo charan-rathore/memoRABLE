@@ -27,7 +27,10 @@ export default defineConfig({
     ? {}
     : {
         webServer: {
-          command: `npm run build && npm run start -- -p ${PORT}`,
+          // Build into a clean .next: reusing the directory left behind by an
+          // earlier `npm run verify` yields half-written manifests and the
+          // production server then fails to boot.
+          command: `rm -rf .next && npm run build && npm run start -- -p ${PORT}`,
           url: baseURL,
           reuseExistingServer: !process.env.CI,
           timeout: 240_000,

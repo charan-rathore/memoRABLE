@@ -45,11 +45,14 @@ test.describe("preloaded document", () => {
   });
 
   test("has no critical or serious accessibility violations", async ({ page }) => {
+    test.slow();
     const { AxeBuilder } = await import("@axe-core/playwright");
     await page.goto("/");
     // The preview iframe is visible in every layout (mobile's default tab is Publish).
     await page.locator("iframe[title='Document output preview']").waitFor();
-    const results = await new AxeBuilder({ page }).analyze();
+    // Scope to the app shell: the previews are `sandbox=""` iframes, so axe can
+    // never get its script into them and would block until the test times out.
+    const results = await new AxeBuilder({ page }).exclude("iframe").analyze();
     const serious = results.violations.filter(
       (v) => v.impact === "critical" || v.impact === "serious",
     );

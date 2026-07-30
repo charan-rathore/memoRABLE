@@ -1,0 +1,71 @@
+{
+  "version": 1,
+  "title": "Q3 Board Report",
+  "blocks": [
+    {
+      "kind": "snapshot",
+      "payload": {
+        "heading": "Momentum, with room to compound.",
+        "summary": "Atlas closed Q3 at $4.2M ARR, up 18% quarter-over-quarter on the fleet-analytics launch. Net revenue retention reached 121%, and two enterprise pilots converted to annual contracts. We enter Q4 with 19 months of runway and a focused hiring plan.",
+        "byline": "Prepared by A. Rathore · Reviewed by Finance · July 2026"
+      }
+    },
+    {
+      "kind": "signals",
+      "title": "Signals — quarter over quarter",
+      "payload": {
+        "entries": [
+          { "label": "ARR", "value": "$4.2M", "delta": "+18%", "trend": "up" },
+          { "label": "Net retention", "value": "121%", "delta": "+6 pts", "trend": "up" },
+          { "label": "Runway", "value": "19 mo", "delta": "+2 mo", "trend": "up" },
+          { "label": "Headcount", "value": "34", "delta": "+5", "trend": "up" }
+        ]
+      }
+    },
+    {
+      "kind": "timeline",
+      "title": "Timeline — H2 2026",
+      "payload": {
+        "entries": [
+          { "date": "Jul", "title": "Fleet Analytics general availability", "state": "shipped" },
+          { "date": "Aug", "title": "Enterprise pilots — Meridian Ports, Helvetia Rail", "state": "shipped" },
+          { "date": "Sep", "title": "Series B data room complete", "state": "on-track" },
+          { "date": "Oct", "title": "EU market entry — DACH first", "state": "planned" }
+        ]
+      }
+    },
+    {
+      "kind": "risks",
+      "title": "Risks — 3 open",
+      "payload": {
+        "entries": [
+          { "risk": "Supply-chain lead times on actuators", "severity": "high", "mitigation": "Dual-sourcing complete by Oct" },
+          { "risk": "Senior robotics hiring velocity", "severity": "medium", "mitigation": "Retainers with two search firms" },
+          { "risk": "GPU cloud spend growth", "severity": "medium", "mitigation": "Committed-use discount, −22%" }
+        ]
+      }
+    },
+    {
+      "kind": "decisions",
+      "title": "Decisions — 2 settled · 1 requested",
+      "payload": {
+        "entries": [
+          { "ref": "D-021", "text": "Expand the fleet-analytics pricing tier ahead of the EU launch", "status": "approved" },
+          { "ref": "D-022", "text": "Dual-source actuator supply by October", "status": "approved" },
+          { "ref": "D-023", "text": "Approve the Q4 hiring plan — six roles, two senior robotics engineers", "status": "requested" }
+        ]
+      }
+    },
+    {
+      "kind": "actions",
+      "title": "Action Items — 3 open",
+      "payload": {
+        "entries": [
+          { "task": "Sign the dual-sourcing contract", "owner": "M. Chen", "due": "Aug 15", "status": "open" },
+          { "task": "EU pricing proposal to the board", "owner": "A. Rathore", "due": "Sep 2", "status": "open" },
+          { "task": "Series B data room v1 to counsel", "owner": "J. Okafor", "due": "Sep 12", "status": "open" }
+        ]
+      }
+    }
+  ]
+}

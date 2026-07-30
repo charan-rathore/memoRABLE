@@ -2,12 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import type { MemoryBlock, MemoryDocument } from "@/domain/memory/schema";
-import type { OutputMode } from "@/domain/memory/types";
+import { OUTPUT_MODES, type OutputMode } from "@/domain/memory/types";
 import { importSource } from "@/import/import-source";
 import { importJson } from "@/import/json/import-json";
 import { getExample, hasVerifiedExtraction, verifiedExtractionFor } from "@/import/examples/catalog";
-import type { ModeOutput } from "@/render/render-bundle";
-import { displayHtml, initialWorkbenchState, workbenchReducer } from "./workbench-state";
+import { renderMode, type ModeOutput } from "@/render/render-bundle";
+import { displayHtml, initialWorkbenchState, type RenderCacheEntry, type WorkbenchAction, workbenchReducer } from "./workbench-state";
 import { Topbar } from "./topbar";
 import { JourneyStrip } from "./journey-strip";
 import { ImportPanel } from "./import/import-panel";
@@ -65,6 +65,8 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
       if (result.ok) {
         dispatch({ type: "imported", sourceText: text, sourceLabel: label, document: result.value, at: nowLabel() });
         announce(`Understood — 6 memories created from ${label}.`);
+        // Render the remaining two modes asynchronously so the UI stays responsive.
+        scheduleLazyRenders(result.value, [], "web", dispatch);
       } else {
         dispatch({ type: "importFailed", sourceText: text, sourceLabel: label, errors: [...result.errors] });
         announce(`We couldn't understand this. Nothing was changed — ${result.errors.length} ${result.errors.length === 1 ? "error" : "errors"}.`);
@@ -147,6 +149,8 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
       const block = state.document?.blocks.find((b) => b.id === blockId);
       dispatch({ type: "reordered", blockId, direction });
       if (block) announce(`${block.title} moved ${direction === -1 ? "up" : "down"}.`);
+      // Reorder renders only the active mode synchronously (~60-100ms) —
+      // fast enough that lazy deferral isn't needed and would risk stale state.
     },
     [state.document, announce],
   );
@@ -351,3 +355,25 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
 function nowLabel(): string {
   return new Date().toISOString();
 }
+
+/** Render the remaining (non-active) modes on the next idle tick so the UI
+ *  stays responsive during imports and reorders. */
+function scheduleLazyRenders(
+  doc: MemoryDocument,
+  _cache: RenderCacheEntry[],
+  activeMode: OutputMode,
+  dispatch: React.Dispatch<WorkbenchAction>,
+) {
+  const remaining = OUTPUT_MODES.filter((m) => m !== activeMode);
+  if (remaining.length === 0) return;
+  setTimeout(() => {
+    const filled: Partial<Record<OutputMode, ModeOutput>> = {};
+    for (const m of remaining) {
+      const output = renderMode(doc, m);
+      filled[m] = output;
+    }
+    dispatch({ type: "lazyRendered", outputs: filled, cache: [] });
+  }, 0);
+}
+
+// (WorkbenchAction imported above with workbench-state imports)

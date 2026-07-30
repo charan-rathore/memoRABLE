@@ -76,7 +76,10 @@ describe("workbenchReducer — arrange", () => {
     // Provenance moved with the block.
     expect(next.document!.blocks[0]!.provenance).toEqual(second.provenance);
     expect(next.document!.contentHash).not.toBe(state.document!.contentHash);
-    expect(next.outputs.web!.error).toBeNull();
+    // Only the active mode ("document") renders synchronously; web/email are deferred.
+    expect(next.outputs.document!.error).toBeNull();
+    // web is stale from initial state until lazyRendered fires.
+    expect(displayHtml(next, "web").html).toBeTruthy();
   });
 
   it("ignores out-of-range moves", () => {
@@ -105,6 +108,47 @@ describe("render cache", () => {
     if (!notes.ok) throw new Error("notes failed");
     cache = renderAll(notes.value, cache, "web").cache;
     expect(cache.length).toBeLessThanOrEqual(RENDER_CACHE_SIZE);
+  });
+});
+
+describe("renderAll — onlyMode", () => {
+  it("renders only the requested mode when onlyMode is set", () => {
+    const doc = atlas();
+    const result = renderAll(doc, [], "web", "web");
+    expect(result.outputs.web!.html).toBeTruthy();
+    expect(result.outputs.web!.error).toBeNull();
+    // email and document were not rendered.
+    expect(result.outputs.email).toBeUndefined();
+    expect(result.outputs.document).toBeUndefined();
+    expect(result.cache).toHaveLength(1); // Only web was cached.
+  });
+});
+
+describe("lazyRendered action", () => {
+  it("fills in deferred modes without affecting active mode", () => {
+    const state = initialState();
+    // Simulate a reorder that only rendered the active mode (document).
+    const afterReorder = workbenchReducer(state, {
+      type: "reordered",
+      blockId: state.document!.blocks[1]!.id,
+      direction: -1,
+    });
+    // document was rendered, web/email were not.
+    expect(afterReorder.outputs.document!.html).toBeTruthy();
+    expect(afterReorder.outputs.web).toBeUndefined();
+    expect(afterReorder.outputs.email).toBeUndefined();
+    // Now lazy-render the remaining modes.
+    const afterLazy = workbenchReducer(afterReorder, {
+      type: "lazyRendered",
+      outputs: {
+        web: afterReorder.outputs.document!, // reuse for test purposes
+        email: afterReorder.outputs.document!,
+      },
+      cache: [],
+    });
+    expect(afterLazy.outputs.web!.html).toBeTruthy();
+    expect(afterLazy.outputs.email!.html).toBeTruthy();
+    expect(afterLazy.outputs.document!.html).toBeTruthy();
   });
 });
 

@@ -56,7 +56,8 @@ export type WorkbenchAction =
         lastGood: Partial<Record<OutputMode, ModeOutput>>;
         mode: OutputMode;
       };
-    };
+    }
+  | { type: "lazyRendered"; outputs: Partial<Record<OutputMode, ModeOutput>>; cache: RenderCacheEntry[] };
 
 export function initialWorkbenchState(init: {
   sourceText: string;
@@ -92,9 +93,10 @@ function pickGood(outputs: Partial<Record<OutputMode, ModeOutput>>): Partial<Rec
 export function workbenchReducer(state: WorkbenchState, action: WorkbenchAction): WorkbenchState {
   switch (action.type) {
     case "imported": {
-      // Render the active-preferred mode first, then the rest.
+      // Render only the active-preferred mode synchronously; the other two
+      // modes are deferred so the UI responds before the heavy Elements SSR.
       const preferred: OutputMode = "web";
-      const { outputs, cache } = renderAll(action.document, state.cache, preferred);
+      const { outputs, cache } = renderAll(action.document, state.cache, preferred, preferred);
       return {
         ...state,
         sourceText: action.sourceText,
@@ -129,7 +131,8 @@ export function workbenchReducer(state: WorkbenchState, action: WorkbenchAction)
       const nextIds = [...ids];
       [nextIds[index], nextIds[target]] = [nextIds[target]!, nextIds[index]!];
       const reordered = reorderBlocks(state.document, nextIds);
-      const { outputs, cache } = renderAll(reordered, state.cache, state.mode);
+      // Only render the active mode synchronously; defer the other two.
+      const { outputs, cache } = renderAll(reordered, state.cache, state.mode, state.mode);
       return {
         ...state,
         document: reordered,
@@ -161,18 +164,33 @@ export function workbenchReducer(state: WorkbenchState, action: WorkbenchAction)
         errors: [],
         selectedBlockId: null,
       };
+    case "lazyRendered":
+      return {
+        ...state,
+        outputs: { ...state.outputs, ...action.outputs },
+        lastGood: { ...state.lastGood, ...pickGood(action.outputs) },
+        cache: action.cache,
+      };
     default:
       return state;
   }
 }
 
-/** Render every mode with the active mode first, using the four-entry cache. */
+/**
+ * Render modes with the active mode first, using the four-entry cache.
+ * When `onlyMode` is provided, only that mode is rendered synchronously;
+ * the caller is expected to render the remaining modes later via
+ * `lazyRendered`. This keeps imports and reorders responsive.
+ */
 export function renderAll(
   doc: MemoryDocument,
   cache: RenderCacheEntry[],
   activeMode: OutputMode,
+  onlyMode?: OutputMode,
 ): { outputs: Record<OutputMode, ModeOutput>; cache: RenderCacheEntry[] } {
-  const orderedModes = [activeMode, ...OUTPUT_MODES.filter((m) => m !== activeMode)];
+  const orderedModes = onlyMode
+    ? [onlyMode]
+    : [activeMode, ...OUTPUT_MODES.filter((m) => m !== activeMode)];
   const outputs = {} as Record<OutputMode, ModeOutput>;
   let nextCache = [...cache];
   for (const mode of orderedModes) {

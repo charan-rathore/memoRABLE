@@ -111,7 +111,9 @@ export function PublishPanel({
                     <span className="tag">{mode === "email" ? "600px" : mode === "document" ? "A4" : "fluid"}</span>
                   </div>
                   {html ? (
-                    <iframe title={`${OUTPUT_MODE_LABELS[mode]} thumbnail`} sandbox="" referrerPolicy="no-referrer" srcDoc={html} />
+                    <div className="pc-thumb">
+                      <iframe title={`${OUTPUT_MODE_LABELS[mode]} thumbnail`} sandbox="" referrerPolicy="no-referrer" srcDoc={html} />
+                    </div>
                   ) : (
                     <div style={{ padding: 16, fontSize: 12, color: "var(--ink-3)" }}>
                       This output couldn’t be rendered.

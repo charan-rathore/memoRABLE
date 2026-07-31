@@ -5,6 +5,7 @@ import type { Diagnostic } from "@/reliability/diagnostics";
 import { formatDiagnostic } from "@/reliability/diagnostics";
 import { detectFormat } from "@/import/import-source";
 import { BrandMark } from "../ui/brand-mark";
+import { StaggerTitle } from "../ui/stagger-title";
 import { formatBytes, readTextFileWithProgress } from "../import/read-file";
 import { readStats, summarize } from "@/stats/local-stats";
 
@@ -84,8 +85,8 @@ export function HomeScreen({
           </span>
         </div>
 
-        <h1 className="home-title">Turn information into memory.</h1>
-        <p className="home-sub">
+        <StaggerTitle text="Turn information into memory." className="home-title sweep" />
+        <p className="home-sub rise-in">
           One document in. A web page, an email and a print-ready document out — every line
           traceable to where it came from, and nothing understood anywhere but this browser.
         </p>

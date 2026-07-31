@@ -28,6 +28,7 @@ export const colors = {
   heroInk: "#D5D2C6",
   heroMuted: "#95928A",
   accent: "#1E3BD6",
+  accentHover: "#1830AE",
   accentSoft: "#EEF0FB",
   ok: "#1E7F4F",
   okSoft: "#E9F4EE",

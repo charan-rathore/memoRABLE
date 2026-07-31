@@ -86,6 +86,26 @@ describe("complete HTML per mode", () => {
     expect(bundle.outputs.email.html).not.toBe(bundle.outputs.document.html);
   });
 
+  it("stamps real jump targets that survive email and print-to-PDF", () => {
+    const bundle = renderBundle(doc);
+    for (const mode of ["web", "email", "document"] as const) {
+      const html = bundle.outputs[mode].html;
+      // Elements Row.anchor emits empty name anchors — the form Gmail/Outlook honour.
+      expect(html).toContain('name="section-signals"');
+      expect(html).toContain('name="section-risks"');
+      expect(html).toContain('href="#section-signals"');
+    }
+    // Menu + Button are the unused Elements surface we now lean on.
+    expect(bundle.outputs.web.designJsonSummary?.contentTypes).toEqual(
+      expect.arrayContaining(["menu", "button", "heading", "text"]),
+    );
+    expect(bundle.outputs.email.designJsonSummary?.contentTypes).toEqual(
+      expect.arrayContaining(["menu", "button"]),
+    );
+    // Document TOC entries are clickable in-page links.
+    expect(bundle.outputs.document.html).toMatch(/href="#section-decisions"/);
+  });
+
   it("produces compatible design JSON from a recognized direct root", () => {
     for (const mode of ["web", "email", "document"] as const) {
       const output = renderMode(doc, mode);

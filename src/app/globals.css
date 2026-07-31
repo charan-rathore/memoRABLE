@@ -136,6 +136,22 @@ a { color: var(--accent); }
 .btn.pri:hover:not(:disabled), .btn-primary:hover:not(:disabled) { background: var(--accent-hover); }
 .btn.small { font-size: 12px; padding: 5px 10px; }
 
+/* Origin-inspired magnetic CTA: a radial wipe from the pointer, not a magnet
+   pull. Compositor-cheap — background-position only. */
+.btn.magnetic {
+  position: relative; overflow: hidden; isolation: isolate;
+  background:
+    radial-gradient(circle at var(--mx, 50%) var(--my, 50%), var(--accent-hover) 0%, var(--accent-hover) 28%, transparent 55%)
+      no-repeat,
+    var(--accent);
+  background-size: 0 0, auto;
+  transition: background-size var(--dur-hover) var(--ease-enter), background-color var(--dur-hover) var(--ease);
+}
+.btn.magnetic:hover:not(:disabled) {
+  background-size: 220% 220%, auto;
+  background-color: var(--accent);
+}
+
 /* ---------------- journey strip ---------------- */
 .pipe {
   display: flex; align-items: center; gap: 10px; min-height: 42px; padding: 4px 16px;
@@ -566,7 +582,32 @@ a { color: var(--accent); }
   font-family: var(--serif); font-size: clamp(30px, 5.2vw, 44px); font-weight: 400;
   letter-spacing: -0.021em; line-height: 1.1; color: var(--ink); margin-bottom: 14px;
 }
+/* Origin StaggerText Rise — words only, transform + opacity. */
+.stagger-word {
+  display: inline-block;
+  animation: stagger-rise var(--dur-enter) var(--ease-enter) both;
+}
+@keyframes stagger-rise {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+/* Origin Text Colour Sweep — cobalt washes through, then settles to ink. */
+.home-title.sweep .stagger-word {
+  background-image: linear-gradient(90deg, var(--ink) 0%, var(--ink) 40%, var(--accent) 50%, var(--ink) 60%, var(--ink) 100%);
+  background-size: 220% 100%;
+  background-position: 100% 0;
+  -webkit-background-clip: text; background-clip: text;
+  color: transparent;
+  animation:
+    stagger-rise var(--dur-enter) var(--ease-enter) both,
+    colour-sweep 900ms var(--ease-enter) 120ms both;
+}
+@keyframes colour-sweep {
+  from { background-position: 100% 0; }
+  to { background-position: 0% 0; }
+}
 .home-sub { font-size: 15px; color: var(--ink-2); max-width: 52ch; margin-bottom: 48px; line-height: 1.6; }
+.rise-in { animation: rise var(--dur-enter) var(--ease-enter) 180ms both; }
 
 .home-choices { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; width: 100%; }
 .home-card {
@@ -628,6 +669,32 @@ a { color: var(--accent); }
   margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line);
   font: 11px var(--mono); color: var(--ink-3); letter-spacing: 0.01em;
 }
+
+/* ---------------- first-visit demo ---------------- */
+.demo-scrim { z-index: 210; }
+.demo-card {
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-l);
+  width: min(560px, 100%); max-height: min(88vh, 720px); overflow: auto;
+  display: flex; flex-direction: column;
+  animation: modal-in var(--dur-enter) var(--ease-enter) both;
+  box-shadow: 0 24px 60px rgba(20, 19, 15, 0.18);
+}
+.demo-h {
+  display: flex; align-items: center; gap: 10px; padding: 14px 16px;
+  border-bottom: 1px solid var(--line); flex: none;
+}
+.demo-h h2 { font: 18px/1.2 var(--serif); letter-spacing: -0.015em; flex: 1; }
+.demo-h .x {
+  width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid var(--line); border-radius: 8px; color: var(--ink-2); font-size: 14px;
+}
+.demo-body { padding: 14px 16px 18px; display: flex; flex-direction: column; gap: 12px; align-items: flex-start; }
+.demo-gif {
+  display: block; width: 100%; height: auto; max-height: 42vh;
+  border-radius: var(--r-m); border: 1px solid var(--line);
+  background: var(--paper); object-fit: cover;
+}
+.demo-caption { font-size: 13.5px; color: var(--ink-2); line-height: 1.55; max-width: 52ch; }
 .linkish { color: var(--accent); font-weight: 600; text-decoration: underline; text-underline-offset: 2px; }
 
 @media (max-width: 620px) {
@@ -648,11 +715,16 @@ a { color: var(--accent); }
     transition-duration: var(--dur-fade) !important;
   }
   @keyframes rm-fade { from { opacity: 0; } to { opacity: 1; } }
-  .splash-word, .splash-line, .bm-block, .home-inner, .mem.entering, .modal, .ai-pop {
+  .splash-word, .splash-line, .bm-block, .home-inner, .mem.entering, .modal, .ai-pop,
+  .stagger-word, .rise-in, .demo-card, .disclosed {
     animation-name: rm-fade !important;
     transform: none !important;
   }
+  .home-title.sweep .stagger-word {
+    color: var(--ink); background: none; -webkit-background-clip: unset; background-clip: unset;
+  }
   .home-choices .home-card:hover, .home-card.drop.over { transform: none; }
+  .btn.magnetic { background: var(--accent); background-size: auto; }
   .app-behind { filter: none; opacity: 1; transform: none; }
   .splash { backdrop-filter: none; -webkit-backdrop-filter: none; background: var(--paper); }
 }

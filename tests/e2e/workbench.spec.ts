@@ -8,11 +8,11 @@ import { expect, test, type Page } from "@playwright/test";
 
 const MEMORY_NAMES = [
   "Snapshot",
-  "Signals — quarter over quarter",
-  "Timeline — H2 2026",
-  "Risks — 3 open",
-  "Decisions — 2 settled · 1 requested",
-  "Action Items — 3 open",
+  "Signals",
+  "Timeline",
+  "Risks",
+  "Decisions",
+  "Actions",
 ];
 
 // Entrance animations — the brand splash above all — settle immediately, so
@@ -219,7 +219,7 @@ test.describe("remember + arrange", () => {
     await enterWorkbench(page);
     await openMobileTab(page, "Memories", isMobile);
 
-    await page.getByRole("button", { name: "Signals — quarter over quarter — show details" }).click();
+    await page.getByRole("button", { name: "Signals — show details" }).click();
 
     const inspector = page.getByTestId("inspector");
     await expect(inspector.getByText("Remembered from")).toBeVisible();
@@ -231,23 +231,23 @@ test.describe("remember + arrange", () => {
     test.skip(isMobile === true, "arrange is covered on desktop");
     await enterWorkbench(page);
 
-    await page.getByRole("button", { name: "Signals — quarter over quarter — show details" }).click();
-    await page.getByRole("button", { name: "Move Signals — quarter over quarter down" }).click();
+    await page.getByRole("button", { name: "Signals — show details" }).click();
+    await page.getByRole("button", { name: "Move Signals down" }).click();
 
     await expect(memNames(page)).toHaveText([
       "Snapshot",
-      "Timeline — H2 2026",
-      "Signals — quarter over quarter",
-      "Risks — 3 open",
-      "Decisions — 2 settled · 1 requested",
-      "Action Items — 3 open",
+      "Timeline",
+      "Signals",
+      "Risks",
+      "Decisions",
+      "Actions",
     ]);
 
     // Edge controls: the first memory cannot move up, the last cannot move down.
     await page.getByRole("button", { name: "Snapshot — show details" }).click();
     await expect(page.getByRole("button", { name: "Move Snapshot up" })).toBeDisabled();
-    await page.getByRole("button", { name: "Action Items — 3 open — show details" }).click();
-    await expect(page.getByRole("button", { name: "Move Action Items — 3 open down" })).toBeDisabled();
+    await page.getByRole("button", { name: "Actions — show details" }).click();
+    await expect(page.getByRole("button", { name: "Move Actions down" })).toBeDisabled();
   });
 });
 

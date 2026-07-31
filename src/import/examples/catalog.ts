@@ -26,64 +26,65 @@ export const ATLAS_JSON_SOURCE = `{
       "kind": "snapshot",
       "payload": {
         "heading": "Momentum, with room to compound.",
-        "summary": "Atlas closed Q3 at $4.2M ARR, up 18% quarter-over-quarter on the fleet-analytics launch. Net revenue retention reached 121%, and two enterprise pilots converted to annual contracts. We enter Q4 with 19 months of runway and a focused hiring plan.",
+        "hook": "If you remember one thing: growth is no longer the constraint. Supply is.",
+        "summary": "Atlas spent Q3 proving that fleet analytics sells itself, and Q4 proving it can be delivered. Revenue, retention and runway all moved the right way at once, which is rare enough to be worth naming. The pressure has moved downstream: actuator lead times and senior robotics hiring now decide how much of that demand actually converts.",
         "byline": "Prepared by A. Rathore · Reviewed by Finance · July 2026"
       }
     },
     {
       "kind": "signals",
-      "title": "Signals — quarter over quarter",
+      "title": "Signals",
       "payload": {
         "entries": [
-          { "label": "ARR", "value": "$4.2M", "delta": "+18%", "trend": "up" },
-          { "label": "Net retention", "value": "121%", "delta": "+6 pts", "trend": "up" },
-          { "label": "Runway", "value": "19 mo", "delta": "+2 mo", "trend": "up" },
-          { "label": "Headcount", "value": "34", "delta": "+5", "trend": "up" }
+          { "label": "ARR", "value": "$4.2M", "delta": "+18%", "trend": "up", "implication": "Fleet analytics carried the quarter, so the EU launch is worth funding ahead of schedule" },
+          { "label": "Net retention", "value": "121%", "delta": "+6 pts", "trend": "up", "implication": "Existing customers expand faster than new ones arrive, which favours depth over reach" },
+          { "label": "Runway", "value": "19 mo", "delta": "+2 mo", "trend": "up", "implication": "There is room to hire ahead of revenue rather than behind it" },
+          { "label": "Headcount", "value": "34", "delta": "+5", "trend": "up", "implication": "Hiring is keeping pace everywhere except senior robotics" }
         ]
       }
     },
     {
       "kind": "timeline",
-      "title": "Timeline — H2 2026",
+      "title": "Timeline",
       "payload": {
         "entries": [
-          { "date": "Jul", "title": "Fleet Analytics general availability", "state": "shipped" },
-          { "date": "Aug", "title": "Enterprise pilots — Meridian Ports, Helvetia Rail", "state": "shipped" },
-          { "date": "Sep", "title": "Series B data room complete", "state": "on-track" },
-          { "date": "Oct", "title": "EU market entry — DACH first", "state": "planned" }
+          { "date": "Jul", "title": "Fleet Analytics general availability", "state": "shipped", "produces": "A shipped analytics tier" },
+          { "date": "Aug", "title": "Enterprise pilots converted, Meridian Ports and Helvetia Rail", "state": "shipped", "produces": "Two annual contracts", "requires": "A shipped analytics tier" },
+          { "date": "Sep", "title": "Series B data room complete", "state": "on-track", "produces": "A complete data room", "requires": "Two annual contracts" },
+          { "date": "Oct", "title": "EU market entry, DACH first", "state": "planned", "requires": "A complete data room" }
         ]
       }
     },
     {
       "kind": "risks",
-      "title": "Risks — 3 open",
+      "title": "Risks",
       "payload": {
         "entries": [
-          { "risk": "Supply-chain lead times on actuators", "severity": "high", "mitigation": "Dual-sourcing complete by Oct" },
-          { "risk": "Senior robotics hiring velocity", "severity": "medium", "mitigation": "Retainers with two search firms" },
-          { "risk": "GPU cloud spend growth", "severity": "medium", "mitigation": "Committed-use discount, −22%" }
+          { "risk": "Actuator lead times are stretching", "severity": "high", "because": "A single supplier now sets the delivery date for every unit", "consequence": "Signed EU contracts slip a quarter and the launch window closes", "mitigation": "Dual-sourcing complete by Oct" },
+          { "risk": "Senior robotics hiring is not keeping pace", "severity": "medium", "because": "Five hires landed but none in the roles that unblock the roadmap", "consequence": "The Q4 roadmap ships late even with the budget approved", "mitigation": "Retainers with two search firms" },
+          { "risk": "GPU cloud spend is growing faster than revenue", "severity": "medium", "because": "Inference load scales with fleet size rather than with contract value", "consequence": "Gross margin erodes exactly as volume arrives", "mitigation": "Committed-use discount, 22% off list" }
         ]
       }
     },
     {
       "kind": "decisions",
-      "title": "Decisions — 2 settled · 1 requested",
+      "title": "Decisions",
       "payload": {
         "entries": [
-          { "ref": "D-021", "text": "Expand the fleet-analytics pricing tier ahead of the EU launch", "status": "approved" },
-          { "ref": "D-022", "text": "Dual-source actuator supply by October", "status": "approved" },
-          { "ref": "D-023", "text": "Approve the Q4 hiring plan — six roles, two senior robotics engineers", "status": "requested" }
+          { "ref": "D-021", "text": "Expand the fleet-analytics pricing tier ahead of the EU launch", "status": "approved", "commitment": "committed", "because": "Retention says existing customers will pay for depth" },
+          { "ref": "D-022", "text": "Dual-source actuator supply by October", "status": "approved", "commitment": "committed", "because": "One supplier cannot be allowed to set the launch date" },
+          { "ref": "D-023", "text": "Approve the Q4 hiring plan, six roles including two senior robotics engineers", "status": "requested", "commitment": "considered" }
         ]
       }
     },
     {
       "kind": "actions",
-      "title": "Action Items — 3 open",
+      "title": "Actions",
       "payload": {
         "entries": [
-          { "task": "Sign the dual-sourcing contract", "owner": "M. Chen", "due": "Aug 15", "status": "open" },
-          { "task": "EU pricing proposal to the board", "owner": "A. Rathore", "due": "Sep 2", "status": "open" },
-          { "task": "Series B data room v1 to counsel", "owner": "J. Okafor", "due": "Sep 12", "status": "open" }
+          { "task": "Sign the dual-sourcing contract", "owner": "M. Chen", "due": "Aug 15", "status": "ready", "from": "D-022" },
+          { "task": "EU pricing proposal to the board", "owner": "A. Rathore", "due": "Sep 2", "status": "pending", "from": "D-021" },
+          { "task": "Series B data room v1 to counsel", "owner": "J. Okafor", "due": "Sep 12", "status": "pending" }
         ]
       }
     }
@@ -106,28 +107,28 @@ Prepared by A. Rathore · Reviewed by Finance · July 2026
 
 ## Timeline
 
-- Jul: Fleet Analytics general availability — shipped
-- Aug: Enterprise pilots converted (Meridian Ports, Helvetia Rail) — shipped
-- Sep: Series B data room complete — on track
-- Oct: EU market entry, DACH first — planned
+- Jul: Fleet Analytics general availability - shipped
+- Aug: Enterprise pilots converted (Meridian Ports, Helvetia Rail) - shipped
+- Sep: Series B data room complete - on track
+- Oct: EU market entry, DACH first - planned
 
 ## Risks
 
-- Supply-chain lead times on actuators (high) — mitigation: dual-sourcing complete by Oct
-- Senior robotics hiring velocity (medium) — mitigation: retainers with two search firms
-- GPU cloud spend growth (medium) — mitigation: committed-use discount, −22%
+- Supply-chain lead times on actuators (high) - mitigation: dual-sourcing complete by Oct
+- Senior robotics hiring velocity (medium) - mitigation: retainers with two search firms
+- GPU cloud spend growth (medium) - mitigation: committed-use discount, 22% off list
 
 ## Decisions
 
-- D-021 Expand the fleet-analytics pricing tier ahead of the EU launch — approved
-- D-022 Dual-source actuator supply by October — approved
-- D-023 Approve the Q4 hiring plan — six roles, two senior robotics engineers — requested
+- D-021 Expand the fleet-analytics pricing tier ahead of the EU launch - approved
+- D-022 Dual-source actuator supply by October - approved
+- D-023 Approve the Q4 hiring plan, six roles including two senior robotics engineers - requested
 
 ## Actions
 
-- [ ] Sign the dual-sourcing contract — M. Chen — Aug 15
-- [ ] EU pricing proposal to the board — A. Rathore — Sep 2
-- [ ] Series B data room v1 to counsel — J. Okafor — Sep 12
+- [ ] Sign the dual-sourcing contract - M. Chen - Aug 15
+- [ ] EU pricing proposal to the board - A. Rathore - Sep 2
+- [ ] Series B data room v1 to counsel - J. Okafor - Sep 12
 `;
 
 /**
@@ -143,8 +144,9 @@ export const ATLAS_NOTES_VERIFIED: MemorySource = {
       kind: "snapshot",
       payload: {
         heading: "Atlas Launch Notes",
+        hook: "If you remember one thing: growth is no longer the constraint. Supply is.",
         summary:
-          "Atlas closed Q3 at $4.2M ARR, up 18% quarter-over-quarter on the fleet-analytics launch. Net revenue retention reached 121%, and two enterprise pilots converted to annual contracts. We enter Q4 with 19 months of runway and a focused hiring plan.",
+          "These notes record the quarter fleet analytics stopped being a bet. Revenue, retention and runway moved together, which is rare enough to be worth naming, and the pressure moved downstream with them. What decides Q4 now is whether actuators arrive and whether two senior robotics roles get filled.",
         byline: "Prepared by A. Rathore · Reviewed by Finance · July 2026",
       },
     },
@@ -152,10 +154,10 @@ export const ATLAS_NOTES_VERIFIED: MemorySource = {
       kind: "signals",
       payload: {
         entries: [
-          { label: "ARR", value: "$4.2M", delta: "+18%", trend: "up" },
-          { label: "Net retention", value: "121%", delta: "+6 pts", trend: "up" },
-          { label: "Runway", value: "19 mo", delta: "+2 mo", trend: "up" },
-          { label: "Headcount", value: "34", delta: "+5", trend: "up" },
+          { label: "ARR", value: "$4.2M", delta: "+18%", trend: "up", implication: "Fleet analytics carried the quarter" },
+          { label: "Net retention", value: "121%", delta: "+6 pts", trend: "up", implication: "Existing customers expand faster than new ones arrive" },
+          { label: "Runway", value: "19 mo", delta: "+2 mo", trend: "up", implication: "There is room to hire ahead of revenue" },
+          { label: "Headcount", value: "34", delta: "+5", trend: "up", implication: "Hiring keeps pace everywhere except senior robotics" },
         ],
       },
     },
@@ -163,10 +165,10 @@ export const ATLAS_NOTES_VERIFIED: MemorySource = {
       kind: "timeline",
       payload: {
         entries: [
-          { date: "Jul", title: "Fleet Analytics general availability", state: "shipped" },
-          { date: "Aug", title: "Enterprise pilots converted (Meridian Ports, Helvetia Rail)", state: "shipped" },
-          { date: "Sep", title: "Series B data room complete", state: "on-track" },
-          { date: "Oct", title: "EU market entry, DACH first", state: "planned" },
+          { date: "Jul", title: "Fleet Analytics general availability", state: "shipped", produces: "A shipped analytics tier" },
+          { date: "Aug", title: "Enterprise pilots converted (Meridian Ports, Helvetia Rail)", state: "shipped", produces: "Two annual contracts", requires: "A shipped analytics tier" },
+          { date: "Sep", title: "Series B data room complete", state: "on-track", produces: "A complete data room", requires: "Two annual contracts" },
+          { date: "Oct", title: "EU market entry, DACH first", state: "planned", requires: "A complete data room" },
         ],
       },
     },
@@ -174,9 +176,27 @@ export const ATLAS_NOTES_VERIFIED: MemorySource = {
       kind: "risks",
       payload: {
         entries: [
-          { risk: "Supply-chain lead times on actuators", severity: "high", mitigation: "dual-sourcing complete by Oct" },
-          { risk: "Senior robotics hiring velocity", severity: "medium", mitigation: "retainers with two search firms" },
-          { risk: "GPU cloud spend growth", severity: "medium", mitigation: "committed-use discount, −22%" },
+          {
+            risk: "Supply-chain lead times on actuators",
+            severity: "high",
+            because: "A single supplier sets the delivery date for every unit",
+            consequence: "Signed EU contracts slip a quarter",
+            mitigation: "dual-sourcing complete by Oct",
+          },
+          {
+            risk: "Senior robotics hiring velocity",
+            severity: "medium",
+            because: "Five hires landed but none in the roles that unblock the roadmap",
+            consequence: "The Q4 roadmap ships late even with budget approved",
+            mitigation: "retainers with two search firms",
+          },
+          {
+            risk: "GPU cloud spend growth",
+            severity: "medium",
+            because: "Inference load scales with fleet size, not contract value",
+            consequence: "Gross margin erodes as volume arrives",
+            mitigation: "committed-use discount, 22% off list",
+          },
         ],
       },
     },
@@ -184,9 +204,26 @@ export const ATLAS_NOTES_VERIFIED: MemorySource = {
       kind: "decisions",
       payload: {
         entries: [
-          { ref: "D-021", text: "Expand the fleet-analytics pricing tier ahead of the EU launch", status: "approved" },
-          { ref: "D-022", text: "Dual-source actuator supply by October", status: "approved" },
-          { ref: "D-023", text: "Approve the Q4 hiring plan — six roles, two senior robotics engineers", status: "requested" },
+          {
+            ref: "D-021",
+            text: "Expand the fleet-analytics pricing tier ahead of the EU launch",
+            status: "approved",
+            commitment: "committed",
+            because: "Retention says existing customers will pay for depth",
+          },
+          {
+            ref: "D-022",
+            text: "Dual-source actuator supply by October",
+            status: "approved",
+            commitment: "committed",
+            because: "One supplier cannot set the launch date",
+          },
+          {
+            ref: "D-023",
+            text: "Approve the Q4 hiring plan, six roles including two senior robotics engineers",
+            status: "requested",
+            commitment: "considered",
+          },
         ],
       },
     },
@@ -194,9 +231,9 @@ export const ATLAS_NOTES_VERIFIED: MemorySource = {
       kind: "actions",
       payload: {
         entries: [
-          { task: "Sign the dual-sourcing contract", owner: "M. Chen", due: "Aug 15", status: "open" },
-          { task: "EU pricing proposal to the board", owner: "A. Rathore", due: "Sep 2", status: "open" },
-          { task: "Series B data room v1 to counsel", owner: "J. Okafor", due: "Sep 12", status: "open" },
+          { task: "Sign the dual-sourcing contract", owner: "M. Chen", due: "Aug 15", status: "ready", from: "D-022" },
+          { task: "EU pricing proposal to the board", owner: "A. Rathore", due: "Sep 2", status: "pending", from: "D-021" },
+          { task: "Series B data room v1 to counsel", owner: "J. Okafor", due: "Sep 12", status: "pending" },
         ],
       },
     },

@@ -10,7 +10,7 @@ const validSource = {
     { kind: "decisions", payload: { entries: [{ text: "Do it", status: "approved" }] } },
     { kind: "timeline", payload: { entries: [{ date: "Jul", title: "Ship", state: "shipped" }] } },
     { kind: "risks", payload: { entries: [{ risk: "R", severity: "high", mitigation: "M" }] } },
-    { kind: "actions", payload: { entries: [{ task: "T", owner: "O", due: "Aug 1", status: "open" }] } },
+    { kind: "actions", payload: { entries: [{ task: "T", owner: "O", due: "Aug 1", status: "ready" }] } },
   ],
 };
 
@@ -77,6 +77,7 @@ describe("memoryDocumentSchema", () => {
       sourceLabel: "t.json",
       contentHash: "a".repeat(64),
       warnings: [],
+      relations: [],
       blocks: [
         {
           id: "blk_snapshot_0123456789ab",

@@ -13,25 +13,25 @@ Prepared by A. Rathore · Reviewed by Finance · July 2026
 
 ## Timeline
 
-- Jul: Fleet Analytics general availability — shipped
-- Aug: Enterprise pilots converted (Meridian Ports, Helvetia Rail) — shipped
-- Sep: Series B data room complete — on track
-- Oct: EU market entry, DACH first — planned
+- Jul: Fleet Analytics general availability - shipped
+- Aug: Enterprise pilots converted (Meridian Ports, Helvetia Rail) - shipped
+- Sep: Series B data room complete - on track
+- Oct: EU market entry, DACH first - planned
 
 ## Risks
 
-- Supply-chain lead times on actuators (high) — mitigation: dual-sourcing complete by Oct
-- Senior robotics hiring velocity (medium) — mitigation: retainers with two search firms
-- GPU cloud spend growth (medium) — mitigation: committed-use discount, −22%
+- Supply-chain lead times on actuators (high) - mitigation: dual-sourcing complete by Oct
+- Senior robotics hiring velocity (medium) - mitigation: retainers with two search firms
+- GPU cloud spend growth (medium) - mitigation: committed-use discount, 22% off list
 
 ## Decisions
 
-- D-021 Expand the fleet-analytics pricing tier ahead of the EU launch — approved
-- D-022 Dual-source actuator supply by October — approved
-- D-023 Approve the Q4 hiring plan — six roles, two senior robotics engineers — requested
+- D-021 Expand the fleet-analytics pricing tier ahead of the EU launch - approved
+- D-022 Dual-source actuator supply by October - approved
+- D-023 Approve the Q4 hiring plan, six roles including two senior robotics engineers - requested
 
 ## Actions
 
-- [ ] Sign the dual-sourcing contract — M. Chen — Aug 15
-- [ ] EU pricing proposal to the board — A. Rathore — Sep 2
-- [ ] Series B data room v1 to counsel — J. Okafor — Sep 12
+- [ ] Sign the dual-sourcing contract - M. Chen - Aug 15
+- [ ] EU pricing proposal to the board - A. Rathore - Sep 2
+- [ ] Series B data room v1 to counsel - J. Okafor - Sep 12

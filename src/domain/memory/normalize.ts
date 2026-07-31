@@ -1,3 +1,4 @@
+import { buildRelations } from "@/understanding/graph";
 import { contentHashOf, shortHash, stableBlockId } from "./canonicalize";
 import type {
   BlockKind,
@@ -5,6 +6,7 @@ import type {
   ImportWarning,
   MemoryBlock,
   MemoryDocument,
+  MemoryRelation,
   MemorySource,
   ProvenanceMethod,
 } from "./schema";
@@ -30,6 +32,11 @@ export interface DocumentInput {
   sourceLabel: string;
   blocks: BlockInput[];
   warnings: ImportWarning[];
+  /**
+   * Edges the source stated for itself. When absent they are derived from the
+   * finished blocks, so every document has a graph however it arrived.
+   */
+  relations?: readonly MemoryRelation[];
 }
 
 export function buildBlockId(kind: BlockKind, title: string, payload: unknown, locator: string): string {
@@ -57,6 +64,7 @@ export function finalizeDocument(input: DocumentInput): MemoryDocument {
     sourceLabel: input.sourceLabel,
     contentHash: "",
     blocks,
+    relations: input.relations ? [...input.relations] : buildRelations(blocks),
     warnings: input.warnings,
   };
 
@@ -87,6 +95,7 @@ export function normalizeSource(
     sourceLabel: provenance.label,
     blocks,
     warnings: [],
+    ...(source.relations ? { relations: source.relations } : {}),
   });
 }
 

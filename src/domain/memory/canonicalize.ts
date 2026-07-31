@@ -65,6 +65,9 @@ export function canonicalDocumentProjection(doc: MemoryDocument): unknown {
     sourceMethod: doc.sourceMethod,
     sourceLabel: doc.sourceLabel,
     blocks: doc.blocks.map(canonicalBlockProjection),
+    // Relations are addressed by kind and entry index, so they survive
+    // reordering untouched and belong to the document's identity.
+    relations: doc.relations,
   };
 }
 

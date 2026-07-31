@@ -21,14 +21,14 @@ describe("BlocksPanel", () => {
     expect(screen.getAllByRole("button", { name: /show details/i })).toHaveLength(6);
     expect(screen.getByRole("button", { name: "Move Snapshot up" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Move Snapshot down" })).toBeEnabled();
-    expect(screen.getByRole("button", { name: "Move Action Items — 3 open down" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Move Actions down" })).toBeDisabled();
   });
 
   it("selecting a memory calls onSelect and reveals move controls", () => {
     const doc = atlas();
     const onSelect = vi.fn();
     render(<BlocksPanel blocks={doc.blocks} selectedBlockId={null} onSelect={onSelect} onMove={() => {}} />);
-    fireEvent.click(screen.getByRole("button", { name: "Signals — quarter over quarter — show details" }));
+    fireEvent.click(screen.getByRole("button", { name: "Signals — show details" }));
     expect(onSelect).toHaveBeenCalledWith(doc.blocks[1]!.id);
   });
 
@@ -36,7 +36,7 @@ describe("BlocksPanel", () => {
     const doc = atlas();
     const onMove = vi.fn();
     render(<BlocksPanel blocks={doc.blocks} selectedBlockId={doc.blocks[1]!.id} onSelect={() => {}} onMove={onMove} />);
-    fireEvent.click(screen.getByRole("button", { name: "Move Signals — quarter over quarter up" }));
+    fireEvent.click(screen.getByRole("button", { name: "Move Signals up" }));
     expect(onMove).toHaveBeenCalledWith(doc.blocks[1]!.id, -1);
   });
 

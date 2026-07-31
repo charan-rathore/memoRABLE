@@ -62,7 +62,7 @@ async function captureScreens(browser) {
   await shot("01-document-first.png");
 
   // 3 — Six memories with the provenance inspector open on Signals.
-  await page.getByRole("button", { name: "Signals — quarter over quarter — show details" }).click();
+  await page.getByRole("button", { name: "Signals — show details" }).click();
   const inspector = page.getByTestId("inspector");
   await inspector.getByText("Remembered from").waitFor();
   await shot("02-memories-provenance.png");

@@ -5,6 +5,7 @@ import type {
   SignalEntry,
   TimelineEntry,
 } from "@/domain/memory/schema";
+import { inferArtifact, inferReadiness, readCommitment, readRisk } from "@/understanding/inference";
 
 /**
  * Conservative line patterns for the local text/Markdown parser.
@@ -198,7 +199,10 @@ export function parseDecisionLine(raw: string): DecisionEntry | null {
   // explicit status, a decision has to read like a statement.
   if (!ref && !foundStatus && rest.split(/\s+/).length < 3 && !/[.!?]$/.test(rest)) return null;
   if (rest.length < 2) return null;
-  const entry: DecisionEntry = { text: rest, status };
+  // An approved decision is settled by definition; the wording no longer gets
+  // a vote. Anything still awaiting a yes is read from how it was written.
+  const commitment = status === "approved" ? "committed" : readCommitment(rest);
+  const entry: DecisionEntry = { text: rest, status, commitment };
   if (ref) entry.ref = ref;
   return entry;
 }
@@ -219,7 +223,7 @@ export function parseTimelineLine(raw: string): TimelineEntry | null {
   const cells = splitTableRow(raw);
   if (cells && cells.length >= 2 && cells[0] && looksLikeDate(cells[0])) {
     const state = stateFromText(cells[2] ?? "") ?? "planned";
-    return { date: cells[0], title: cells[1]!, state };
+    return { date: cells[0], title: cells[1]!, state, ...inferArtifact(cells.slice(1).join(". ")) };
   }
   const text = (item ? item.text : raw).trim();
   const dateMatch = DATE_TOKEN.exec(text);
@@ -242,7 +246,7 @@ export function parseTimelineLine(raw: string): TimelineEntry | null {
     }
   }
   if (!state) state = "planned";
-  return rest.length >= 2 ? { date, title: rest, state } : null;
+  return rest.length >= 2 ? { date, title: rest, state, ...inferArtifact(rest) } : null;
 }
 
 function stateFromText(text: string): TimelineEntry["state"] | undefined {
@@ -264,7 +268,7 @@ export function parseRiskLine(raw: string): RiskEntry | null {
       const severity = normalizeSeverity(cells[sevCell]!);
       const mitigation = cells.slice(sevCell + 1).join(" · ").trim();
       if (mitigation.length === 0) return null;
-      return { risk: cells[0], severity, mitigation };
+      return { ...splitReasoning(cells[0]), severity, mitigation };
     }
     return null;
   }
@@ -289,9 +293,20 @@ export function parseRiskLine(raw: string): RiskEntry | null {
       risk = risk.replace(sevInRisk[0], "").trim();
     }
   }
-  // A risk MUST carry an explicit severity and mitigation — never invented.
+  // A risk MUST carry an explicit severity and mitigation, never invented.
   if (!severity || risk.length < 3 || mitigation.length < 2) return null;
-  return { risk, severity, mitigation };
+  return { ...splitReasoning(risk), severity, mitigation };
+}
+
+/**
+ * Separate an observation from the consequence trailing it, so a risk reads as
+ * "what we see" and "what it costs" instead of one long sentence. When the
+ * line states no consequence the observation is returned untouched.
+ */
+function splitReasoning(text: string): RiskEntry {
+  const read = readRisk(text);
+  if (!read) return { risk: text };
+  return read;
 }
 
 function normalizeSeverity(text: string): RiskEntry["severity"] {
@@ -305,29 +320,28 @@ function normalizeSeverity(text: string): RiskEntry["severity"] {
 export function parseActionLine(raw: string): ActionEntry | null {
   const cells = splitTableRow(raw);
   if (cells && cells.length >= 3 && cells[0] && cells[1] && cells[2]) {
-    const status: ActionEntry["status"] = /\b(done|complete|closed)\b/i.test(cells[3] ?? "")
-      ? "done"
-      : "open";
+    const status = inferReadiness(cells.slice(3).join(" ") || cells[0]);
     return { task: cells[0], owner: cells[1], due: cells[2], status };
   }
   const item = splitListItem(raw);
   const text = (item ? item.text : raw).trim();
   if (text.length < 3) return null;
-  // "Task — Owner — Aug 15" or "Task (Owner, Aug 15)"
+  const status = inferReadiness(text, { checked: item?.done });
+  // "Task, Owner, Aug 15" in parentheses, or separated segments.
   const { body, suffix } = extractParenSuffix(text);
   if (suffix && suffix.includes(",")) {
     const [owner, due] = suffix.split(",").map((s) => s.trim());
     if (owner && due && looksLikeDate(due)) {
-      return { task: body, owner, due, status: item?.done ? "done" : "open" };
+      return { task: body, owner, due, status };
     }
   }
   const segments = text.split(/\s+[—–]\s+|\s+-\s+/).map((s) => s.trim()).filter(Boolean);
   if (segments.length >= 3) {
     const due = segments[segments.length - 1]!;
     const owner = segments[segments.length - 2]!;
-    const task = segments.slice(0, -2).join(" — ");
+    const task = segments.slice(0, -2).join(", ");
     if (looksLikeDate(due) && owner.length <= 60 && task.length >= 3) {
-      return { task, owner, due, status: item?.done ? "done" : "open" };
+      return { task, owner, due, status };
     }
   }
   if (segments.length === 2) {
@@ -344,7 +358,7 @@ export function parseActionLine(raw: string): ActionEntry | null {
         task: task!,
         owner: ownerMatch[1]!,
         due: tail!.slice(dueMatch.index).trim(),
-        status: item?.done ? "done" : "open",
+        status,
       };
     }
   }
@@ -393,7 +407,7 @@ export function parseDecisionLineLenient(raw: string): DecisionEntry | null {
   if (strict) return strict;
   // A bare noun ("Redis") is an item in a list, not a position someone took.
   if (text.split(/\s+/).length < 2) return null;
-  return { text, status: "proposed" };
+  return { text, status: "proposed", commitment: readCommitment(text) };
 }
 
 export function parseTimelineLineLenient(raw: string): TimelineEntry | null {
@@ -412,7 +426,8 @@ export function parseRiskLineLenient(raw: string): RiskEntry | null {
   const strict = parseRiskLine(raw);
   if (strict) return strict;
   // Severity and mitigation stay undefined when the source never graded it.
-  return { risk: text };
+  // The reasoning halves appear only when the line actually stated them.
+  return splitReasoning(text);
 }
 
 export function parseActionLineLenient(raw: string): ActionEntry | null {
@@ -421,7 +436,7 @@ export function parseActionLineLenient(raw: string): ActionEntry | null {
   const strict = parseActionLine(raw);
   if (strict) return strict;
   const item = splitListItem(raw);
-  const entry: ActionEntry = { task: text, status: item?.done ? "done" : "open" };
+  const entry: ActionEntry = { task: text, status: inferReadiness(text, { checked: item?.done }) };
   const dueMatch = DATE_TOKEN.exec(text);
   if (dueMatch) entry.due = dueMatch[1]!.replace(/\.$/, "");
   return entry;

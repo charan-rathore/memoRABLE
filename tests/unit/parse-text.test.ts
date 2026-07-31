@@ -35,12 +35,25 @@ describe("parseText — Atlas launch notes", () => {
     ]);
   });
 
-  it("recognizes the snapshot from the first paragraph without inventing", () => {
+  it("composes the snapshot as recall and keeps the original paragraph", () => {
     if (!result.ok) throw new Error("parse failed");
     const snapshot = payloadOf<SnapshotPayload>(result.value, "snapshot");
     expect(snapshot.heading).toBe("Atlas Launch Notes");
-    expect(snapshot.summary).toContain("$4.2M ARR");
     expect(snapshot.byline).toBe("Prepared by A. Rathore · Reviewed by Finance · July 2026");
+    // Recall explains what the document is for; it does not reprint page one.
+    expect(snapshot.summary.split(/\s+/).length).toBeLessThanOrEqual(120);
+    expect(snapshot.summary).not.toBe(
+      "Atlas closed Q3 at $4.2M ARR, up 18% quarter-over-quarter on the fleet-analytics launch.",
+    );
+    // Nothing is lost: the author's own opening still sits in the notes.
+    expect((snapshot.notes ?? []).join(" ")).toContain("$4.2M ARR");
+  });
+
+  it("leads with one line worth reading, drawn from a memory it already found", () => {
+    if (!result.ok) throw new Error("parse failed");
+    const snapshot = payloadOf<SnapshotPayload>(result.value, "snapshot");
+    expect(snapshot.hook).toBeDefined();
+    expect(snapshot.hook!.length).toBeGreaterThan(10);
   });
 
   it("maps all six local patterns correctly", () => {
@@ -51,7 +64,7 @@ describe("parseText — Atlas launch notes", () => {
 
     const timeline = payloadOf<TimelinePayload>(result.value, "timeline");
     expect(timeline.entries).toHaveLength(4);
-    expect(timeline.entries[0]).toEqual({
+    expect(timeline.entries[0]).toMatchObject({
       date: "Jul",
       title: "Fleet Analytics general availability",
       state: "shipped",
@@ -60,7 +73,7 @@ describe("parseText — Atlas launch notes", () => {
 
     const risks = payloadOf<RisksPayload>(result.value, "risks");
     expect(risks.entries).toHaveLength(3);
-    expect(risks.entries[0]).toEqual({
+    expect(risks.entries[0]).toMatchObject({
       risk: "Supply-chain lead times on actuators",
       severity: "high",
       mitigation: "dual-sourcing complete by Oct",
@@ -72,19 +85,30 @@ describe("parseText — Atlas launch notes", () => {
       ref: "D-021",
       text: "Expand the fleet-analytics pricing tier ahead of the EU launch",
       status: "approved",
+      commitment: "committed",
     });
     expect(decisions.entries[2]!.status).toBe("requested");
-    // The D-023 title keeps its em-dash detail (no truncation).
+    // A decision still awaiting a yes is not recorded as one that was taken.
+    expect(decisions.entries[2]!.commitment).toBe("considered");
     expect(decisions.entries[2]!.text).toContain("six roles");
 
     const actions = payloadOf<ActionsPayload>(result.value, "actions");
     expect(actions.entries).toHaveLength(3);
-    expect(actions.entries[0]).toEqual({
+    expect(actions.entries[0]).toMatchObject({
       task: "Sign the dual-sourcing contract",
       owner: "M. Chen",
       due: "Aug 15",
-      status: "open",
+      status: "pending",
     });
+  });
+
+  it("links an action back to the decision it carries out", () => {
+    if (!result.ok) throw new Error("parse failed");
+    const relations = result.value.relations;
+    expect(relations.length).toBeGreaterThan(0);
+    expect(relations.some((r) => r.relation === "implements")).toBe(true);
+    // The snapshot frames every memory that has anything in it.
+    expect(relations.some((r) => r.from === "snapshot" && r.relation === "frames")).toBe(true);
   });
 
   it("attaches per-block provenance with line ranges", () => {

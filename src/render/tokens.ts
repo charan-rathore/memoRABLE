@@ -64,8 +64,12 @@ export function statusColor(status: string): string {
       return colors.ok;
     case "requested":
     case "on-track":
-    case "open":
+    case "ready":
       return colors.accent;
+    case "pending":
+      return colors.warn;
+    case "suggested":
+      return colors.ink3;
     case "rejected":
       return colors.err;
     default:

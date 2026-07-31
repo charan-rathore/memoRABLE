@@ -42,6 +42,10 @@ const textField = (max: number) => z.string().min(1).max(max);
  * `value` is optional so a qualitative indicator ("Explainable AI") is still a
  * signal. Renderers show a measured tile when a value exists and a plain
  * criterion chip when it does not.
+ *
+ * `implication` is what the signal changes about future decisions, which is
+ * the part a person actually carries away a week later. It is only ever
+ * written when the source states or plainly implies it.
  */
 export const signalEntrySchema = z
   .object({
@@ -49,22 +53,36 @@ export const signalEntrySchema = z
     value: z.union([z.string().min(1).max(120), z.number().finite()]).optional(),
     delta: z.union([z.string().max(120), z.number().finite()]).optional(),
     trend: z.enum(["up", "flat", "down"]).optional(),
+    implication: textField(LIMITS.maxFieldLength).optional(),
   })
   .strict();
 
+/**
+ * `commitment` separates a position the author settled on from one they merely
+ * floated. Suggestions and commitments read identically as sentences, so the
+ * distinction has to be carried as data.
+ */
 export const decisionEntrySchema = z
   .object({
     ref: textField(40).optional(),
     text: textField(LIMITS.maxFieldLength),
     status: z.enum(["approved", "requested", "proposed", "rejected"]),
+    commitment: z.enum(["committed", "considered"]).optional(),
+    because: textField(LIMITS.maxFieldLength).optional(),
   })
   .strict();
 
+/**
+ * A phase is remembered by what it leaves behind and what it unblocks, not by
+ * its dates. `produces` and `requires` carry those two relationships.
+ */
 export const timelineEntrySchema = z
   .object({
     date: textField(80),
     title: textField(LIMITS.maxFieldLength),
     state: z.enum(["shipped", "on-track", "planned", "done"]),
+    produces: textField(240).optional(),
+    requires: textField(240).optional(),
   })
   .strict();
 
@@ -72,14 +90,32 @@ export const timelineEntrySchema = z
  * `severity` and `mitigation` are optional because most real documents state a
  * risk without grading it. Omitting a field the source never gave is honest;
  * inventing one would not be.
+ *
+ * `because` and `consequence` carry the reasoning a risk is actually made of:
+ * the observation, why it matters, and what it costs if it goes unhandled.
  */
 export const riskEntrySchema = z
   .object({
     risk: textField(LIMITS.maxFieldLength),
     severity: z.enum(["high", "medium", "low"]).optional(),
     mitigation: textField(LIMITS.maxFieldLength).optional(),
+    because: textField(LIMITS.maxFieldLength).optional(),
+    consequence: textField(LIMITS.maxFieldLength).optional(),
   })
   .strict();
+
+/**
+ * Action readiness, in the words a person would use.
+ *
+ * "Pending" is work already agreed and waiting, "Suggested" is work the source
+ * floated without committing to, "Ready" is work whose prerequisites are met,
+ * "Done" is finished. The older `open` is still accepted on import and
+ * rewritten to `pending`, so documents saved before this distinction existed
+ * keep loading.
+ */
+export const ACTION_STATUSES = ["pending", "suggested", "ready", "done"] as const;
+export const actionStatusSchema = z.enum(ACTION_STATUSES);
+export type ActionStatus = z.infer<typeof actionStatusSchema>;
 
 /** `owner` and `due` are optional for the same reason as risk severity. */
 export const actionEntrySchema = z
@@ -87,16 +123,24 @@ export const actionEntrySchema = z
     task: textField(LIMITS.maxFieldLength),
     owner: textField(120).optional(),
     due: textField(80).optional(),
-    status: z.enum(["open", "done"]),
+    status: actionStatusSchema,
+    /** The decision this action carries out, by `ref` or by its exact text. */
+    from: textField(LIMITS.maxFieldLength).optional(),
   })
   .strict();
 
 const notesSchema = z.array(z.string().max(LIMITS.maxFieldLength)).max(LIMITS.maxNotesPerBlock);
 
+/**
+ * `hook` is the one line that has to earn the second line. It is composed from
+ * the strongest memory already found, never written from nothing, and is
+ * omitted entirely when no memory stands out enough to deserve the position.
+ */
 export const snapshotPayloadSchema = z
   .object({
     heading: textField(LIMITS.maxFieldLength),
     summary: textField(LIMITS.maxFieldLength),
+    hook: textField(300).optional(),
     byline: textField(240).optional(),
     notes: notesSchema.optional(),
   })
@@ -160,6 +204,56 @@ export type TimelineEntry = z.infer<typeof timelineEntrySchema>;
 export type RiskEntry = z.infer<typeof riskEntrySchema>;
 export type ActionEntry = z.infer<typeof actionEntrySchema>;
 
+/* ------------------------------- relationships ------------------------------ */
+
+/**
+ * A memory in isolation is a fact. A memory that points at another memory is
+ * understanding. Relations are the edges between the six memories, addressed
+ * as `kind:index` so they survive reordering and re-rendering.
+ */
+export const MEMORY_RELATIONS = [
+  /** A signal that shaped a decision. */
+  "informs",
+  /** An action that carries out a decision. */
+  "implements",
+  /** A timeline phase that places an action in time. */
+  "schedules",
+  /** A signal that exposes a risk. */
+  "threatens",
+  /** The snapshot framing everything under it. */
+  "frames",
+  /** A phase that leaves an artifact another phase needs. */
+  "unblocks",
+] as const;
+
+export const memoryRelationKindSchema = z.enum(MEMORY_RELATIONS);
+export type MemoryRelationKind = z.infer<typeof memoryRelationKindSchema>;
+
+/** `snapshot`, or `signals:2` — a memory kind with an optional entry index. */
+const MEMORY_REF = /^(snapshot|signals|decisions|timeline|risks|actions)(:\d{1,3})?$/;
+export const memoryRefSchema = z.string().regex(MEMORY_REF).max(24);
+
+export const memoryRelationSchema = z
+  .object({
+    from: memoryRefSchema,
+    to: memoryRefSchema,
+    relation: memoryRelationKindSchema,
+    /** Short human phrasing shown in the UI, e.g. "because lead times slipped". */
+    note: textField(200).optional(),
+  })
+  .strict();
+
+export type MemoryRelation = z.infer<typeof memoryRelationSchema>;
+
+export const MEMORY_RELATION_LABELS: Record<MemoryRelationKind, string> = {
+  informs: "informs",
+  implements: "carries out",
+  schedules: "is scheduled by",
+  threatens: "points at",
+  frames: "frames",
+  unblocks: "unblocks",
+};
+
 /* ------------------------------- source blocks ------------------------------ */
 
 /**
@@ -186,6 +280,8 @@ export const memorySourceSchema = z
     version: z.literal(1),
     title: textField(LIMITS.maxTitleLength),
     blocks: z.array(sourceBlockSchema).min(1).max(LIMITS.maxBlocks),
+    /** Optional: edges between memories, recomputed when absent. */
+    relations: z.array(memoryRelationSchema).max(LIMITS.maxRelations).optional(),
   })
   .strict();
 
@@ -239,6 +335,8 @@ export const memoryDocumentSchema = z
     /** SHA-256 of the stable canonical serialization. */
     contentHash: z.string().min(1).max(80),
     blocks: z.array(memoryBlockSchema).min(1).max(LIMITS.maxBlocks),
+    /** Edges between memories. Always present, possibly empty. */
+    relations: z.array(memoryRelationSchema).max(LIMITS.maxRelations),
     warnings: z.array(importWarningSchema).max(200),
   })
   .strict();

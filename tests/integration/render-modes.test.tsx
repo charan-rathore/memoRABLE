@@ -111,7 +111,7 @@ describe("complete HTML per mode", () => {
     // headerBackgroundColor is a silent no-op; ink headers only appear when
     // each cell carries its own backgroundColor.
     expect(html).toMatch(/background-color:\s*#14130F/i);
-    expect(html).toContain("Supply-chain lead times");
+    expect(html).toContain("Actuator lead times are stretching");
   });
 
   it("produces compatible design JSON from a recognized direct root", () => {
@@ -150,7 +150,7 @@ describe("escaping and hostile input", () => {
           { kind: "decisions", payload: { entries: [{ text: "javascript:alert(1)", status: "approved" }] } },
           { kind: "timeline", payload: { entries: [{ date: "Jul", title: "<svg onload=alert(1)>", state: "shipped" }] } },
           { kind: "risks", payload: { entries: [{ risk: "<iframe>", severity: "high", mitigation: "x" }] } },
-          { kind: "actions", payload: { entries: [{ task: "<a href=javascript:alert(1)>x</a>", owner: "o", due: "d", status: "open" }] } },
+          { kind: "actions", payload: { entries: [{ task: "<a href=javascript:alert(1)>x</a>", owner: "o", due: "d", status: "pending" }] } },
         ],
       }),
       label: "hostile.json",

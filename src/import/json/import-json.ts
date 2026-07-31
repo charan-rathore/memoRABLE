@@ -64,20 +64,58 @@ export function importJson(input: JsonImportInput): Result<MemoryDocument> {
     ]);
   }
 
-  // 4. Strict schema validation.
+  // 4. Compatibility: rewrite fields whose vocabulary has since changed.
+  const migrated = migrateLegacyFields(root);
+
+  // 5. Strict schema validation.
   const parsedSource = memorySourceSchema.safeParse(parsed);
   if (!parsedSource.success) {
     return err(parsedSource.error.issues.map(issueToDiagnostic));
   }
 
-  // 5. Semantics: exactly one of each of the six kinds.
+  // 6. Semantics: exactly one of each of the six kinds.
   const semantic = checkBlockSemantics(parsedSource.data.blocks.map((b) => b.kind));
   if (semantic.length > 0) return err(semantic);
 
-  // 6. Normalize into the canonical document with stable ids/provenance.
+  // 7. Normalize into the canonical document with stable ids/provenance.
   const excerptFor = excerptForKind(text);
   const document = normalizeSource(parsedSource.data, { label, excerptFor });
-  return ok(document);
+  return ok(document, migrated);
+}
+
+/**
+ * Documents saved before an action had a readiness keep loading.
+ *
+ * `open` used to be the only word for unfinished work. It is now `pending`,
+ * which says the same thing in a word a person would use, and the rewrite is
+ * announced rather than done quietly.
+ */
+function migrateLegacyFields(root: Record<string, unknown>): Diagnostic[] {
+  const blocks = root.blocks;
+  if (!Array.isArray(blocks)) return [];
+  let rewritten = 0;
+  for (const block of blocks) {
+    if (typeof block !== "object" || block === null) continue;
+    const payload = (block as Record<string, unknown>).payload;
+    if (typeof payload !== "object" || payload === null) continue;
+    const entries = (payload as Record<string, unknown>).entries;
+    if (!Array.isArray(entries)) continue;
+    for (const entry of entries) {
+      if (typeof entry !== "object" || entry === null) continue;
+      const record = entry as Record<string, unknown>;
+      if (record.status === "open") {
+        record.status = "pending";
+        rewritten++;
+      }
+    }
+  }
+  if (rewritten === 0) return [];
+  return [
+    diagnostic(
+      "json.legacy-status",
+      `${rewritten} ${rewritten === 1 ? "action was" : "actions were"} marked "open"; they now read "Pending".`,
+    ),
+  ];
 }
 
 function checkBlockSemantics(kinds: readonly BlockKind[]): Diagnostic[] {

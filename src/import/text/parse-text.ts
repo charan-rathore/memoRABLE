@@ -4,11 +4,17 @@ import { finalizeDocument, type BlockInput } from "@/domain/memory/normalize";
 import {
   BLOCK_KINDS,
   BLOCK_KIND_LABELS,
+  type ActionEntry,
   type BlockKind,
+  type DecisionEntry,
   type ImportWarning,
   type MemoryDocument,
+  type RiskEntry,
+  type SignalEntry,
   type TimelineEntry,
 } from "@/domain/memory/schema";
+import { recallFrom, understand, type Recall, type Understanding } from "@/understanding";
+import { saysTheSame } from "@/understanding/language";
 import { LIMITS } from "@/domain/memory/limits";
 import { capExcerpt } from "../json/import-json";
 import {
@@ -42,15 +48,28 @@ import {
 /**
  * Lossless local Text/Markdown parser (reliability layer 2).
  *
- * A section is assigned to a memory by its heading when the heading names one
- * ("Risks", "Implementation Rules"), and otherwise by the shape of its lines.
- * Within an assigned section the strict patterns run first; only if they
- * recognize nothing does a lenient pass record the remaining list items,
- * leaving every unstated field undefined.
+ * The parser runs in two passes over the same sections, and the order matters.
+ *
+ * First the document is *understood*: its intent is read, its recurring
+ * concepts are found, its sentences are distilled with restatements removed,
+ * and candidate memories are inferred from what those sentences mean. Nothing
+ * has been classified yet at this point, which is deliberate. Classifying raw
+ * paragraphs can only preserve the shape a document happened to be typed in.
+ *
+ * Then the structural pass runs as it always has: a section is assigned to a
+ * memory by its heading when the heading names one ("Risks", "Implementation
+ * Rules"), otherwise by the shape of its lines. Strict patterns run first;
+ * only if they recognize nothing does a lenient pass record the remaining list
+ * items, leaving every unstated field undefined.
+ *
+ * Finally the two are merged. Structural entries win, because a line the
+ * author bulleted under "Risks" is a risk on their authority rather than ours.
+ * Understanding fills the gaps: reasoning the structural pass had no way to
+ * see, and memories stated in prose that no heading ever announced.
  *
  * Anything still unassigned is preserved verbatim as notes. The parser never
- * invents owners, dates, metrics, severities or statuses, and never calls the
- * network or AI.
+ * invents owners, dates, metrics, severities or statuses, never produces a
+ * memory without the sentence it came from, and never calls the network or AI.
  */
 
 export interface TextImportInput {
@@ -154,15 +173,45 @@ export function parseText(input: TextImportInput): Result<MemoryDocument> {
     .slice(0, LIMITS.maxEntriesPerBlock)
     .map<TimelineEntry>((o) => ({ date: o.marker, title: o.title!, state: "planned" }));
 
-  const blocks: BlockInput[] = BLOCK_KINDS.map((kind) =>
-    buildBlock(kind, sections.filter((s) => s.kind === kind), {
-      title,
-      label,
-      warnings,
-      leftovers: kind === "snapshot" ? leftovers : [],
-      extraTimeline: kind === "timeline" ? timelineExtras : [],
-    }),
-  );
+  // Understand before classifying. Every section is read, including the ones
+  // no heading claimed, because a document's most quotable sentence is rarely
+  // filed under a heading that names what it is.
+  const understanding = understand({
+    title,
+    sections: sections.map((s) => ({ headingText: s.headingText, lines: s.lines })),
+  });
+
+  const ctx: BuildContext = {
+    title,
+    label,
+    warnings,
+    understanding,
+    recall: null,
+    leftovers,
+    extraTimeline: timelineExtras,
+    keptOnPurpose: 0,
+  };
+
+  // The five list memories are built first. The snapshot frames them, so it
+  // cannot be written until it has something to frame.
+  const built = new Map<BlockKind, BlockInput>();
+  for (const kind of BLOCK_KINDS) {
+    if (kind === "snapshot") continue;
+    built.set(kind, buildBlock(kind, sections.filter((s) => s.kind === kind), ctx));
+  }
+
+  ctx.recall = recallFrom(understanding, {
+    signals: entriesOf<SignalEntry>(built, "signals"),
+    decisions: entriesOf<DecisionEntry>(built, "decisions"),
+    risks: entriesOf<RiskEntry>(built, "risks"),
+    timeline: entriesOf<TimelineEntry>(built, "timeline"),
+    actions: entriesOf<ActionEntry>(built, "actions"),
+  });
+  built.set("snapshot", buildBlock("snapshot", sections.filter((s) => s.kind === "snapshot"), ctx));
+
+  const blocks: BlockInput[] = BLOCK_KINDS.map((kind) => built.get(kind)!);
+  linkActionsToDecisions(blocks);
+  warnings.push(...understandingWarnings(understanding));
 
   const document = finalizeDocument({
     title,
@@ -177,6 +226,49 @@ export function parseText(input: TextImportInput): Result<MemoryDocument> {
   );
 }
 
+function entriesOf<T>(built: ReadonlyMap<BlockKind, BlockInput>, kind: BlockKind): T[] {
+  const block = built.get(kind);
+  if (!block || !("entries" in block.payload)) return [];
+  return block.payload.entries as T[];
+}
+
+/**
+ * An action that repeats a decision is that decision being carried out. The
+ * link is recorded on the action so the reader can see the chain rather than
+ * being told two unrelated things in two different lists.
+ */
+function linkActionsToDecisions(blocks: readonly BlockInput[]): void {
+  const decisions = blocks.find((b) => b.kind === "decisions");
+  const actions = blocks.find((b) => b.kind === "actions");
+  if (!decisions || !actions) return;
+  if (!("entries" in decisions.payload) || !("entries" in actions.payload)) return;
+  const decisionEntries = decisions.payload.entries as DecisionEntry[];
+  if (decisionEntries.length === 0) return;
+
+  for (const action of actions.payload.entries as ActionLike[]) {
+    if (action.from) continue;
+    const match = decisionEntries.find((decision) => saysTheSame(decision.text, action.task));
+    if (match) action.from = match.ref ?? match.text;
+  }
+}
+
+interface ActionLike {
+  task: string;
+  from?: string;
+}
+
+/** Say what understanding actually did, in counts the reader can check. */
+function understandingWarnings(understanding: Understanding): ImportWarning[] {
+  const inferred =
+    understanding.signals.length + understanding.decisions.length + understanding.risks.length;
+  if (inferred === 0 && understanding.redundant === 0) return [];
+  const parts: string[] = [];
+  parts.push(`Read ${understanding.distilled} distinct statements as a ${understanding.intent.kind}`);
+  if (understanding.redundant > 0) parts.push(`set aside ${understanding.redundant} restatements`);
+  if (inferred > 0) parts.push(`inferred ${inferred} memories from what they mean`);
+  return [{ code: "text.understood", message: `${parts.join(", ")}.` }];
+}
+
 interface OrdinalMark {
   marker: string;
   title: string | null;
@@ -189,9 +281,18 @@ interface BuildContext {
   title: string;
   label: string;
   warnings: ImportWarning[];
+  understanding: Understanding;
+  /** Composed once the other five memories exist; null while they are built. */
+  recall: Recall | null;
   /** Sections that matched no memory; preserved on the snapshot. */
   leftovers: Section[];
   extraTimeline: TimelineEntry[];
+  /**
+   * Notes the build put there on purpose rather than because it was stuck.
+   * The author's original opening is kept once recall replaces it, and that
+   * is not the same event as text nobody could read.
+   */
+  keptOnPurpose: number;
 }
 
 function buildBlock(kind: BlockKind, matched: Section[], ctx: BuildContext): BlockInput {
@@ -203,18 +304,18 @@ function buildBlock(kind: BlockKind, matched: Section[], ctx: BuildContext): Blo
 
   let payload: BlockInput["payload"];
   if (kind === "snapshot") {
-    payload = buildSnapshotPayload(contentLines, title, notes, ctx.leftovers);
+    payload = buildSnapshotPayload(contentLines, notes, ctx);
   } else {
-    payload = buildEntriesPayload(kind, contentLines, notes, assigned, ctx.extraTimeline);
+    payload = buildEntriesPayload(kind, contentLines, notes, assigned, ctx);
   }
 
   const entryCount = (payload as { entries?: unknown[] }).entries?.length ?? 0;
-  const hasNotes = notes.length > 0;
+  const hasNotes = notes.length > (kind === "snapshot" ? ctx.keptOnPurpose : 0);
 
-  if (entryCount === 0 && !hasNotes && kind !== "snapshot") {
+  if (entryCount === 0 && notes.length === 0 && kind !== "snapshot") {
     warnings.push({
       code: "text.no-blocks-recognized",
-      message: `No ${kindLabel.toLowerCase()} were recognized — that memory is empty. Nothing was invented.`,
+      message: `No ${kindLabel.toLowerCase()} were recognized, so that memory is empty. Nothing was invented.`,
     });
   } else if (hasNotes) {
     warnings.push({
@@ -224,7 +325,9 @@ function buildBlock(kind: BlockKind, matched: Section[], ctx: BuildContext): Blo
   }
 
   const method =
-    kind !== "snapshot" && entryCount === 0 && hasNotes ? ("recovered" as const) : ("local-parser" as const);
+    kind !== "snapshot" && entryCount === 0 && notes.length > 0
+      ? ("recovered" as const)
+      : ("local-parser" as const);
 
   // Point provenance at the section that actually named this memory, not
   // merely the first one that happened to land here.
@@ -253,15 +356,23 @@ function locatorOf(section: Section | null, contentLines: SourceLine[], found: b
 
 type LineParser<T> = (line: string) => T | null;
 
+interface Collected<T> {
+  entries: T[];
+  notes?: string[];
+  /** Source line for each entry, by index, so understanding can enrich it. */
+  lineOf: Array<number | null>;
+}
+
 function buildEntriesPayload(
   kind: Exclude<BlockKind, "snapshot">,
   contentLines: SourceLine[],
   notes: string[],
   assigned: boolean,
-  extraTimeline: TimelineEntry[],
+  ctx: BuildContext,
 ): BlockInput["payload"] {
-  const collect = <T,>(strict: LineParser<T>, lenient: LineParser<T>): { entries: T[]; notes?: string[] } => {
+  const collect = <T,>(strict: LineParser<T>, lenient: LineParser<T>): Collected<T> => {
     const entries: T[] = [];
+    const lineOf: Array<number | null> = [];
     const unmatched: SourceLine[] = [];
 
     for (let i = 0; i < contentLines.length; i++) {
@@ -273,44 +384,165 @@ function buildEntriesPayload(
       const next = contentLines[i + 1];
       if (splitTableRow(line.text) && next && isTableSeparator(next.text)) continue;
       const entry = strict(line.text);
-      if (entry) entries.push(entry);
-      else unmatched.push(line);
+      if (entry) {
+        entries.push(entry);
+        lineOf.push(line.lineNo);
+      } else {
+        unmatched.push(line);
+      }
     }
 
     // Only when the section is clearly this memory AND the strict patterns
-    // found nothing does the lenient pass run — and only over marked items.
+    // found nothing does the lenient pass run, and only over marked items.
     const useLenient = assigned && entries.length === 0;
     for (const line of unmatched) {
       if (useLenient && isListLike(line.text) && entries.length < LIMITS.maxEntriesPerBlock) {
         const entry = lenient(line.text);
         if (entry) {
           entries.push(entry);
+          lineOf.push(line.lineNo);
           continue;
         }
       }
       if (notes.length < LIMITS.maxNotesPerBlock) notes.push(stripListMarker(line.text));
     }
-    return notes.length > 0 ? { entries, notes } : { entries };
+    return { entries, lineOf, ...(notes.length > 0 ? { notes } : {}) };
   };
 
+  const finish = <T,>(built: Collected<T>): BlockInput["payload"] =>
+    ({ entries: built.entries, ...(built.notes ? { notes: built.notes } : {}) }) as BlockInput["payload"];
+
   switch (kind) {
-    case "signals":
-      return collect(parseSignalLine, parseSignalLineLenient);
-    case "decisions":
-      return collect(parseDecisionLine, parseDecisionLineLenient);
+    case "signals": {
+      const built = collect(parseSignalLine, parseSignalLineLenient);
+      mergeSignals(built, ctx, notes);
+      return finish(built);
+    }
+    case "decisions": {
+      const built = collect(parseDecisionLine, parseDecisionLineLenient);
+      mergeDecisions(built, ctx, notes);
+      return finish(built);
+    }
     case "timeline": {
       const built = collect(parseTimelineLine, parseTimelineLineLenient);
-      if (extraTimeline.length > 0) {
+      if (ctx.extraTimeline.length > 0) {
         const room = LIMITS.maxEntriesPerBlock - built.entries.length;
-        built.entries.push(...extraTimeline.slice(0, Math.max(0, room)));
+        built.entries.push(...ctx.extraTimeline.slice(0, Math.max(0, room)));
       }
-      return built;
+      return finish(built);
     }
-    case "risks":
-      return collect(parseRiskLine, parseRiskLineLenient);
+    case "risks": {
+      const built = collect(parseRiskLine, parseRiskLineLenient);
+      mergeRisks(built, ctx, notes);
+      return finish(built);
+    }
     case "actions":
-      return collect(parseActionLine, parseActionLineLenient);
+      return finish(collect(parseActionLine, parseActionLineLenient));
   }
+}
+
+/* ----------------------------- merging the passes --------------------------- */
+
+/**
+ * How many inferred memories may join a structural list.
+ *
+ * Understanding is there to catch what the headings missed, not to bury them.
+ * A block that arrives half-inferred stops reading like the author's document.
+ */
+const INFERRED_BUDGET = 6;
+
+/** True when this line already became an entry somewhere, in any block. */
+function alreadyUsed(lineNo: number, lineOf: ReadonlyArray<number | null>): boolean {
+  return lineOf.includes(lineNo);
+}
+
+function mergeSignals(built: Collected<SignalEntry>, ctx: BuildContext, notes: string[]): void {
+  let added = 0;
+  for (const candidate of ctx.understanding.signals) {
+    const { value, evidence } = candidate;
+    const existing = built.entries.findIndex((_, i) => built.lineOf[i] === evidence.lineNo);
+    if (existing >= 0) {
+      // Same line, so this is the reasoning behind an entry we already have.
+      const entry = built.entries[existing]!;
+      if (!entry.implication && value.implication) entry.implication = value.implication;
+      if (!entry.trend && value.trend) entry.trend = value.trend;
+      continue;
+    }
+    if (added >= INFERRED_BUDGET) continue;
+    if (built.entries.length >= LIMITS.maxEntriesPerBlock) break;
+    if (alreadyUsed(evidence.lineNo, built.lineOf)) continue;
+    if (built.entries.some((e) => saysTheSame(e.label, value.label))) continue;
+    built.entries.push({
+      label: value.label,
+      ...(value.trend ? { trend: value.trend } : {}),
+      ...(value.implication ? { implication: value.implication } : {}),
+    });
+    built.lineOf.push(evidence.lineNo);
+    dropNote(notes, evidence.text);
+    added++;
+  }
+}
+
+function mergeDecisions(built: Collected<DecisionEntry>, ctx: BuildContext, notes: string[]): void {
+  let added = 0;
+  for (const candidate of ctx.understanding.decisions) {
+    const { value, evidence } = candidate;
+    const existing = built.entries.findIndex((_, i) => built.lineOf[i] === evidence.lineNo);
+    if (existing >= 0) {
+      const entry = built.entries[existing]!;
+      if (!entry.because && value.because) entry.because = value.because;
+      entry.commitment = value.commitment;
+      continue;
+    }
+    // A suggestion is not a decision. Only settled positions may join a list
+    // the reader will read as things that were decided.
+    if (value.commitment !== "committed") continue;
+    if (added >= INFERRED_BUDGET) continue;
+    if (built.entries.length >= LIMITS.maxEntriesPerBlock) break;
+    if (alreadyUsed(evidence.lineNo, built.lineOf)) continue;
+    if (built.entries.some((e) => saysTheSame(e.text, value.text))) continue;
+    built.entries.push({
+      text: value.text,
+      status: "proposed",
+      commitment: "committed",
+      ...(value.because ? { because: value.because } : {}),
+    });
+    built.lineOf.push(evidence.lineNo);
+    dropNote(notes, evidence.text);
+    added++;
+  }
+}
+
+function mergeRisks(built: Collected<RiskEntry>, ctx: BuildContext, notes: string[]): void {
+  let added = 0;
+  for (const candidate of ctx.understanding.risks) {
+    const { value, evidence } = candidate;
+    const existing = built.entries.findIndex((_, i) => built.lineOf[i] === evidence.lineNo);
+    if (existing >= 0) {
+      const entry = built.entries[existing]!;
+      if (!entry.because && value.because) entry.because = value.because;
+      if (!entry.consequence && value.consequence) entry.consequence = value.consequence;
+      continue;
+    }
+    if (added >= INFERRED_BUDGET) continue;
+    if (built.entries.length >= LIMITS.maxEntriesPerBlock) break;
+    if (alreadyUsed(evidence.lineNo, built.lineOf)) continue;
+    if (built.entries.some((e) => saysTheSame(e.risk, value.risk))) continue;
+    built.entries.push({
+      risk: value.risk,
+      ...(value.because ? { because: value.because } : {}),
+      ...(value.consequence ? { consequence: value.consequence } : {}),
+    });
+    built.lineOf.push(evidence.lineNo);
+    dropNote(notes, evidence.text);
+    added++;
+  }
+}
+
+/** A line promoted to a memory should not also sit in the leftovers. */
+function dropNote(notes: string[], text: string): void {
+  const index = notes.findIndex((note) => saysTheSame(note, text));
+  if (index >= 0) notes.splice(index, 1);
 }
 
 /* --------------------------------- snapshot --------------------------------- */
@@ -322,10 +554,11 @@ const LEFTOVER_NOTE_BUDGET = 24;
 
 function buildSnapshotPayload(
   contentLines: SourceLine[],
-  title: string,
   notes: string[],
-  leftovers: Section[],
+  ctx: BuildContext,
 ): BlockInput["payload"] {
+  const { understanding, leftovers } = ctx;
+  const recall = ctx.recall;
   const paragraphs: string[] = [];
   let byline: string | undefined;
   let buffer: string[] = [];
@@ -355,7 +588,15 @@ function buildSnapshotPayload(
   }
   flush();
 
-  const summary = paragraphs.shift() ?? "";
+  // The document's own opening paragraph is kept, but it is no longer the
+  // summary. Recall goes first; the original prose moves down into the notes
+  // where nothing is lost and nothing pretends to be a memory.
+  const opening = paragraphs.shift() ?? "";
+  const summary = recall?.summary || opening;
+  if (recall?.composed && opening !== "" && notes.length < LIMITS.maxNotesPerBlock) {
+    notes.push(opening);
+    ctx.keptOnPurpose += 1;
+  }
   for (const extra of paragraphs) {
     if (notes.length < LIMITS.maxNotesPerBlock) notes.push(extra);
   }
@@ -382,8 +623,9 @@ function buildSnapshotPayload(
 
   // Snapshot always has a heading; the summary may be honestly empty.
   return {
-    heading: title,
-    summary: summary || "No summary was recognized — the source text is preserved below.",
+    heading: understanding.heading,
+    summary: summary || "Nothing here reads as a summary yet. The source text is kept below, exactly as it arrived.",
+    ...(recall?.hook ? { hook: recall.hook } : {}),
     ...(byline ? { byline } : {}),
     ...(notes.length > 0 ? { notes } : {}),
   };

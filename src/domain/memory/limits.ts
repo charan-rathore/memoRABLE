@@ -23,6 +23,10 @@ export const LIMITS = {
   maxExcerptLength: 240,
   /** Maximum source label length. */
   maxSourceLabelLength: 120,
+  /** Maximum edges in the relationship graph. */
+  maxRelations: 400,
+  /** Words a snapshot may use before it stops reading like recall. */
+  maxSnapshotWords: 120,
   /** AI request bound: 50 KiB of source text. */
   aiMaxInputBytes: 51_200,
   /** AI abort deadline in milliseconds. */

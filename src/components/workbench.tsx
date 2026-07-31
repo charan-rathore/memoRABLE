@@ -25,9 +25,11 @@ import { useReplay } from "./replay/use-replay";
 import {
   IMPORT_STAGE_LABEL,
   IMPORT_STAGE_PERCENT,
+  IMPORT_STAGE_VERB,
   type ImportStage,
   yieldFrame,
 } from "./import/import-stages";
+import { highlightRange } from "./preview/source-modal";
 
 export interface WorkbenchInitial {
   sourceText: string;
@@ -58,6 +60,7 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
   const [splash, setSplash] = useState(true);
   const [demoOpen, setDemoOpen] = useState(false);
   const [importProgress, setImportProgress] = useState<{ stage: ImportStage; percent: number } | null>(null);
+  const [hoveredBlockId, setHoveredBlockId] = useState<string | null>(null);
 
   useEffect(() => {
     setReducedMotion(window.matchMedia("(prefers-reduced-motion: reduce)").matches);
@@ -333,7 +336,9 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
         mode={state.mode}
         onModeChange={(mode) => {
           setMode(mode);
-          announce(`${mode === "web" ? "Web page" : mode === "email" ? "Email" : "Document"} output.`);
+          announce(
+            `Composed using Elements · ${mode === "web" ? "Web page" : mode === "email" ? "Email" : "Document"}.`,
+          );
         }}
         aiEnabled={aiEnabled}
         replayActive={replay.active}
@@ -348,7 +353,9 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
       />
       {(replay.view || importProgress) && (
         <div className="replay-banner" role="status" data-testid="import-progress">
-          <span className="rb-step">{importProgress ? "Remembering" : "Replay"}</span>
+          <span className="rb-step">
+            {importProgress ? IMPORT_STAGE_VERB[importProgress.stage] : "Replay"}
+          </span>
           <span className="rb-msg">
             {importProgress ? IMPORT_STAGE_LABEL[importProgress.stage] : replay.view?.message}
           </span>
@@ -389,7 +396,16 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
             <BlocksPanel
               blocks={state.document?.blocks ?? []}
               selectedBlockId={state.selectedBlockId}
-              onSelect={(id) => dispatch({ type: "blockSelected", blockId: id })}
+              onSelect={(id) => {
+                dispatch({ type: "blockSelected", blockId: id });
+                if (id && state.document) {
+                  const block = state.document.blocks.find((b) => b.id === id) ?? null;
+                  if (block) setSourceModal(block);
+                } else {
+                  setSourceModal(null);
+                }
+              }}
+              onHover={setHoveredBlockId}
               onMove={moveBlock}
               revealCount={replay.view?.revealCount ?? null}
               enterKey={state.importedAt}
@@ -461,7 +477,19 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
       </nav>
 
       {sourceModal && (
-        <SourceModal block={sourceModal} sourceText={state.sourceText} onClose={() => setSourceModal(null)} />
+        <SourceModal
+          block={sourceModal}
+          sourceText={state.sourceText}
+          softLines={
+            hoveredBlockId && hoveredBlockId !== sourceModal.id
+              ? (() => {
+                  const hovered = state.document?.blocks.find((b) => b.id === hoveredBlockId);
+                  return hovered ? highlightRange(state.sourceText, hovered) : null;
+                })()
+              : null
+          }
+          onClose={() => setSourceModal(null)}
+        />
       )}
       {publishOpen && (
         <PublishPanel

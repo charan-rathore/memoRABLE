@@ -356,6 +356,16 @@ export const BLOCK_KIND_LABELS: Record<BlockKind, string> = {
   actions: "Actions",
 };
 
+/** One-line subtitles so first-time users understand each memory type. */
+export const BLOCK_KIND_SUBTITLES: Record<BlockKind, string> = {
+  snapshot: "What this document is about",
+  signals: "Patterns the document suggests",
+  decisions: "Commitments inside the document",
+  timeline: "Important chronological events",
+  risks: "Potential concerns or blockers",
+  actions: "What someone should do next",
+};
+
 /** Human provenance method labels for the primary UI ("Remembered from"). */
 export const PROVENANCE_METHOD_LABELS: Record<ProvenanceMethod, string> = {
   "deterministic-json": "Exact JSON",

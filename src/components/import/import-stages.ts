@@ -17,11 +17,20 @@ export type ImportStage =
   | "publishing";
 
 export const IMPORT_STAGE_LABEL: Record<ImportStage, string> = {
-  reading: "Reading the source",
-  understanding: "Understanding what it is for",
-  remembering: "Remembering the six memories",
-  arranging: "Arranging what was remembered",
-  publishing: "Opening the three outputs",
+  reading: "Reading",
+  understanding: "Understanding",
+  remembering: "Remembering",
+  arranging: "Arranging",
+  publishing: "Publishing",
+};
+
+/** Short verb shown in the progress banner step chip. */
+export const IMPORT_STAGE_VERB: Record<ImportStage, string> = {
+  reading: "Reading",
+  understanding: "Understanding",
+  remembering: "Remembering",
+  arranging: "Arranging",
+  publishing: "Publishing",
 };
 
 export const IMPORT_STAGE_PERCENT: Record<ImportStage, number> = {

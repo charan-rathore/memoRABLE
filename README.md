@@ -2,7 +2,7 @@
 
 **Turn information into memory.**
 
-Bring notes, Markdown or JSON. Understand it once. Publish it everywhere.
+Bring one document. Leave with reusable memories. Every memory stays linked to its source. Those memories are composed into Email, Web and Document with [Unlayer Elements](https://github.com/unlayer/elements).
 
 ![memoRABLE replays the whole journey: a board brief arrives, six memories are found, and the document assembles itself](public/media/replay.gif)
 
@@ -10,59 +10,33 @@ Bring notes, Markdown or JSON. Understand it once. Publish it everywhere.
 
 ## Why memoRABLE exists
 
-A document is where information goes to be forgotten. You write the board brief, and the same facts get retyped into an email, a status page, and a slide — each copy drifting a little further from the truth.
+Documents are easy to store and hard to remember. Traditional summarization loses context. People need reusable, traceable knowledge — not another summary that drifts from the source.
 
-memoRABLE reads your document once and *remembers* it, as six source-linked Memory Blocks: snapshot, signals, decisions, timeline, risks, actions. Every memory knows exactly where it came from. From that single memory it publishes a Web page, a 600px Email and a print Document — three outputs that can never disagree, because they are the same memory rendered three ways.
+memoRABLE reads your document once and *remembers* it as six source-linked Memory Blocks: Snapshot, Signals, Decisions, Timeline, Risks, Actions. Every memory knows exactly where it came from. From that single memory graph it publishes Web, Email and Document — three surfaces that can never disagree.
 
-Nothing is uploaded. The understanding happens locally and deterministically, with no AI in the default path.
+Nothing is uploaded. Understanding happens locally and deterministically. AI is optional and off by default.
 
-## The five verbs
+## Why Elements?
 
-| Verb | What happens |
-| --- | --- |
-| **Bring** information | Paste, drop a `.json`/`.md`/`.txt` file, or use a checked-in example. Nothing is uploaded. |
-| **Understand** | Strict JSON import (all-or-nothing, exact error positions) or a conservative local text parser. No AI by default. |
-| **Remember** | Every source becomes exactly six Memory Blocks. Each block carries provenance: *Remembered from* — method, locator, excerpt. |
-| **Arrange** | Up/down controls reorder the memories. Ids, provenance and content hashes survive reordering. |
-| **Publish** | Ends on **"Published."** — three outputs side by side, each downloadable as HTML, PDF or Word, plus the Unlayer design JSON and the canonical memoRABLE JSON. |
+Elements is the composition engine.
 
-## 20-second walkthrough
+Extracted memories become structured React trees built with [`@unlayer/react-elements`](https://github.com/unlayer/elements). Those same trees render to:
 
-**One decision to start.** The app opens on a door, not a dashboard: drop a file, or paste text. Nothing else is on screen until there is something to do it to.
+- **Email** — 600px, Outlook-safe
+- **Web** — full-bleed page
+- **Document** — print-ready A4
 
-![The home screen: the memoRABLE wordmark, the line "Turn information into memory.", and two cards — Drop a file, and Paste text](public/media/00-home.png)
-
-**Document first.** Bring a brief in and it is already remembered as six memories, already set as a Document.
-
-![The workbench on first paint: the journey strip across the top, six memories on the left, and the rendered Document output filling the page](public/media/01-document-first.png)
-
-**Every memory knows where it came from.** Click one and the inspector shows *Remembered from* — the method, the exact locator, and the escaped source excerpt. *View source* highlights that precise range in the original.
-
-![The Signals memory selected, with the inspector showing Remembered from: Exact JSON, blocks[1], signals, and the source excerpt](public/media/02-memories-provenance.png)
-
-**One memory. Three outputs.** Publish ends on "Published." — Web page, Email and Document side by side, each downloadable as HTML, PDF or Word.
-
-![The Published panel showing Web page, Email and Document thumbnails side by side, each with HTML, PDF, Word and JSON buttons](public/media/03-published-three-outputs.png)
-
-Press **Replay the 20-second story** to watch it happen: the app re-runs the *real* import pipeline in front of you, reveals the six memories one by one, then assembles the document. Escape stops it and restores your state exactly.
-
-Assets above are regenerated from the production build with `npm run media`, so they cannot drift from what the app actually renders.
-
-## Unlayer Elements integration
-
-Every output is a real Elements tree — direct `<Email>` / `<Page>` / `<Document>` roots with composed `Row`s, rendered to standalone HTML and to design JSON with the official exporters:
+One understanding. Multiple outputs. Same memory graph. Different publications.
 
 ```tsx
-// src/render/build-root.tsx — the Document output
+// src/render/build-root.tsx — Document output
 <Document backgroundColor={colors.paper} contentWidth="760px" fontFamily={fonts.serif} textColor={colors.ink}>
-  {cover}       {/* rule, title, byline — a title page, only in print */}
-  {contents}    {/* a table of contents, built from the memories present */}
-  {blockRows}   {/* one or more Rows per Memory Block, from the block registry */}
+  {cover}
+  {contents}
+  {blockRows}   {/* one or more Rows per Memory Block */}
   {footer}
 </Document>
 ```
-
-The blocks are written once; the frame around them is not, and that is the whole argument for Elements. Print opens on a ruled title page and a two-column table of contents, then sets each section as a serif roman numeral. The web opens on a full-bleed ink hero and alternates paper and white bands down the page, with the signals as white cards floating on the tint. Email keeps a narrow ink masthead, two cards across — anything narrower collapses in Outlook — and a quiet footer band. Same memories, three surfaces, none of them a dump of the source.
 
 ```ts
 // src/render/render-bundle.ts — one tree, both exporters, per mode
@@ -70,46 +44,93 @@ base.html = renderToHtml(built.root);
 const json = renderToJson(built.root);
 ```
 
-Each of the six block kinds has its own renderer (`src/render/blocks/*.tsx`) producing Elements `Row`s — KPI grids for signals, a real `Table` for risks, serif numbered sections for the Document mode. A block that fails to render is replaced by an honest *recovery row*; the other five still publish. Generated design JSON is validated against the Elements exporter's own invariants (`src/render/compatibility.ts`), and the Publish panel only offers **Unlayer JSON** downloads for designs that validate.
+## The five verbs
+
+| Verb | What happens |
+| --- | --- |
+| **Bring** | Drop PDF / Markdown / text / JSON, or paste. PDFs: first 40 pages. Nothing is uploaded. |
+| **Understand** | Strict JSON import or a conservative local text parser. No AI by default. |
+| **Remember** | Exactly six Memory Blocks, each with provenance (*Remembered from*). |
+| **Arrange** | Reorder memories. Ids, provenance and content hashes survive. |
+| **Publish** | Ends on **"Published."** — Web, Email, Document, downloadable as HTML / PDF / Word + Unlayer JSON. |
+
+## 20-second walkthrough
+
+1. **Bring** a PDF, Markdown, notes or JSON — or open the sample brief.
+2. Watch **Reading → Understanding → Remembering → Arranging → Publishing**.
+3. Click a memory → the source scrolls and highlights the exact lines. Hover soft-highlights.
+4. Switch Email / Web / Document — each says **Composed using Elements**.
+5. **Publish** — three outputs side by side.
+
+![The home screen](public/media/00-home.png)
+
+![Document-first workbench](public/media/01-document-first.png)
+
+![Provenance inspector](public/media/02-memories-provenance.png)
+
+![Published: three outputs](public/media/03-published-three-outputs.png)
+
+Press **Replay the 20-second story** to watch the real import pipeline run live.
 
 ## Architecture
 
 ```
-source (JSON / Markdown / text)
-  └─ src/import          preflight → strict JSON import  |  conservative text parser
-       └─ src/domain/memory     six block schemas, canonicalization, content hashes
-            └─ src/render       block renderers → Elements roots → HTML + design JSON
-                 └─ src/components   the workbench: bring, memories, inspector, preview, publish
+Document (PDF / MD / text / JSON)
+  ↓
+Memory Extraction (local, deterministic)
+  ↓
+Memory Graph (6 grounded blocks)
+  ↓
+Elements Composition Engine
+  ↓
+Email · Web · Document
 ```
 
-- **Deterministic core, no AI by default.** The optional AI extractor (`src/ai`, `ENABLE_AI=true`) is server-only, schema-gated, 8s-timeout, and only ever *improves* a local result — the UI works identically with it off.
-- **Reliability as a feature.** All-or-nothing imports, last-good output kept per mode, renderer fault isolation, safe storage wrappers, strict CSP, sandboxed preview iframes (`sandbox=""`), and user content pre-escaped before it ever reaches an Elements `html` prop.
+- **Deterministic core.** Optional AI (`ENABLE_AI=true`) only *improves* a local result.
+- **Grounding as the demo.** Click → source scroll → paragraph + sentence highlight → memory pulse.
+- **Reliability.** All-or-nothing JSON, last-good per mode, renderer fault isolation, sandboxed iframes, CSP.
 
 Docs: [architecture](docs/architecture.md) · [reliability](docs/reliability.md) · [design principles](docs/design-principles.md) · [why memory](docs/why-memory.md)
 
+## Key features
+
+- Grounded memories with source traceability
+- Elements composition (visible in the product UI)
+- Multi-format publishing (Email / Web / Document)
+- Memory-first UX (Bring → Understand → Remember → Arrange → Publish)
+- PDF upload (first 40 pages remembered)
+- Local-first — nothing leaves the browser by default
+
+## Technical stack
+
+Next.js 15 · React 19 · TypeScript · Zod · `@unlayer/react-elements` · pdf.js (client PDF text) · Vitest · Playwright
+
 ## Local development
 
-Requires **Node 20.9–24** (`.nvmrc` pins 22). Node 25 is not supported: it deadlocks Next.js 15's build worker.
+Requires **Node 20.9–24** (`.nvmrc` pins 22).
 
 ```bash
-nvm use              # or any Node 20.9–24
+nvm use
 npm install
 npm run dev          # http://localhost:3000
 
-npm run verify       # lint + typecheck + unit/integration tests + production build
-npm run test:e2e     # Playwright desktop + mobile (first run: npx playwright install chromium)
-npm run media        # regenerate the screenshots and GIF above
+npm run verify       # lint + typecheck + tests + production build
+npm run test:e2e     # Playwright (first run: npx playwright install chromium)
 ```
 
-128 unit/integration tests (Vitest) and 28 Playwright e2e tests — 26 run on every push, 2 are layout-specific skips — including axe accessibility checks on both the home screen and the workbench, with zero critical or serious violations. CI runs the whole gate on every push and pull request ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)).
+## Demo script (≈2 minutes)
 
-## Honest limitations
+1. **Problem** — documents get retyped into email, status page, slide; truth drifts.
+2. **Bring** — drop a brief (or open the sample). Show Reading → Remembering stages.
+3. **Click a memory** — source scrolls, highlight appears: “this came from HERE.”
+4. **Elements** — point at *Powered by Elements* and switch Email / Web / Document.
+5. **Publish** — three outputs, same memories. Close on: *Memory Engine built around Elements.*
 
-- The text parser records what a line states and leaves the rest undefined: a risk without a severity is still a risk, and the severity column simply does not appear. It never fills a gap for you. Anything it cannot place at all is kept verbatim as notes — never dropped, never invented.
-- PDF goes through the browser's own print dialog ("Save as PDF") rather than a bundled PDF engine, and Word gets an Office-namespaced `.doc` that Word opens natively. Both reuse the exact HTML in the preview.
-- Exports are static files; there is no hosted publish step.
-- State lives in memory for the length of a visit; there is no persistence layer.
-- AI improvement is off by default, optional, and never required for any flow.
+## Future work
+
+- Richer PDF layout awareness (tables / multi-column)
+- Optional persisted memory library across visits
+- Deeper Elements design-tool round-trip
 
 ## License
 

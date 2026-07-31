@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { OUTPUT_MODE_LABELS, type OutputMode } from "@/domain/memory/types";
+import { ElementsStory } from "./elements-story";
 
 /**
  * The actual output, always: a sandboxed iframe containing the generated
@@ -46,6 +47,9 @@ export function PreviewPane({
         <span className="crumb">
           publish: <b>{mode}</b> · {blockCount} memories · {mode === "email" ? "600px" : mode === "document" ? "A4 · print-ready" : "fluid"}
         </span>
+        <span className="composed-chip" key={mode} data-testid="composed-chip">
+          Composed using Elements
+        </span>
         <span className="spacer" />
         {stale && <span className="crumb">showing last good output</span>}
       </div>
@@ -79,6 +83,7 @@ export function PreviewPane({
         <span aria-hidden="true">·</span>
         <span>rendered with Unlayer Elements 0.1.20</span>
       </div>
+      <ElementsStory mode={mode} blockCount={blockCount} />
     </div>
   );
 }

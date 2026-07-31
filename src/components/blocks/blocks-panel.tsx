@@ -1,7 +1,7 @@
 "use client";
 
 import type { MemoryBlock } from "@/domain/memory/schema";
-import { BLOCK_KIND_LABELS } from "@/domain/memory/schema";
+import { BLOCK_KIND_LABELS, BLOCK_KIND_SUBTITLES } from "@/domain/memory/schema";
 
 /**
  * The six memories: selection for the inspector, and explicit up/down
@@ -12,6 +12,7 @@ export function BlocksPanel({
   selectedBlockId,
   onSelect,
   onMove,
+  onHover,
   revealCount,
   enterKey,
 }: {
@@ -19,6 +20,8 @@ export function BlocksPanel({
   selectedBlockId: string | null;
   onSelect: (blockId: string | null) => void;
   onMove: (blockId: string, direction: -1 | 1) => void;
+  /** Soft-highlight the memory's source while hovered. */
+  onHover?: (blockId: string | null) => void;
   /** Replay reveal: when set, only the first N blocks are shown. */
   revealCount?: number | null;
   /** Changes when a new document arrives, so the list can enter as a group. */
@@ -33,15 +36,14 @@ export function BlocksPanel({
         <span className="ct">{blocks.length} types</span>
       </div>
       <div className="card-b">
-        {/* Re-keying on the document makes the whole list mount afresh, so the
-            memories arrive as a group the moment a document is understood.
-            40ms apart: any slower and it becomes a queue you have to watch. */}
         <ul className="mem-list" aria-label="Memory Blocks in order" key={enterKey ?? "static"}>
           {visible.map((block, index) => (
             <li key={block.id} style={{ display: "contents" }}>
               <div
-                className={`mem${block.id === selectedBlockId ? " sel" : ""}${staggered ? " entering" : ""}`}
+                className={`mem${block.id === selectedBlockId ? " sel pulse" : ""}${staggered ? " entering" : ""}`}
                 style={staggered ? { animationDelay: `${Math.min(index * 40, 240)}ms` } : undefined}
+                onMouseEnter={() => onHover?.(block.id)}
+                onMouseLeave={() => onHover?.(null)}
               >
                 <button
                   type="button"
@@ -50,7 +52,7 @@ export function BlocksPanel({
                   onClick={() => onSelect(block.id === selectedBlockId ? null : block.id)}
                   style={{
                     display: "flex",
-                    alignItems: "center",
+                    alignItems: "flex-start",
                     gap: 9,
                     flex: 1,
                     minWidth: 0,
@@ -58,7 +60,10 @@ export function BlocksPanel({
                   }}
                 >
                   <span className="idx">{String(index + 1).padStart(2, "0")}</span>
-                  <span className="name">{block.title}</span>
+                  <span className="mem-copy">
+                    <span className="name">{block.title}</span>
+                    <span className="sub">{BLOCK_KIND_SUBTITLES[block.kind]}</span>
+                  </span>
                   <span className="kind">{BLOCK_KIND_LABELS[block.kind].toLowerCase()}</span>
                 </button>
                 <span className="mv" role="group" aria-label={`Move ${block.title}`}>

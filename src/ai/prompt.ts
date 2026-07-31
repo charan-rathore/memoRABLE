@@ -16,6 +16,9 @@ Your job: return an IMPROVED extraction as JSON that satisfies the exact same sc
 Rules:
 - Only use information present in SOURCE. Never invent owners, dates, metrics, severities or statuses.
 - Keep the candidate's correct entries; fix misclassifications; move misplaced text to the right block.
+- Signals: identify meaningful patterns and implications — not copied sentences. Prefer label + value/trend + implication when the source supports it.
+- Risks: identify genuine concerns or blockers — not restated prose. Prefer severity + mitigation when stated.
+- Actions: make each entry actionable (verb + object, owner/due when present). Drop vague restatements.
 - If you cannot improve the candidate, return it unchanged.
 - Output JSON only. No markdown fences, no commentary.`;
 

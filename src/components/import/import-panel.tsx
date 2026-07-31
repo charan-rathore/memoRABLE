@@ -7,6 +7,7 @@ import type { ImportWarning } from "@/domain/memory/schema";
 import { EXAMPLES } from "@/import/examples/catalog";
 import { detectFormat } from "@/import/import-source";
 import { readTextFileWithProgress } from "./read-file";
+import { isPdfFile, readPdfFile } from "@/import/read-pdf";
 
 /**
  * Bring information: paste, drop a file, or start from a checked-in sample.
@@ -58,6 +59,12 @@ export function ImportPanel({
 
   const openFile = async (file: File) => {
     try {
+      if (isPdfFile(file)) {
+        const { text } = await readPdfFile(file);
+        onEditSource(text);
+        await onImport(text, file.name);
+        return;
+      }
       const { text } = await readTextFileWithProgress(file, () => {});
       onEditSource(text);
       await onImport(text, file.name);
@@ -70,7 +77,7 @@ export function ImportPanel({
     <section className="card" aria-labelledby="import-h">
       <div className="card-h" id="import-h">
         <h3>Bring information</h3>
-        <span className="ct">json · md · txt</span>
+        <span className="ct">pdf · json · md · txt</span>
       </div>
       <div className="card-b">
         <div className="srcrow">
@@ -105,9 +112,9 @@ export function ImportPanel({
               <input
                 ref={fileInput}
                 type="file"
-                accept=".json,.md,.markdown,.txt,application/json,text/plain,text/markdown"
+                accept=".json,.md,.markdown,.txt,.pdf,application/json,text/plain,text/markdown,application/pdf"
                 className="visually-hidden"
-                aria-label="Choose a JSON, Markdown or text file"
+                aria-label="Choose a PDF, JSON, Markdown or text file"
                 onChange={(e) => {
                   const file = e.target.files?.[0];
                   if (file) openFile(file);
@@ -130,8 +137,8 @@ export function ImportPanel({
                 if (file) openFile(file);
               }}
             >
-              Drop a .json, .md or .txt file here
-              <div className="or">understood on arrival, never uploaded</div>
+              Drop a .pdf, .json, .md or .txt file here
+              <div className="or">understood on arrival · PDFs: first 40 pages · never uploaded</div>
             </div>
 
             {pasteOpen && (

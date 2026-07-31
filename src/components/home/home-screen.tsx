@@ -7,13 +7,14 @@ import { detectFormat } from "@/import/import-source";
 import { BrandMark } from "../ui/brand-mark";
 import { StaggerTitle } from "../ui/stagger-title";
 import { formatBytes, readTextFileWithProgress } from "../import/read-file";
+import { isPdfFile, pdfTruncationNote, readPdfFile } from "@/import/read-pdf";
 import { readStats, summarize } from "@/stats/local-stats";
 import {
   IMPORT_STAGE_LABEL,
   type ImportStage,
 } from "../import/import-stages";
 
-const ACCEPTED = /\.(json|md|markdown|txt)$/i;
+const ACCEPTED = /\.(json|md|markdown|txt|pdf)$/i;
 const MAX_BYTES = 2 * 1024 * 1024;
 
 /**
@@ -41,20 +42,17 @@ export function HomeScreen({
   const [pasted, setPasted] = useState("");
   const [reading, setReading] = useState<{ name: string; size: number; percent: number } | null>(null);
   const [readError, setReadError] = useState<string | null>(null);
+  const [readNote, setReadNote] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
-  // Read after mount: the tally lives in localStorage, which the server has no
-  // view of, so reading it during render would mismatch the prerendered HTML.
   const [tally, setTally] = useState<string | null>(null);
   useEffect(() => setTally(summarize(readStats())), []);
-  // dragleave fires every time the cursor crosses a child, so a naive boolean
-  // strobes as the pointer moves over the icon and the labels. Counting enters
-  // against leaves is the only reliable way to know we have actually left.
   const dragDepth = useRef(0);
 
   const openFile = async (file: File) => {
     setReadError(null);
-    if (!ACCEPTED.test(file.name)) {
-      setReadError(`“${file.name}” isn’t a format we read. Try Markdown, plain text or memoRABLE JSON.`);
+    setReadNote(null);
+    if (!ACCEPTED.test(file.name) && !isPdfFile(file)) {
+      setReadError(`“${file.name}” isn’t a format we read. Try PDF, Markdown, plain text or memoRABLE JSON.`);
       return;
     }
     if (file.size > MAX_BYTES) {
@@ -62,6 +60,17 @@ export function HomeScreen({
       return;
     }
     try {
+      if (isPdfFile(file)) {
+        setReading({ name: file.name, size: file.size, percent: 4 });
+        const result = await readPdfFile(file, (percent) => {
+          setReading({ name: file.name, size: file.size, percent });
+        });
+        if (result.truncated) setReadNote(pdfTruncationNote(result.pages));
+        setReading({ name: file.name, size: file.size, percent: 100 });
+        await onImport(result.text, file.name);
+        setReading(null);
+        return;
+      }
       const { text } = await readTextFileWithProgress(file, ({ percent, visible }) => {
         if (!visible) return;
         setReading((current) =>
@@ -96,8 +105,7 @@ export function HomeScreen({
 
         <StaggerTitle text="Turn information into memory." className="home-title sweep" />
         <p className="home-sub rise-in">
-          One document in. A web page, an email and a print-ready document out. Every line
-          traceable to where it came from, and nothing understood anywhere but this browser.
+          Bring one document. Leave with reusable memories. Every memory stays linked to its source.
         </p>
 
         {understanding ? (
@@ -155,10 +163,9 @@ export function HomeScreen({
                 dragDepth.current += 1;
                 const item = e.dataTransfer.items?.[0];
                 const named = item?.kind === "file" ? item.type : "";
-                // Filenames are withheld during a drag, so the MIME type is all
-                // there is to judge on. and an unknown type is not yet a wrong
-                // one, so only a positively wrong one is refused.
-                const wrong = Boolean(named) && !/^(text\/|application\/json)/.test(named);
+                const wrong =
+                  Boolean(named) &&
+                  !/^(text\/|application\/json|application\/pdf)/.test(named);
                 setDrag(wrong ? "reject" : "over");
               }}
               onDragOver={(e) => e.preventDefault()}
@@ -197,23 +204,33 @@ export function HomeScreen({
               <span className="hc-sub">notes, Markdown or memoRABLE JSON</span>
             </button>
           </div>
-          {/* The contract sits beside the control, not behind a rejected drop. */}
-          <p className="home-limits">Markdown, plain text or memoRABLE JSON · up to 2 MB</p>
+          <p className="home-limits">
+            Bring something worth remembering. Best for Meeting Notes, RFCs, Reports, Research Papers, READMEs, Specs and Guides.
+          </p>
+          <p className="home-limits home-limits-sub">
+            PDF · Markdown · plain text · memoRABLE JSON · up to 2 MB · PDFs: first 40 pages
+          </p>
           </>
         )}
 
         <input
           ref={fileInput}
           type="file"
-          accept=".json,.md,.markdown,.txt,application/json,text/plain,text/markdown"
+          accept=".json,.md,.markdown,.txt,.pdf,application/json,text/plain,text/markdown,application/pdf"
           className="visually-hidden"
-          aria-label="Choose a JSON, Markdown or text file"
+          aria-label="Choose a PDF, JSON, Markdown or text file"
           onChange={(e) => {
             const file = e.target.files?.[0];
             if (file) void openFile(file);
             e.target.value = "";
           }}
         />
+
+        {readNote && (
+          <p className="home-note" role="status">
+            {readNote}
+          </p>
+        )}
 
         {readError && (
           <p className="home-error" role="alert">

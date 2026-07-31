@@ -18,6 +18,7 @@ const securityHeaders = [
       "img-src 'self' data:",
       "font-src 'self' data:",
       "connect-src 'self'",
+      "worker-src 'self'",
       "frame-ancestors 'none'",
       "base-uri 'self'",
       "form-action 'self'",
@@ -29,6 +30,8 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  // pdf.js ships ESM that Next otherwise tries to externalize incorrectly.
+  serverExternalPackages: ["pdfjs-dist"],
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },

@@ -5,20 +5,26 @@ import type { MemoryBlock } from "@/domain/memory/schema";
 import { PROVENANCE_METHOD_LABELS } from "@/domain/memory/schema";
 
 /**
- * Source highlight. the trust interaction. The remembered source is shown
- * with the exact lines the selected memory came from highlighted. Content is
- * rendered as text nodes (never HTML).
+ * Source highlight — the trust interaction.
+ * On open/select: scrolls to the exact lines, highlights the paragraph,
+ * then the first matching sentence. Content is text nodes only.
  */
 export function SourceModal({
   block,
   sourceText,
+  softLines,
   onClose,
 }: {
   block: MemoryBlock;
   sourceText: string;
+  /** Hover preview lines (soft highlight) when a different memory is hovered. */
+  softLines?: Set<number> | null;
   onClose: () => void;
 }) {
   const closeRef = useRef<HTMLButtonElement>(null);
+  const viewRef = useRef<HTMLDivElement>(null);
+  const firstHlRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     closeRef.current?.focus();
     const onKey = (e: KeyboardEvent) => {
@@ -30,6 +36,11 @@ export function SourceModal({
 
   const lines = useMemo(() => sourceText.split("\n"), [sourceText]);
   const highlighted = useMemo(() => highlightRange(sourceText, block), [sourceText, block]);
+  const sentence = useMemo(() => sentenceOnLines(sourceText, block, highlighted), [sourceText, block, highlighted]);
+
+  useEffect(() => {
+    firstHlRef.current?.scrollIntoView({ block: "center", behavior: "smooth" });
+  }, [block.id, highlighted]);
 
   return (
     <div className="scrim" role="presentation" onClick={(e) => e.target === e.currentTarget && onClose()}>
@@ -46,13 +57,33 @@ export function SourceModal({
             {block.provenance.locator} · {block.provenance.label}. the {block.title} memory comes from these
             exact lines.
           </p>
-          <div className="source-view" data-testid="source-view">
-            {lines.map((line, i) => (
-              <div key={i} className={`ln${highlighted.has(i + 1) ? " hl" : ""}`}>
-                <span className="no">{i + 1}</span>
-                <span className="txt">{line || " "}</span>
-              </div>
-            ))}
+          <div className="source-view" data-testid="source-view" ref={viewRef}>
+            {lines.map((line, i) => {
+              const n = i + 1;
+              const hard = highlighted.has(n);
+              const soft = !hard && Boolean(softLines?.has(n));
+              const isFirst = hard && [...highlighted][0] === n;
+              return (
+                <div
+                  key={i}
+                  ref={isFirst ? firstHlRef : undefined}
+                  className={`ln${hard ? " hl" : ""}${soft ? " hl-soft" : ""}${hard ? " hl-pulse" : ""}`}
+                >
+                  <span className="no">{n}</span>
+                  <span className="txt">
+                    {hard && sentence.line === n ? (
+                      <>
+                        {line.slice(0, sentence.start)}
+                        <mark className="sent-hl">{line.slice(sentence.start, sentence.end) || " "}</mark>
+                        {line.slice(sentence.end)}
+                      </>
+                    ) : (
+                      line || " "
+                    )}
+                  </span>
+                </div>
+              );
+            })}
           </div>
         </div>
         <div className="modal-f">
@@ -82,7 +113,6 @@ export function highlightRange(sourceText: string, block: MemoryBlock): Set<numb
     for (let i = start; i <= Math.min(end, lines.length); i++) set.add(i);
     return set;
   }
-  // Fall back to locating the block's excerpt (first 40 chars) in the source.
   const needle = block.provenance.excerpt.slice(0, 40).trim();
   const set = new Set<number>();
   if (needle.length >= 8) {
@@ -92,4 +122,28 @@ export function highlightRange(sourceText: string, block: MemoryBlock): Set<numb
     }
   }
   return set;
+}
+
+function sentenceOnLines(
+  sourceText: string,
+  block: MemoryBlock,
+  lines: Set<number>,
+): { line: number; start: number; end: number } {
+  const empty = { line: 0, start: 0, end: 0 };
+  const first = [...lines][0];
+  if (first === undefined) return empty;
+  const all = sourceText.split("\n");
+  const text = all[first - 1] ?? "";
+  const excerpt = block.provenance.excerpt.trim();
+  if (excerpt.length >= 6) {
+    const idx = text.toLowerCase().indexOf(excerpt.slice(0, 48).toLowerCase());
+    if (idx >= 0) {
+      return { line: first, start: idx, end: Math.min(text.length, idx + Math.min(excerpt.length, 120)) };
+    }
+  }
+  const match = /[^.!?]+[.!?]/.exec(text);
+  if (match && match.index != null) {
+    return { line: first, start: match.index, end: match.index + match[0].length };
+  }
+  return { line: first, start: 0, end: Math.min(text.length, 80) };
 }

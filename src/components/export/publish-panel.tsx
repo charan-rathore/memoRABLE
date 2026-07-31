@@ -123,7 +123,7 @@ export function PublishPanel({
         <div className="modal-b">
           <p className="published-sub">
             <b>{doc.title}</b>: one memory, three useful outputs. Created from {doc.blocks.length} source-linked
-            Memory Blocks.
+            Memory Blocks. Composed using Elements.
           </p>
           <div className="publish-grid">
             {OUTPUT_MODES.map((mode) => {

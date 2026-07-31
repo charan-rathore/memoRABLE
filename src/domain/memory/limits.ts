@@ -5,6 +5,8 @@
 export const LIMITS = {
   /** Maximum raw source size: 1 MiB. */
   maxInputBytes: 1_048_576,
+  /** PDF upload: only the first N pages are remembered. */
+  maxPdfPages: 40,
   /** Maximum JSON nesting depth. */
   maxJsonDepth: 12,
   /** Maximum number of blocks in a document. */

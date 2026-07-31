@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import type { Diagnostic } from "@/reliability/diagnostics";
 import { formatDiagnostic } from "@/reliability/diagnostics";
 import type { ImportWarning } from "@/domain/memory/schema";
@@ -34,7 +34,6 @@ export function ImportPanel({
   onUseVerified,
   onImproveWithAi,
   aiBusy,
-  forceBringOpen = 0,
 }: {
   sourceLabel: string;
   sourceOk: boolean;
@@ -44,37 +43,45 @@ export function ImportPanel({
   hasVerified: boolean;
   aiEnabled: boolean;
   onEditSource: (text: string) => void;
-  onImport: (text: string, label: string) => void | Promise<void>;
+  onImport: (text: string, label: string, meta?: { filename?: string; fileType?: string; sizeBytes?: number | null; pages?: number | null; parseStatus?: string; uploadedAt?: string }) => void | Promise<void>;
   onUseExample: (id: "atlas-json" | "atlas-notes") => void;
   onUseVerified: () => void;
   onImproveWithAi: () => void;
   aiBusy: boolean;
-  /** Increment to force the bring panel open (journey strip → Bring). */
-  forceBringOpen?: number;
 }) {
   const [pasteOpen, setPasteOpen] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   // Open only while there is nothing to lose. With a document already
   // remembered, bringing another is a deliberate act behind a deliberate door.
   const [bringOpen, setBringOpen] = useState(!sourceOk);
-
-  useEffect(() => {
-    if (forceBringOpen > 0) setBringOpen(true);
-  }, [forceBringOpen]);
   const fileInput = useRef<HTMLInputElement>(null);
   const format = detectFormat(sourceText);
 
   const openFile = async (file: File) => {
     try {
       if (isPdfFile(file)) {
-        const { text } = await readPdfFile(file);
+        const { text, pages, truncated } = await readPdfFile(file);
         onEditSource(text);
-        await onImport(text, file.name);
+        await onImport(text, file.name, {
+          filename: file.name,
+          fileType: "PDF",
+          uploadedAt: new Date().toLocaleString(),
+          sizeBytes: file.size,
+          pages: truncated ? 40 : pages,
+          parseStatus: truncated ? "first 40 pages remembered" : "understood",
+        });
         return;
       }
       const { text } = await readTextFileWithProgress(file, () => {});
       onEditSource(text);
-      await onImport(text, file.name);
+      await onImport(text, file.name, {
+        filename: file.name,
+        fileType: /\.json$/i.test(file.name) ? "JSON" : /\.md|markdown$/i.test(file.name) ? "Markdown" : "Plain text",
+        uploadedAt: new Date().toLocaleString(),
+        sizeBytes: file.size,
+        pages: null,
+        parseStatus: "understood",
+      });
     } catch {
       onEditSource("");
     }

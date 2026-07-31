@@ -15,7 +15,7 @@ export interface ElementRef {
 
 export const ELEMENTS_BY_MODE: Record<OutputMode, ElementRef[]> = {
   email: [
-    { name: "Email", href: `${ROOT}/Email.tsx`, role: "Root — Outlook/Gmail-safe shell" },
+    { name: "Email", href: `${ROOT}/Email.tsx`, role: "Root: Outlook/Gmail-safe shell" },
     { name: "Row", href: `${ROOT}/Row.tsx`, role: "Layout band" },
     { name: "Column", href: `${ROOT}/Column.tsx`, role: "Column inside a Row" },
     { name: "Heading", href: `${ROOT}/Heading.tsx`, role: "Masthead & section titles" },
@@ -26,7 +26,7 @@ export const ELEMENTS_BY_MODE: Record<OutputMode, ElementRef[]> = {
     { name: "Table", href: `${ROOT}/Table.tsx`, role: "Risks grid" },
   ],
   web: [
-    { name: "Page", href: `${ROOT}/Page.tsx`, role: "Root — responsive web page" },
+    { name: "Page", href: `${ROOT}/Page.tsx`, role: "Root: responsive web page" },
     { name: "Row", href: `${ROOT}/Row.tsx`, role: "Full-bleed & content bands" },
     { name: "Column", href: `${ROOT}/Column.tsx`, role: "Column inside a Row" },
     { name: "Heading", href: `${ROOT}/Heading.tsx`, role: "Hero & section titles" },
@@ -37,7 +37,7 @@ export const ELEMENTS_BY_MODE: Record<OutputMode, ElementRef[]> = {
     { name: "Table", href: `${ROOT}/Table.tsx`, role: "Risks grid" },
   ],
   document: [
-    { name: "Document", href: `${ROOT}/Document.tsx`, role: "Root — print/PDF optimized" },
+    { name: "Document", href: `${ROOT}/Document.tsx`, role: "Root: print/PDF optimized" },
     { name: "Row", href: `${ROOT}/Row.tsx`, role: "Cover, TOC, sections" },
     { name: "Column", href: `${ROOT}/Column.tsx`, role: "Column inside a Row" },
     { name: "Heading", href: `${ROOT}/Heading.tsx`, role: "Title page & roman sections" },

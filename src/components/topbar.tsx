@@ -142,12 +142,15 @@ export function Topbar({
             className="ai-chip"
             aria-expanded={themeOpen}
             onClick={() => setThemeOpen((open) => !open)}
-            title="Publication theme"
+            title="Publication preset"
           >
-            Theme · {PUBLISH_THEMES[theme].label}
+            Preset · {PUBLISH_THEMES[theme].label}
           </button>
           {themeOpen && (
-            <span className="ai-pop theme-pop" role="listbox" aria-label="Publication themes">
+            <span className="ai-pop theme-pop" role="listbox" aria-label="Publication presets">
+              <p style={{ margin: "0 0 6px", fontSize: 11.5, color: "var(--ink-3)" }}>
+                Academic · Minimal · Executive · Editorial. One click retunes type, spacing, colour, charts and layout.
+              </p>
               {PUBLISH_THEME_IDS.map((id) => (
                 <button
                   key={id}

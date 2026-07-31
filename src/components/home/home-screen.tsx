@@ -8,6 +8,7 @@ import { BrandMark } from "../ui/brand-mark";
 import { StaggerTitle } from "../ui/stagger-title";
 import { formatBytes, readTextFileWithProgress } from "../import/read-file";
 import { isPdfFile, pdfTruncationNote, readPdfFile } from "@/import/read-pdf";
+import type { SourceMeta } from "../journey-strip";
 import { readStats, summarize } from "@/stats/local-stats";
 import {
   IMPORT_STAGE_LABEL,
@@ -32,7 +33,7 @@ export function HomeScreen({
   understanding,
 }: {
   errors: Diagnostic[];
-  onImport: (text: string, label: string) => void | Promise<void>;
+  onImport: (text: string, label: string, meta?: Partial<SourceMeta>) => void | Promise<void>;
   onUseExample: (id: "atlas-json" | "atlas-notes") => void;
   onReplayBrand?: () => void;
   understanding?: { stage: ImportStage; percent: number } | null;
@@ -67,7 +68,14 @@ export function HomeScreen({
         });
         if (result.truncated) setReadNote(pdfTruncationNote(result.pages));
         setReading({ name: file.name, size: file.size, percent: 100 });
-        await onImport(result.text, file.name);
+        await onImport(result.text, file.name, {
+          filename: file.name,
+          fileType: "PDF",
+          uploadedAt: new Date().toLocaleString(),
+          sizeBytes: file.size,
+          pages: result.truncated ? 40 : result.pages,
+          parseStatus: result.truncated ? "first 40 pages remembered" : "understood",
+        });
         setReading(null);
         return;
       }
@@ -78,7 +86,14 @@ export function HomeScreen({
         );
       });
       setReading({ name: file.name, size: file.size, percent: 100 });
-      await onImport(text, file.name);
+      await onImport(text, file.name, {
+        filename: file.name,
+        fileType: /\.json$/i.test(file.name) ? "JSON" : /\.md|markdown$/i.test(file.name) ? "Markdown" : "Plain text",
+        uploadedAt: new Date().toLocaleString(),
+        sizeBytes: file.size,
+        pages: null,
+        parseStatus: "understood",
+      });
       setReading(null);
     } catch (error) {
       setReading(null);

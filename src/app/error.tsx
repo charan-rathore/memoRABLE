@@ -18,7 +18,7 @@ export default function GlobalError({ error, reset }: { error: Error; reset: () 
         <p className="error-overline">Something went wrong</p>
         <h1 className="error-title">The workbench hit an unexpected problem.</h1>
         <p className="error-body">
-          Your source was never sent anywhere — everything runs locally. Try again; the Atlas
+          Your source was never sent anywhere. Everything runs locally. Try again; the Atlas
           example will reload exactly as it was.
         </p>
         <div className="error-actions">

@@ -30,7 +30,7 @@ export function ElementsStory({
         <a href={ELEMENTS_REPO} target="_blank" rel="noreferrer">
           Unlayer Elements
         </a>
-        . Theme: <b>{themeMeta.label}</b> — {themeMeta.description}
+        . Preset: <b>{themeMeta.label}</b>. {themeMeta.description}
       </p>
       <ol className="es-flow" aria-label="Elements composition flow">
         <li>Document</li>

@@ -1,12 +1,12 @@
 import { colors as baseColors, fonts as baseFonts } from "./tokens";
 
 /**
- * Lightweight publish themes. Default ("editorial") matches today's look exactly
- * so existing demos and tests stay stable. Other themes only tweak palette,
- * type scale, signal density, and web column flow — no new dependencies.
+ * Publication presets (Notion-style): one click changes typography, spacing,
+ * colours, charts, callouts, margins and layout. No settings panel.
+ * Default "editorial" matches the original look for demos and tests.
  */
 
-export const PUBLISH_THEME_IDS = ["editorial", "signal", "compact", "horizon"] as const;
+export const PUBLISH_THEME_IDS = ["editorial", "academic", "minimal", "executive"] as const;
 export type PublishThemeId = (typeof PUBLISH_THEME_IDS)[number];
 
 export type ThemeColors = { [K in keyof typeof baseColors]: string };
@@ -17,13 +17,13 @@ export interface PublishTheme {
   description: string;
   colors: ThemeColors;
   fonts: typeof baseFonts;
-  /** Multiplier for body/heading font sizes in block rows. */
   fontScale: number;
-  /** Prefer denser KPI grids (charts/cards emphasis). */
   chartEmphasis: boolean;
-  /** Web pages use wider multi-column horizontal flow where safe. */
   webHorizontal: boolean;
   webContentWidth: `${number}px`;
+  /** Padding scale for section bands (applied at root content width / feel). */
+  spacing: "tight" | "normal" | "airy";
+  calloutStyle: "plain" | "tint" | "rule";
 }
 
 const editorial: PublishTheme = {
@@ -36,12 +36,62 @@ const editorial: PublishTheme = {
   chartEmphasis: false,
   webHorizontal: false,
   webContentWidth: "760px",
+  spacing: "normal",
+  calloutStyle: "tint",
 };
 
-const signal: PublishTheme = {
-  id: "signal",
-  label: "Signal",
-  description: "Larger figures, stronger accent, chart-forward cards.",
+const academic: PublishTheme = {
+  id: "academic",
+  label: "Academic",
+  description: "Serif body, generous margins, quiet figures.",
+  colors: {
+    ...baseColors,
+    accent: "#1A365D",
+    accentHover: "#132A4A",
+    accentSoft: "#E8EEF5",
+    paper: "#FBF9F4",
+    surface2: "#F3F0E8",
+  },
+  fonts: baseFonts,
+  fontScale: 1.04,
+  chartEmphasis: false,
+  webHorizontal: false,
+  webContentWidth: "720px",
+  spacing: "airy",
+  calloutStyle: "rule",
+};
+
+const minimal: PublishTheme = {
+  id: "minimal",
+  label: "Minimal",
+  description: "Tight spacing, muted colour, spare charts.",
+  colors: {
+    ...baseColors,
+    accent: "#111111",
+    accentHover: "#000000",
+    accentSoft: "#F2F2F2",
+    paper: "#FFFFFF",
+    surface2: "#F7F7F7",
+    ink2: "#555555",
+    ink3: "#888888",
+    line: "#E8E8E8",
+  },
+  fonts: {
+    ...baseFonts,
+    serif: baseFonts.sans,
+  },
+  fontScale: 0.94,
+  chartEmphasis: false,
+  webHorizontal: false,
+  webContentWidth: "680px",
+  spacing: "tight",
+  calloutStyle: "plain",
+};
+
+const executive: PublishTheme = {
+  id: "executive",
+  label: "Executive",
+  description: "Bold accent, chart-forward, confident layout.",
   colors: {
     ...baseColors,
     accent: "#0B5FFF",
@@ -54,54 +104,23 @@ const signal: PublishTheme = {
     ...baseFonts,
     serif: baseFonts.sans,
   },
-  fontScale: 1.06,
-  chartEmphasis: true,
-  webHorizontal: false,
-  webContentWidth: "820px",
-};
-
-const compact: PublishTheme = {
-  id: "compact",
-  label: "Compact",
-  description: "Smaller type, tighter bands, more on one screen.",
-  colors: {
-    ...baseColors,
-    accent: "#2A2A28",
-    accentHover: "#14130F",
-    accentSoft: "#F0EFE8",
-  },
-  fonts: baseFonts,
-  fontScale: 0.92,
-  chartEmphasis: false,
-  webHorizontal: false,
-  webContentWidth: "700px",
-};
-
-const horizon: PublishTheme = {
-  id: "horizon",
-  label: "Horizon",
-  description: "Wide web flow, multi-column bands, airy measure.",
-  colors: {
-    ...baseColors,
-    accent: "#0F6B5C",
-    accentHover: "#0B5246",
-    accentSoft: "#E7F4F1",
-    paper: "#F5FAF8",
-    surface2: "#EAF3F0",
-  },
-  fonts: baseFonts,
-  fontScale: 1.02,
+  fontScale: 1.05,
   chartEmphasis: true,
   webHorizontal: true,
-  webContentWidth: "960px",
+  webContentWidth: "880px",
+  spacing: "normal",
+  calloutStyle: "tint",
 };
 
 export const PUBLISH_THEMES: Record<PublishThemeId, PublishTheme> = {
   editorial,
-  signal,
-  compact,
-  horizon,
+  academic,
+  minimal,
+  executive,
 };
+
+/** Alias used in the UI chip. */
+export const PUBLICATION_PRESETS = PUBLISH_THEMES;
 
 export function resolveTheme(id: PublishThemeId | string | undefined): PublishTheme {
   if (id && id in PUBLISH_THEMES) return PUBLISH_THEMES[id as PublishThemeId];

@@ -23,7 +23,7 @@ function initialState() {
 
 describe("journeyOf", () => {
   it("reflects the completed preloaded journey", () => {
-    const steps = journeyOf(initialState(), null);
+    const steps = journeyOf(initialState(), null, null);
     expect(steps.map((s) => s.label)).toEqual([
       "Bring information",
       "Understand",
@@ -32,7 +32,7 @@ describe("journeyOf", () => {
       "Publish",
     ]);
     expect(steps[0]!.status).toBe("done");
-    expect(steps[2]!.detail).toBe("6 memories");
+    expect(steps[2]!.lines.some((l) => l.includes("6 grounded memories"))).toBe(true);
   });
 
   it("surfaces the error state without hiding memories", () => {
@@ -43,10 +43,10 @@ describe("journeyOf", () => {
       sourceLabel: "bad.json",
       errors,
     });
-    const steps = journeyOf(failed, null);
+    const steps = journeyOf(failed, null, null);
     expect(steps[1]!.status).toBe("error");
-    expect(steps[1]!.detail).toContain("couldn't understand");
-    expect(steps[2]!.detail).toBe("6 memories"); // last-good intact
+    expect(steps[1]!.lines.some((l) => /errors kept|failed/i.test(l))).toBe(true);
+    expect(steps[2]!.lines.some((l) => l.includes("6 grounded memories"))).toBe(true);
   });
 });
 

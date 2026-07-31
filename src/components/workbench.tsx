@@ -9,7 +9,7 @@ import { getExample, hasVerifiedExtraction, verifiedExtractionFor } from "@/impo
 import { renderMode, type ModeOutput } from "@/render/render-bundle";
 import { displayHtml, initialWorkbenchState, type RenderCacheEntry, type WorkbenchAction, workbenchReducer } from "./workbench-state";
 import { Topbar } from "./topbar";
-import { JourneyStrip } from "./journey-strip";
+import { JourneyStrip, type SourceMeta } from "./journey-strip";
 import { ImportPanel } from "./import/import-panel";
 import { BlocksPanel } from "./blocks/blocks-panel";
 import { Inspector } from "./blocks/inspector";
@@ -63,9 +63,7 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
   const [demoOpen, setDemoOpen] = useState(false);
   const [importProgress, setImportProgress] = useState<{ stage: ImportStage; percent: number } | null>(null);
   const [hoveredBlockId, setHoveredBlockId] = useState<string | null>(null);
-  const [bringForceOpen, setBringForceOpen] = useState(0);
-  const memoriesRef = useRef<HTMLDivElement>(null);
-  const bringRef = useRef<HTMLDivElement>(null);
+  const [sourceMeta, setSourceMeta] = useState<SourceMeta | null>(null);
   const themeRef = useRef<PublishThemeId>("editorial");
   themeRef.current = state?.theme ?? "editorial";
 
@@ -86,12 +84,26 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
   /* ------------------------------- import flow ------------------------------- */
 
   const runImport = useCallback(
-    async (text: string, label: string) => {
+    async (text: string, label: string, meta?: Partial<SourceMeta>) => {
       const mark = async (stage: ImportStage) => {
         setImportProgress({ stage, percent: IMPORT_STAGE_PERCENT[stage] });
         announce(IMPORT_STAGE_LABEL[stage]);
         await yieldFrame(stage === "publishing" ? 160 : 56);
       };
+
+      const fileType =
+        meta?.fileType ??
+        (label.toLowerCase().endsWith(".pdf")
+          ? "PDF"
+          : label.toLowerCase().endsWith(".json")
+            ? "JSON"
+            : label.toLowerCase().endsWith(".md") || label.toLowerCase().endsWith(".markdown")
+              ? "Markdown"
+              : label.toLowerCase().endsWith(".txt")
+                ? "Plain text"
+                : label === "Pasted notes"
+                  ? "Pasted text"
+                  : "Document");
 
       await mark("reading");
       await mark("understanding");
@@ -99,6 +111,14 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
       const result = importSource({ raw: text, label });
       if (result.ok) {
         await mark("arranging");
+        setSourceMeta({
+          filename: meta?.filename ?? label,
+          fileType,
+          uploadedAt: meta?.uploadedAt ?? new Date().toLocaleString(),
+          sizeBytes: meta?.sizeBytes ?? new TextEncoder().encode(text).length,
+          pages: meta?.pages ?? null,
+          parseStatus: meta?.parseStatus ?? "understood",
+        });
         dispatch({ type: "imported", sourceText: text, sourceLabel: label, document: result.value, at: nowLabel() });
         recordDocument(result.value.blocks.length);
         rememberLibraryDoc({ title: result.value.title, label, sourceText: text });
@@ -108,6 +128,14 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
         scheduleLazyRenders(result.value, [], "document", themeRef.current, dispatch);
         announce(`Understood: 6 memories created from ${label}.`);
       } else {
+        setSourceMeta({
+          filename: meta?.filename ?? label,
+          fileType,
+          uploadedAt: meta?.uploadedAt ?? new Date().toLocaleString(),
+          sizeBytes: meta?.sizeBytes ?? new TextEncoder().encode(text).length,
+          pages: meta?.pages ?? null,
+          parseStatus: "failed",
+        });
         dispatch({ type: "importFailed", sourceText: text, sourceLabel: label, errors: [...result.errors] });
         announce(
           `We couldn't understand this. Nothing was changed. ${result.errors.length} ${result.errors.length === 1 ? "error" : "errors"}.`,
@@ -270,51 +298,6 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
     announce("Published: one memory, three useful outputs.");
   }, [announce]);
 
-  const jumpJourney = useCallback(
-    (key: string) => {
-      if (key === "bring") {
-        setMobileTab("bring");
-        setBringForceOpen((n) => n + 1);
-        requestAnimationFrame(() => bringRef.current?.scrollIntoView({ block: "start", behavior: "smooth" }));
-        announce("Bring: paste, drop a file, or reopen a recent document.");
-        return;
-      }
-      if (key === "understand") {
-        setMobileTab("memories");
-        const first = state.document?.blocks[0];
-        if (first) dispatch({ type: "blockSelected", blockId: first.id });
-        requestAnimationFrame(() => memoriesRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" }));
-        announce("Understand: six memory types recognized from the source.");
-        return;
-      }
-      if (key === "remember") {
-        setMobileTab("memories");
-        const first = state.document?.blocks[0];
-        if (first) {
-          dispatch({ type: "blockSelected", blockId: first.id });
-          setSourceModal(first);
-        }
-        requestAnimationFrame(() => memoriesRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" }));
-        announce("Remember: open a memory to see exactly where it came from.");
-        return;
-      }
-      if (key === "arrange") {
-        setMobileTab("memories");
-        const first = state.document?.blocks[0];
-        if (first) dispatch({ type: "blockSelected", blockId: first.id });
-        requestAnimationFrame(() => memoriesRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" }));
-        announce("Arrange: use ↑ ↓ on a selected memory to reorder publication.");
-        return;
-      }
-      if (key === "publish") {
-        setMobileTab("publish");
-        if (state.document) publish();
-        else announce("Bring a document before you publish.");
-      }
-    },
-    [announce, publish, state.document],
-  );
-
   const goHome = useCallback(() => {
     if (replay.active) replay.cancel();
     setPublishOpen(false);
@@ -345,7 +328,7 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
         <div className={splash ? "app-behind" : undefined}>
           <HomeScreen
             errors={[...state.errors]}
-            onImport={runImport}
+            onImport={(text, label, meta) => runImport(text, label, meta)}
             onUseExample={loadExample}
             onReplayBrand={() => setSplash(true)}
             understanding={importProgress}
@@ -373,10 +356,10 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
         theme={state.theme}
         onThemeChange={(theme) => {
           dispatch({ type: "themeChanged", theme });
-          announce(`Theme: ${theme}. Outputs recomposed with Elements.`);
+          announce(`Preset: ${theme}. Outputs recomposed with Elements.`);
           if (state.document) scheduleLazyRenders(state.document, [], state.mode, theme, dispatch);
         }}
-        onOpenRecent={(text, label) => void runImport(text, label)}
+        onOpenRecent={(text, label) => void runImport(text, label, { filename: label, parseStatus: "reopened from library" })}
         aiEnabled={aiEnabled}
         replayActive={replay.active}
         onReplay={() => (replay.active ? replay.cancel() : replay.start())}
@@ -386,7 +369,7 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
       <JourneyStrip
         state={state}
         replayStep={replay.view?.journeyStep ?? null}
-        onStep={jumpJourney}
+        sourceMeta={sourceMeta}
       />
       {(replay.view || importProgress) && (
         <div className="replay-banner" role="status" data-testid="import-progress">
@@ -412,7 +395,7 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
 
       <main className="shell">
         <div className="rail-l">
-          <div ref={bringRef} className={mobileTab === "bring" ? "" : "mobile-hide"}>
+          <div className={mobileTab === "bring" ? "" : "mobile-hide"}>
             <ImportPanel
               sourceLabel={state.sourceLabel}
               sourceOk={state.document !== null && state.errors.length === 0}
@@ -422,7 +405,6 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
               hasVerified={hasVerified}
               aiEnabled={aiEnabled && state.document?.sourceMethod === "local-parser"}
               aiBusy={aiBusy}
-              forceBringOpen={bringForceOpen}
               onEditSource={(text) => dispatch({ type: "sourceEdited", sourceText: text })}
               onImport={runImport}
               onUseExample={loadExample}
@@ -430,7 +412,7 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
               onImproveWithAi={() => void improveWithAi()}
             />
           </div>
-          <div ref={memoriesRef} className={`mem-rail${mobileTab === "memories" ? "" : " mobile-hide"}`}>
+          <div className={`mem-rail${mobileTab === "memories" ? "" : " mobile-hide"}`}>
             <BlocksPanel
               blocks={state.document?.blocks ?? []}
               selectedBlockId={state.selectedBlockId}

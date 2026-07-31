@@ -1,14 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { OUTPUT_MODE_LABELS, type OutputMode } from "@/domain/memory/types";
 import { ElementsStory } from "./elements-story";
 import type { PublishThemeId } from "@/render/themes";
 
 /**
- * The actual output, always: a sandboxed iframe containing the generated
- * Elements HTML. sandbox="" — no scripts, same-origin, forms, popups or
- * navigation. What you see is exactly what you download.
+ * Sandboxed iframe of Elements HTML.
+ * allow-same-origin lets us wire in-document #section-* jumps (Cover, Signals…)
+ * without enabling scripts.
  */
 export function PreviewPane({
   mode,
@@ -29,6 +29,7 @@ export function PreviewPane({
 }) {
   const [displayed, setDisplayed] = useState(html);
   const [fading, setFading] = useState(false);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
 
   useEffect(() => {
     if (html !== displayed) {
@@ -41,6 +42,46 @@ export function PreviewPane({
     }
     return undefined;
   }, [html, displayed]);
+
+  useEffect(() => {
+    const iframe = iframeRef.current;
+    if (!iframe || !displayed) return;
+
+    const wire = () => {
+      const doc = iframe.contentDocument;
+      if (!doc) return;
+
+      const scrollToHash = (hash: string) => {
+        const id = hash.replace(/^#/, "");
+        if (!id) return;
+        const target =
+          doc.querySelector(`[name="${CSS.escape(id)}"]`) ||
+          doc.getElementById(id) ||
+          doc.querySelector(`a[name="${CSS.escape(id)}"]`);
+        if (target) {
+          target.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      };
+
+      doc.querySelectorAll('a[href^="#"]').forEach((anchor) => {
+        const el = anchor as HTMLAnchorElement;
+        el.addEventListener("click", (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          scrollToHash(el.getAttribute("href") || "");
+        });
+      });
+    };
+
+    iframe.addEventListener("load", wire);
+    // srcDoc may already be loaded when we attach.
+    try {
+      wire();
+    } catch {
+      /* cross-origin or empty */
+    }
+    return () => iframe.removeEventListener("load", wire);
+  }, [displayed, mode]);
 
   const addr = `memorable.local/${mode}/${documentTitle.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
 
@@ -73,8 +114,9 @@ export function PreviewPane({
             <span className="addr">{addr}</span>
           </div>
           <iframe
+            ref={iframeRef}
             title={`${OUTPUT_MODE_LABELS[mode]} output preview`}
-            sandbox=""
+            sandbox="allow-same-origin"
             referrerPolicy="no-referrer"
             srcDoc={displayed}
             style={{ opacity: fading ? 0.4 : 1 }}

@@ -2,7 +2,7 @@
  * The memoRABLE mark — seven stacked blocks forming an "M" with a cobalt
  * center block. Pure SVG, no imagery.
  */
-export function BrandMark({ size = 22 }: { size?: number }) {
+export function BrandMark({ size = 22, animate = false }: { size?: number; animate?: boolean }) {
   const b = 6; // block size
   const gap = 2;
   const step = b + gap;
@@ -36,6 +36,8 @@ export function BrandMark({ size = 22 }: { size?: number }) {
           height={b}
           rx={1.5}
           fill={blk.center ? cobalt : ink}
+          className={animate ? "bm-block" : undefined}
+          style={animate ? { animationDelay: `${i * 28}ms`, transformOrigin: `${blk.x + b / 2}px ${blk.y + b / 2}px` } : undefined}
         />
       ))}
     </svg>

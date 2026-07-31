@@ -10,24 +10,25 @@ export function renderDecisionsRows(block: MemoryBlock, ctx: BlockRenderContext)
   const payload = block.payload as DecisionsPayload;
   const entries = payload.entries;
   const notes = payload.notes ?? [];
-  const rows: ReactElement[] = [sectionLabelRow(block, ctx)];
+  const rows: ReactElement[] = [...sectionLabelRow(block, ctx)];
 
   if (entries.length === 0) {
-    rows.push(emptyBlockRow(block, "No decisions were recognized in this source — nothing was invented."));
-    rows.push(...notesRows(block, notes));
+    rows.push(emptyBlockRow(block, "No decisions were recognized in this source — nothing was invented.", ctx.surface));
+    rows.push(...notesRows(block, notes, ctx.surface));
     return rows;
   }
 
   entries.forEach((entry, i) => {
     const last = i === entries.length - 1;
-    rows.push(decisionRow(block, entry, i, last && notes.length === 0, !last));
+    rows.push(decisionRow(block, ctx, entry, i, last && notes.length === 0, !last));
   });
-  rows.push(...notesRows(block, notes));
+  rows.push(...notesRows(block, notes, ctx.surface));
   return rows;
 }
 
 function decisionRow(
   block: MemoryBlock,
+  ctx: BlockRenderContext,
   entry: DecisionEntry,
   index: number,
   isLast: boolean,
@@ -38,27 +39,28 @@ function decisionRow(
     <Row
       key={`${block.id}-decision-${index}`}
       layout={ColumnLayouts.ThreeNarrowWideNarrow}
-      backgroundColor={colors.surface}
+      backgroundColor={ctx.surface}
       padding={isLast ? PAD.last : PAD.body}
     >
-      <Column padding="11px 12px 11px 0px" border={cellBorder}>
+      <Column padding="13px 12px 13px 0px" border={cellBorder}>
         <Paragraph
           html={inlineText(entry.ref ?? "—")}
           fontFamily={fonts.mono}
           fontSize="11.5px"
-          color={colors.ink3}
+          color={entry.ref ? colors.accent : colors.ink3}
           lineHeight="150%"
         />
       </Column>
-      <Column padding="11px 12px" border={cellBorder}>
-        <Paragraph html={inlineBold(entry.text)} fontFamily={fonts.sans} fontSize="13.5px" color={colors.ink} lineHeight="150%" />
+      <Column padding="13px 12px" border={cellBorder}>
+        <Paragraph html={inlineBold(entry.text)} fontFamily={fonts.sans} fontSize="13.5px" color={colors.ink} lineHeight="152%" />
       </Column>
-      <Column padding="11px 0px 11px 12px" border={cellBorder}>
+      <Column padding="13px 0px 13px 12px" border={cellBorder}>
         <Paragraph
-          html={inlineText(statusLabel(entry.status))}
-          fontFamily={fonts.sans}
-          fontSize="12px"
+          html={inlineText(statusLabel(entry.status).toUpperCase())}
+          fontFamily={fonts.mono}
+          fontSize="10.5px"
           color={statusColor(entry.status)}
+          letterSpacing="0.1em"
           textAlign="right"
           lineHeight="150%"
         />

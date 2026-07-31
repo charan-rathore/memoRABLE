@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { OUTPUT_MODES, OUTPUT_MODE_LABELS, type OutputMode } from "@/domain/memory/types";
 import { BrandMark } from "./ui/brand-mark";
 
@@ -13,6 +14,7 @@ export function Topbar({
   onReplay,
   onPublish,
   canPublish,
+  onHome,
 }: {
   documentTitle: string;
   blockCount: number;
@@ -23,23 +25,50 @@ export function Topbar({
   onReplay: () => void;
   onPublish: () => void;
   canPublish: boolean;
+  onHome: () => void;
 }) {
+  const [aiOpen, setAiOpen] = useState(false);
   return (
     <header className="topbar">
-      <div className="brand">
+      <button type="button" className="brand" onClick={onHome} aria-label="memoRABLE — back to the start">
         <BrandMark />
         <span className="wordmark">
           memo<b>RABLE</b>
         </span>
-      </div>
+      </button>
       <span className="vr" aria-hidden="true" />
       <div className="doc-title">
         <span className="t">{documentTitle}</span>
         <span className="n">{blockCount} blocks</span>
       </div>
       <div className="topright">
-        <span className="ai-chip" title={aiEnabled ? "AI improvement is enabled on this server" : "AI is off — everything runs locally"}>
-          {aiEnabled ? "AI on" : "AI off · local"}
+        <span className="ai-wrap">
+          <button
+            type="button"
+            className="ai-chip"
+            aria-expanded={aiOpen}
+            onClick={() => setAiOpen((open) => !open)}
+          >
+            {aiEnabled ? "AI on" : "AI off · local"}
+          </button>
+          {aiOpen && (
+            <span className="ai-pop" role="status">
+              {aiEnabled ? (
+                <>
+                  <b>AI is available on this deployment.</b> The local parser still runs first and produces the
+                  result you see. AI only ever re-reads your source to improve that result, and you invoke it
+                  deliberately from the Bring panel — it is never automatic.
+                </>
+              ) : (
+                <>
+                  <b>There is no switch, and that is the point.</b> Every memory on this page was recognized by a
+                  parser running in your browser. Your document was never uploaded, so there is nothing to turn
+                  off. AI is an optional server-side second pass an operator enables with an API key; on this
+                  public demo it stays off so nothing you paste ever leaves the machine.
+                </>
+              )}
+            </span>
+          )}
         </span>
         <div className="seg" role="group" aria-label="Output mode">
           {OUTPUT_MODES.map((m) => (

@@ -43,8 +43,8 @@ describe("workbenchReducer — imports", () => {
     });
     expect(next.document!.contentHash).toBe(notes.value.contentHash);
     expect(next.errors).toEqual([]);
-    expect(next.mode).toBe("web"); // web becomes primary after your own import
-    expect(next.outputs.web!.html).toContain("Atlas Launch Notes");
+    expect(next.mode).toBe("document"); // document-first: what arrives is a document
+    expect(next.outputs.document!.html).toContain("Atlas Launch Notes");
   });
 
   it("failed import is all-or-nothing: source kept, document and outputs untouched", () => {

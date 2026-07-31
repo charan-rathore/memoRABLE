@@ -56,6 +56,41 @@ export function stripListMarker(line: string): string {
   return item ? item.text : line.trim();
 }
 
+/** Leading glyphs authors use as bullets that markdown does not define. */
+const GLYPH_PREFIX = /^\s*[✓✔✅×✗✘→⇒▸▪▫◦·+]\s*/;
+
+/** Remove markdown emphasis so rendered output never shows raw `**` or backticks. */
+export function stripEmphasis(text: string): string {
+  return text
+    .replace(/\*\*(.+?)\*\*/g, "$1")
+    .replace(/__(.+?)__/g, "$1")
+    .replace(/(^|\W)\*(\S(?:.*?\S)?)\*(?=\W|$)/g, "$1$2")
+    .replace(/`([^`]+)`/g, "$1")
+    .trim();
+}
+
+/** Normalize a line to its human content: list marker, glyph and emphasis removed. */
+export function plainContentOf(line: string): string {
+  return stripEmphasis(stripListMarker(line).replace(GLYPH_PREFIX, "").trim());
+}
+
+/** A line carrying no content of its own — a lone arrow or divider in a diagram. */
+export function isDecorativeLine(line: string): boolean {
+  const text = line.trim();
+  if (text === "") return true;
+  return /^[↓↑→←⇒⇓|+/\\_.·•\-–—=]{1,4}$/.test(text);
+}
+
+/**
+ * True when the author marked this line as an item — a markdown bullet, a
+ * number, a checkbox, or a glyph like "✓". Only such lines are eligible for
+ * the lenient passes, so ordinary prose is never mistaken for an entry.
+ */
+export function isListLike(line: string): boolean {
+  if (splitListItem(line) !== null) return true;
+  return GLYPH_PREFIX.test(line);
+}
+
 const MONTH = "(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)";
 const DATE_TOKEN = new RegExp(
   `^(${MONTH}\\.?\\s+\\d{1,2}(?:,\\s*\\d{4})?|${MONTH}\\.?|Q[1-4](?:[ /]?\\d{4})?|\\d{4}-\\d{2}-\\d{2}|\\d{1,2}\\/\\d{1,2}(?:\\/\\d{2,4})?|Week\\s+\\d{1,2}|Sprint\\s+\\d{1,2})\\b`,
@@ -158,6 +193,10 @@ export function parseDecisionLine(raw: string): DecisionEntry | null {
   }
   // Require a ref, a list marker or an explicit status — bare prose is not a decision.
   if (!ref && !item && !foundStatus) return null;
+  // A short noun phrase in a list ("Redis", "Docker Swarm") is something the
+  // author enumerated, not a position they took. Without a reference or an
+  // explicit status, a decision has to read like a statement.
+  if (!ref && !foundStatus && rest.split(/\s+/).length < 3 && !/[.!?]$/.test(rest)) return null;
   if (rest.length < 2) return null;
   const entry: DecisionEntry = { text: rest, status };
   if (ref) entry.ref = ref;
@@ -294,7 +333,8 @@ export function parseActionLine(raw: string): ActionEntry | null {
   if (segments.length === 2) {
     const [task, tail] = segments;
     if (looksLikeDate(tail!) && task!.length >= 3) {
-      // Owner genuinely unknown is not invented — the line is kept as a note.
+      // A due date with no owner: recorded as-is by the lenient pass, which
+      // omits the owner rather than guessing one.
       return null;
     }
     const ownerMatch = /^@?([A-Z][\w.]*(?:\s+[A-Z][\w.]*){0,2})/.exec(tail!);
@@ -309,4 +349,80 @@ export function parseActionLine(raw: string): ActionEntry | null {
     }
   }
   return null;
+}
+
+/* --------------------------------- lenient ---------------------------------- */
+
+/**
+ * Lenient passes, used only once a section has been confidently identified as
+ * a given memory. They record exactly what the line states and leave every
+ * unstated field undefined — the strict passes above still run first, so a
+ * fully specified line keeps its owner, severity, date and status.
+ */
+
+const MIN_ENTRY_LENGTH = 3;
+const MAX_ENTRY_LENGTH = 300;
+
+function entryText(raw: string): string | null {
+  const text = plainContentOf(raw);
+  if (text.length < MIN_ENTRY_LENGTH || text.length > MAX_ENTRY_LENGTH) return null;
+  return text;
+}
+
+export function parseSignalLineLenient(raw: string): SignalEntry | null {
+  const text = entryText(raw);
+  if (!text) return null;
+  const parts = splitOnFirstSeparator(text);
+  if (parts) {
+    const [label, value] = parts;
+    if (label.length >= 1 && label.length <= 120 && value.length >= 1) {
+      const entry: SignalEntry = { label, value: value.slice(0, 120) };
+      const trend = trendOf(value);
+      if (trend) entry.trend = trend;
+      return entry;
+    }
+  }
+  // A criterion with no measured value is still an indicator.
+  return { label: text.slice(0, 120) };
+}
+
+export function parseDecisionLineLenient(raw: string): DecisionEntry | null {
+  const text = entryText(raw);
+  if (!text) return null;
+  const strict = parseDecisionLine(raw);
+  if (strict) return strict;
+  // A bare noun ("Redis") is an item in a list, not a position someone took.
+  if (text.split(/\s+/).length < 2) return null;
+  return { text, status: "proposed" };
+}
+
+export function parseTimelineLineLenient(raw: string): TimelineEntry | null {
+  const text = entryText(raw);
+  if (!text) return null;
+  const strict = parseTimelineLine(raw);
+  if (strict) return strict;
+  // Without a date the entry has no place on a timeline; the caller keeps it
+  // as a note rather than inventing one.
+  return null;
+}
+
+export function parseRiskLineLenient(raw: string): RiskEntry | null {
+  const text = entryText(raw);
+  if (!text) return null;
+  const strict = parseRiskLine(raw);
+  if (strict) return strict;
+  // Severity and mitigation stay undefined when the source never graded it.
+  return { risk: text };
+}
+
+export function parseActionLineLenient(raw: string): ActionEntry | null {
+  const text = entryText(raw);
+  if (!text) return null;
+  const strict = parseActionLine(raw);
+  if (strict) return strict;
+  const item = splitListItem(raw);
+  const entry: ActionEntry = { task: text, status: item?.done ? "done" : "open" };
+  const dueMatch = DATE_TOKEN.exec(text);
+  if (dueMatch) entry.due = dueMatch[1]!.replace(/\.$/, "");
+  return entry;
 }

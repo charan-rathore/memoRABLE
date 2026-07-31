@@ -11,6 +11,12 @@ export interface BlockRenderContext {
   /** 0-based position of the block in the current arrangement. */
   position: number;
   documentTitle: string;
+  /**
+   * Background for this block's rows. Web alternates plain and tinted bands so
+   * a long page reads as sections rather than one unbroken column; print and
+   * email stay on one surface, where banding costs ink and clients choke on it.
+   */
+  surface: string;
 }
 
 const ROMAN = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"];
@@ -19,55 +25,81 @@ export function roman(position: number): string {
   return ROMAN[position] ?? String(position + 1);
 }
 
+export function ordinal(position: number): string {
+  return String(position + 1).padStart(2, "0");
+}
+
 export const PAD = {
-  label: "26px 44px 6px 44px",
+  label: "30px 44px 4px 44px",
+  rule: "0px 44px 10px 44px",
   body: "0px 44px 0px 44px",
-  last: "0px 44px 26px 44px",
+  last: "0px 44px 30px 44px",
 } as const;
 
 /**
- * Section label row. Document mode uses a serif roman-numeral heading
- * ("II. Signals"); Web and Email use a small letter-spaced eyebrow.
+ * Section opening. Print gets a serif roman-numeral heading ("II. Signals")
+ * under a full rule; screen and email get a numbered eyebrow over a short
+ * accent tick — the same content, set the way each surface reads best.
  */
-export function sectionLabelRow(block: MemoryBlock, ctx: BlockRenderContext, suffix?: string): ReactElement {
+export function sectionLabelRow(block: MemoryBlock, ctx: BlockRenderContext, suffix?: string): ReactElement[] {
   const title = suffix ? `${block.title} ${suffix}` : block.title;
-  return (
-    <Row key={`${block.id}-label`} layout={ColumnLayouts.OneColumn} backgroundColor={colors.surface} padding={PAD.label}>
-      <Column>
-        {ctx.mode === "document" ? (
+  if (ctx.mode === "document") {
+    return [
+      <Row key={`${block.id}-label`} layout={ColumnLayouts.OneColumn} backgroundColor={ctx.surface} padding={PAD.label}>
+        <Column>
           <Heading
             headingType="h2"
             fontFamily={fonts.serif}
-            fontSize="19px"
+            fontSize="20px"
             fontWeight={700}
             color={colors.ink}
             lineHeight="130%"
           >
             {escapeHtml(`${roman(ctx.position)}. ${title}`)}
           </Heading>
-        ) : (
-          <Heading
-            headingType="h2"
-            fontFamily={fonts.mono}
-            fontSize="11px"
-            fontWeight={700}
-            color={colors.ink2}
-            letterSpacing="0.14em"
-            lineHeight="150%"
-          >
-            {escapeHtml(title.toUpperCase())}
-          </Heading>
-        )}
+        </Column>
+      </Row>,
+      <Row key={`${block.id}-label-rule`} layout={ColumnLayouts.OneColumn} backgroundColor={ctx.surface} padding={PAD.rule}>
+        <Column padding="0px">
+          <Divider borderTopWidth="1px" borderTopStyle="solid" borderTopColor={colors.line2} />
+        </Column>
+      </Row>,
+    ];
+  }
+  return [
+    <Row key={`${block.id}-label`} layout={ColumnLayouts.OneColumn} backgroundColor={ctx.surface} padding={PAD.label}>
+      <Column>
+        <Heading
+          headingType="h2"
+          fontFamily={fonts.mono}
+          fontSize="11px"
+          fontWeight={700}
+          color={colors.ink2}
+          letterSpacing="0.14em"
+          lineHeight="150%"
+        >
+          {escapeHtml(`${ordinal(ctx.position)} · ${title.toUpperCase()}`)}
+        </Heading>
       </Column>
-    </Row>
-  );
+    </Row>,
+    <Row key={`${block.id}-label-tick`} layout={ColumnLayouts.OneColumn} backgroundColor={ctx.surface} padding={PAD.rule}>
+      <Column padding="0px">
+        <Divider borderTopWidth="2px" borderTopStyle="solid" borderTopColor={colors.accent} width="34px" textAlign="left" />
+      </Column>
+    </Row>,
+  ];
 }
 
 /** Honest empty state for a block whose section was absent/unclear. */
-export function emptyBlockRow(block: MemoryBlock, message: string): ReactElement {
+export function emptyBlockRow(block: MemoryBlock, message: string, surface: string = colors.surface): ReactElement {
   return (
-    <Row key={`${block.id}-empty`} layout={ColumnLayouts.OneColumn} backgroundColor={colors.surface} padding={PAD.last}>
-      <Column>
+    <Row key={`${block.id}-empty`} layout={ColumnLayouts.OneColumn} backgroundColor={surface} padding={PAD.last}>
+      <Column
+        padding="12px 14px"
+        backgroundColor={colors.surface2}
+        borderRadius="10px"
+        border={{ borderTopWidth: "1px", borderTopStyle: "solid", borderTopColor: colors.line }}
+      >
         <Paragraph html={inlineText(message)} fontFamily={fonts.sans} fontSize="13px" color={colors.ink3} lineHeight="150%" />
       </Column>
     </Row>
@@ -78,17 +110,21 @@ export function emptyBlockRow(block: MemoryBlock, message: string): ReactElement
  * "Kept as text" — unclear source lines preserved verbatim (escaped) so the
  * local parser is visibly lossless. Appends after recognized entries.
  */
-export function notesRows(block: MemoryBlock, notes: readonly string[]): ReactElement[] {
+export function notesRows(
+  block: MemoryBlock,
+  notes: readonly string[],
+  surface: string = colors.surface,
+): ReactElement[] {
   if (notes.length === 0) return [];
   return [
-    <Row key={`${block.id}-notes-label`} layout={ColumnLayouts.OneColumn} backgroundColor={colors.surface} padding="14px 44px 0px 44px">
+    <Row key={`${block.id}-notes-label`} layout={ColumnLayouts.OneColumn} backgroundColor={surface} padding="16px 44px 0px 44px">
       <Column border={{ borderTopWidth: "1px", borderTopStyle: "solid", borderTopColor: colors.line }} padding="12px 0px 0px 0px">
         <Heading headingType="h4" fontFamily={fonts.mono} fontSize="10px" fontWeight={700} color={colors.ink3} letterSpacing="0.12em">
           KEPT AS TEXT
         </Heading>
       </Column>
     </Row>,
-    <Row key={`${block.id}-notes`} layout={ColumnLayouts.OneColumn} backgroundColor={colors.surface} padding={PAD.last}>
+    <Row key={`${block.id}-notes`} layout={ColumnLayouts.OneColumn} backgroundColor={surface} padding={PAD.last}>
       <Column>
         {notes.map((note, i) => (
           <Paragraph

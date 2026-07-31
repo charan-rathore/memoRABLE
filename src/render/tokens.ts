@@ -24,6 +24,9 @@ export const colors = {
   ink3: "#8C8A7E",
   line: "#E7E4DA",
   line2: "#D9D5C8",
+  /** Text set on the ink hero band, where the paper/ink relationship inverts. */
+  heroInk: "#D5D2C6",
+  heroMuted: "#95928A",
   accent: "#1E3BD6",
   accentSoft: "#EEF0FB",
   ok: "#1E7F4F",

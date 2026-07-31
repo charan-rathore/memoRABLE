@@ -24,11 +24,15 @@ Nothing is uploaded. The understanding happens locally and deterministically, wi
 | **Understand** | Strict JSON import (all-or-nothing, exact error positions) or a conservative local text parser. No AI by default. |
 | **Remember** | Every source becomes exactly six Memory Blocks. Each block carries provenance: *Remembered from* — method, locator, excerpt. |
 | **Arrange** | Up/down controls reorder the memories. Ids, provenance and content hashes survive reordering. |
-| **Publish** | Ends on **"Published."** — three outputs side by side, each downloadable as standalone HTML, plus the Unlayer design JSON and the canonical memoRABLE JSON. |
+| **Publish** | Ends on **"Published."** — three outputs side by side, each downloadable as HTML, PDF or Word, plus the Unlayer design JSON and the canonical memoRABLE JSON. |
 
 ## 20-second walkthrough
 
-**Output first.** Open the app and the Atlas Q3 brief is already there — remembered as six memories, already published as a Document.
+**One decision to start.** The app opens on a door, not a dashboard: drop a file, or paste text. Nothing else is on screen until there is something to do it to.
+
+![The home screen: the memoRABLE wordmark, the line "Turn information into memory.", and two cards — Drop a file, and Paste text](public/media/00-home.png)
+
+**Document first.** Bring a brief in and it is already remembered as six memories, already set as a Document.
 
 ![The workbench on first paint: the journey strip across the top, six memories on the left, and the rendered Document output filling the page](public/media/01-document-first.png)
 
@@ -36,9 +40,9 @@ Nothing is uploaded. The understanding happens locally and deterministically, wi
 
 ![The Signals memory selected, with the inspector showing Remembered from: Exact JSON, blocks[1], signals, and the source excerpt](public/media/02-memories-provenance.png)
 
-**One memory. Three outputs.** Publish ends on "Published." — Web page, Email and Document side by side, each downloadable.
+**One memory. Three outputs.** Publish ends on "Published." — Web page, Email and Document side by side, each downloadable as HTML, PDF or Word.
 
-![The Published panel showing Web page, Email and Document thumbnails side by side, each with Download HTML and Unlayer JSON buttons](public/media/03-published-three-outputs.png)
+![The Published panel showing Web page, Email and Document thumbnails side by side, each with HTML, PDF, Word and JSON buttons](public/media/03-published-three-outputs.png)
 
 Press **Replay the 20-second story** to watch it happen: the app re-runs the *real* import pipeline in front of you, reveals the six memories one by one, then assembles the document. Escape stops it and restores your state exactly.
 
@@ -51,10 +55,14 @@ Every output is a real Elements tree — direct `<Email>` / `<Page>` / `<Documen
 ```tsx
 // src/render/build-root.tsx — the Document output
 <Document backgroundColor={colors.paper} contentWidth="760px" fontFamily={fonts.serif} textColor={colors.ink}>
+  {cover}       {/* rule, title, byline — a title page, only in print */}
+  {contents}    {/* a table of contents, built from the memories present */}
   {blockRows}   {/* one or more Rows per Memory Block, from the block registry */}
   {footer}
 </Document>
 ```
+
+The blocks are written once; the frame around them is not, and that is the whole argument for Elements. Print opens on a ruled title page and a two-column table of contents, then sets each section as a serif roman numeral. The web opens on a full-bleed ink hero and alternates paper and white bands down the page, with the signals as white cards floating on the tint. Email keeps a narrow ink masthead, two cards across — anything narrower collapses in Outlook — and a quiet footer band. Same memories, three surfaces, none of them a dump of the source.
 
 ```ts
 // src/render/render-bundle.ts — one tree, both exporters, per mode
@@ -93,12 +101,13 @@ npm run test:e2e     # Playwright desktop + mobile (first run: npx playwright in
 npm run media        # regenerate the screenshots and GIF above
 ```
 
-110 unit/integration tests (Vitest) and 20 Playwright e2e tests — 18 run on every push, 2 are layout-specific skips — including axe accessibility checks with zero critical or serious violations. CI runs the whole gate on every push and pull request ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)).
+128 unit/integration tests (Vitest) and 28 Playwright e2e tests — 26 run on every push, 2 are layout-specific skips — including axe accessibility checks on both the home screen and the workbench, with zero critical or serious violations. CI runs the whole gate on every push and pull request ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)).
 
 ## Honest limitations
 
-- The text parser is deliberately conservative: it only recognizes what it can ground (risks need severity + mitigation, actions need owner + due). Everything unrecognized is kept as notes — never dropped, never invented.
-- Exports are static HTML/JSON; there is no hosted publish step.
+- The text parser records what a line states and leaves the rest undefined: a risk without a severity is still a risk, and the severity column simply does not appear. It never fills a gap for you. Anything it cannot place at all is kept verbatim as notes — never dropped, never invented.
+- PDF goes through the browser's own print dialog ("Save as PDF") rather than a bundled PDF engine, and Word gets an Office-namespaced `.doc` that Word opens natively. Both reuse the exact HTML in the preview.
+- Exports are static files; there is no hosted publish step.
 - State lives in memory for the length of a visit; there is no persistence layer.
 - AI improvement is off by default, optional, and never required for any flow.
 

@@ -311,6 +311,7 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
               onSelect={(id) => dispatch({ type: "blockSelected", blockId: id })}
               onMove={moveBlock}
               revealCount={replay.view?.revealCount ?? null}
+              enterKey={state.importedAt}
             />
           </div>
         </div>

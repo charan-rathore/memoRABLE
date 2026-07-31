@@ -13,9 +13,10 @@ import { BrandMark } from "./brand-mark";
  */
 
 const SESSION_KEY = "memorable.splash.seen";
-const HOLD_MS = 1650;
-const REDUCED_HOLD_MS = 450;
-const EXIT_MS = 520;
+/** Past about 1.2s a brand moment stops being a moment and becomes a toll booth. */
+const HOLD_MS = 780;
+const REDUCED_HOLD_MS = 400;
+const EXIT_MS = 300;
 
 export function BrandSplash({ onFinished }: { onFinished: () => void }) {
   const [leaving, setLeaving] = useState(false);

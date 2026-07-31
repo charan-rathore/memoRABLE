@@ -86,6 +86,22 @@ test.describe("home screen", () => {
     await expect(page.locator(".shell")).toHaveCount(0);
   });
 
+  test("counts what this browser has done, and says where the count lives", async ({ page }) => {
+    await page.goto("/");
+    await page.getByTestId("brand-splash").waitFor({ state: "detached" });
+
+    // A first visit has nothing to report, and three zeros are worse than silence.
+    await expect(page.getByTestId("local-tally")).toHaveCount(0);
+
+    await page.getByRole("button", { name: "Open a sample brief" }).click();
+    await page.locator(".shell").waitFor();
+    await page.getByRole("button", { name: "memoRABLE — back to the start" }).click();
+
+    const tally = page.getByTestId("local-tally");
+    await expect(tally).toContainText("1 document remembered · 6 memories");
+    await expect(tally).toContainText("counted in this browser, and nowhere else");
+  });
+
   test("has no critical or serious accessibility violations", async ({ page }) => {
     const { AxeBuilder } = await import("@axe-core/playwright");
     await page.goto("/");

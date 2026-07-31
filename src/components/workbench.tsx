@@ -18,6 +18,7 @@ import { SourceModal } from "./preview/source-modal";
 import { PublishPanel } from "./export/publish-panel";
 import { StageAnnouncer } from "./ui/stage-announcer";
 import { BrandSplash, shouldShowSplash } from "./ui/brand-splash";
+import { recordDocument, recordPublished } from "@/stats/local-stats";
 import { HomeScreen } from "./home/home-screen";
 import { useReplay } from "./replay/use-replay";
 
@@ -73,6 +74,7 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
       const result = importSource({ raw: text, label });
       if (result.ok) {
         dispatch({ type: "imported", sourceText: text, sourceLabel: label, document: result.value, at: nowLabel() });
+        recordDocument(result.value.blocks.length);
         setView("workbench");
         announce(`Understood — 6 memories created from ${label}.`);
         // Render the remaining two modes asynchronously so the UI stays responsive.
@@ -232,6 +234,7 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
 
   const publish = useCallback(() => {
     dispatch({ type: "published", at: nowLabel() });
+    recordPublished();
     setPublishOpen(true);
     announce("Published — one memory, three useful outputs.");
   }, [announce]);

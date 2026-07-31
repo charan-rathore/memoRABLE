@@ -1,11 +1,12 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Diagnostic } from "@/reliability/diagnostics";
 import { formatDiagnostic } from "@/reliability/diagnostics";
 import { detectFormat } from "@/import/import-source";
 import { BrandMark } from "../ui/brand-mark";
 import { formatBytes, readTextFileWithProgress } from "../import/read-file";
+import { readStats, summarize } from "@/stats/local-stats";
 
 const ACCEPTED = /\.(json|md|markdown|txt)$/i;
 const MAX_BYTES = 2 * 1024 * 1024;
@@ -32,6 +33,10 @@ export function HomeScreen({
   const [reading, setReading] = useState<{ name: string; size: number; percent: number } | null>(null);
   const [readError, setReadError] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
+  // Read after mount: the tally lives in localStorage, which the server has no
+  // view of, so reading it during render would mismatch the prerendered HTML.
+  const [tally, setTally] = useState<string | null>(null);
+  useEffect(() => setTally(summarize(readStats())), []);
   // dragleave fires every time the cursor crosses a child, so a naive boolean
   // strobes as the pointer moves over the icon and the labels. Counting enters
   // against leaves is the only reliable way to know we have actually left.
@@ -81,7 +86,8 @@ export function HomeScreen({
 
         <h1 className="home-title">Turn information into memory.</h1>
         <p className="home-sub">
-          Bring a document. It is understood here, in this browser, and never uploaded.
+          One document in. A web page, an email and a print-ready document out — every line
+          traceable to where it came from, and nothing understood anywhere but this browser.
         </p>
 
         {reading ? (
@@ -215,6 +221,12 @@ export function HomeScreen({
             Open a sample brief
           </button>
         </p>
+
+        {tally && (
+          <p className="home-tally" data-testid="local-tally">
+            {tally} — counted in this browser, and nowhere else.
+          </p>
+        )}
       </div>
     </main>
   );

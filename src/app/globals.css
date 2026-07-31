@@ -453,6 +453,15 @@ a { color: var(--accent); }
   display: inline-flex; align-items: center; justify-content: center; font-weight: 700; flex: none;
 }
 .published-head h2 { font: 22px/1.3 var(--serif); letter-spacing: -0.014em; }
+/* Origin Text Colour Sweep on the payoff word — cobalt passes through, then ink. */
+.published-head h2.sweep {
+  background-image: linear-gradient(90deg, var(--ink) 0%, var(--ink) 40%, var(--accent) 50%, var(--ink) 60%, var(--ink) 100%);
+  background-size: 220% 100%;
+  background-position: 100% 0;
+  -webkit-background-clip: text; background-clip: text;
+  color: transparent;
+  animation: colour-sweep 900ms var(--ease-enter) both;
+}
 .published-sub { color: var(--ink-2); font-size: 13px; margin-bottom: 14px; }
 .published-sub b { color: var(--ink); }
 .dev-exports { margin-top: 14px; border-top: 1px solid var(--line); padding-top: 12px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
@@ -720,8 +729,10 @@ a { color: var(--accent); }
     animation-name: rm-fade !important;
     transform: none !important;
   }
-  .home-title.sweep .stagger-word {
+  .home-title.sweep .stagger-word,
+  .published-head h2.sweep {
     color: var(--ink); background: none; -webkit-background-clip: unset; background-clip: unset;
+    animation-name: rm-fade !important;
   }
   .home-choices .home-card:hover, .home-card.drop.over { transform: none; }
   .btn.magnetic { background: var(--accent); background-size: auto; }

@@ -15,7 +15,7 @@ import {
 import type { MemoryBlock, MemoryDocument } from "@/domain/memory/schema";
 import type { OutputMode } from "@/domain/memory/types";
 import { colors, fonts } from "./tokens";
-import { escapeHtml, inlineText } from "./safe-inline";
+import { escapeHtml, inlineLink, inlineText } from "./safe-inline";
 import { renderBlockRows, type RenderedBlock } from "./block-registry";
 import { roman, type BlockRenderContext } from "./blocks/common";
 
@@ -298,8 +298,11 @@ function contentsRows(doc: MemoryDocument): ReactElement[] {
 }
 
 function tocLink(doc: MemoryDocument, block: MemoryBlock): string {
-  const label = escapeHtml(`${roman(doc.blocks.indexOf(block))}. ${block.title}`);
-  return `<a href="#${sectionAnchor(block)}" style="color:${colors.ink};text-decoration:none">${label}</a>`;
+  return inlineLink(
+    `#${sectionAnchor(block)}`,
+    `${roman(doc.blocks.indexOf(block))}. ${block.title}`,
+    colors.ink,
+  );
 }
 
 function documentFooterRows(doc: MemoryDocument): ReactElement[] {

@@ -1,0 +1,9 @@
+feat(render): finish the Elements upgrades the research named
+
+The Unlayer probe showed three things we had not yet done: the convenient
+table header props are a silent no-op, so the risks table now styles through
+per-cell values; Chrome can drop PDF Dest names when the print root is a
+subframe, so PDF opens a top-level blob document instead; and in-document
+jumps stay cobalt in print so a TOC entry is still an affordance after Save
+as PDF. The Published. payoff also gets the colour-sweep the home title
+already uses.

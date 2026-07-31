@@ -106,6 +106,14 @@ describe("complete HTML per mode", () => {
     expect(bundle.outputs.document.html).toMatch(/href="#section-decisions"/);
   });
 
+  it("styles the risks table through per-cell values the exporter actually honours", () => {
+    const html = renderBundle(doc).outputs.document.html!;
+    // headerBackgroundColor is a silent no-op; ink headers only appear when
+    // each cell carries its own backgroundColor.
+    expect(html).toMatch(/background-color:\s*#14130F/i);
+    expect(html).toContain("Supply-chain lead times");
+  });
+
   it("produces compatible design JSON from a recognized direct root", () => {
     for (const mode of ["web", "email", "document"] as const) {
       const output = renderMode(doc, mode);

@@ -136,7 +136,8 @@ test.describe("bring + understand", () => {
     await enterWorkbench(page);
     await openMobileTab(page, "Bring", isMobile);
 
-    await page.getByRole("button", { name: "Paste" }).click();
+    await page.getByRole("button", { name: /Bring something else/ }).click();
+    await page.getByRole("button", { name: "Paste", exact: true }).click();
     await page.getByLabel("Paste JSON, Markdown or plain text").fill('{"version": 1, "title": "broken"');
     await page.getByRole("button", { name: "Remember this information" }).click();
 
@@ -157,7 +158,8 @@ test.describe("bring + understand", () => {
     await enterWorkbench(page);
     await openMobileTab(page, "Bring", isMobile);
 
-    await page.getByRole("button", { name: "Launch notes · Markdown" }).click();
+    await page.getByRole("button", { name: /Bring something else/ }).click();
+    await page.getByRole("button", { name: /Launch notes/ }).click();
 
     await expect(memNames(page)).toHaveCount(6);
     await expect(page.locator(".doc-title .t")).toHaveText("Atlas Launch Notes");
@@ -291,6 +293,6 @@ test.describe("mobile shell", () => {
     await expect(memNames(page)).toHaveCount(6);
 
     await tabs.getByRole("button", { name: "Bring" }).click();
-    await expect(page.getByRole("button", { name: "Launch notes · Markdown" })).toBeVisible();
+    await expect(page.getByRole("button", { name: /Bring something else/ })).toBeVisible();
   });
 });

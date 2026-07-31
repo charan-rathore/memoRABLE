@@ -168,32 +168,30 @@ a { color: var(--accent); }
 .rail-l > *, .rail-r > * { flex-shrink: 0; }
 
 /* Desktop is an app shell, not a page: the chrome holds still and each column
-   scrolls in its own right. Within the left rail the memories — the one list
-   that grows with the document — take the leftover height, so all of them stay
-   reachable however short the window is. */
+   scrolls in its own right.
+   
+   One scroller per column, and no more. The mobile-tab wrappers are
+   display:contents up here, so the cards themselves are the rail's flex items —
+   and a flex item that is allowed to shrink inside a card with overflow:hidden
+   quietly cuts off its own content, with no scrollbar anywhere to admit it. So
+   cards keep their natural height and the rail is the single thing that
+   scrolls; a nested scroller would only put the same trap one level down. */
 @media (min-width: 961px) {
   .replay-wrap { height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
   .topbar, .pipe, .replay-banner { flex: none; position: static; }
   .shell { flex: 1 1 auto; min-height: 0; align-items: stretch; }
   .rail-l, .rail-r { position: static; max-height: none; height: 100%; }
   .canvas { height: 100%; overflow-y: auto; padding-bottom: 32px; }
-  .mem-card { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 148px; }
-  .mem-card > .card-b {
-    flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
-    scrollbar-width: thin; scrollbar-color: var(--line-2) transparent;
-  }
-  .mem-card > .card-b::-webkit-scrollbar { width: 9px; }
-  .mem-card > .card-b::-webkit-scrollbar-thumb {
+
+  .rail-l > .card, .rail-r > .card,
+  .rail-l > * > .card, .rail-r > * > .card { flex-shrink: 0; }
+
+  .rail-l, .rail-r { scrollbar-width: thin; scrollbar-color: var(--line-2) transparent; }
+  .rail-l::-webkit-scrollbar, .rail-r::-webkit-scrollbar { width: 10px; }
+  .rail-l::-webkit-scrollbar-thumb, .rail-r::-webkit-scrollbar-thumb {
     background: var(--line-2); border-radius: 99px; border: 3px solid var(--surface);
   }
-  .mem-card > .card-b::-webkit-scrollbar-track { background: transparent; }
-  /* A hairline of shadow that only shows while there is more list below. */
-  .mem-card > .card-b { background: linear-gradient(var(--surface) 30%, transparent) top / 100% 22px no-repeat,
-    linear-gradient(transparent, var(--surface) 70%) bottom / 100% 22px no-repeat,
-    radial-gradient(farthest-side at 50% 0, rgba(20, 19, 15, 0.1), transparent) top / 100% 7px no-repeat,
-    radial-gradient(farthest-side at 50% 100%, rgba(20, 19, 15, 0.1), transparent) bottom / 100% 7px no-repeat;
-    background-attachment: local, local, scroll, scroll;
-  }
+  .rail-l::-webkit-scrollbar-track, .rail-r::-webkit-scrollbar-track { background: transparent; }
 }
 
 .card { border: 1px solid var(--line); border-radius: var(--r-l); background: var(--surface); overflow: hidden; }
@@ -240,13 +238,30 @@ a { color: var(--accent); }
 }
 .paste-area:focus { outline: 2px solid var(--accent); outline-offset: 1px; border-color: var(--accent-line); }
 
-.example-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
-.example-chip {
-  border: 1px solid var(--line); border-radius: 99px; padding: 4px 10px;
-  font-size: 11.5px; font-weight: 600; color: var(--ink-2); background: var(--surface);
+/* One door, always in the same place, honestly labelled. */
+.disclose {
+  display: flex; align-items: center; width: 100%; margin-top: 10px;
+  border: 1px solid var(--line); border-radius: var(--r-m); padding: 9px 11px;
+  font-size: 12.5px; font-weight: 600; color: var(--ink-2); background: var(--surface);
   transition: border-color var(--dur-hover) var(--ease), color var(--dur-hover) var(--ease);
 }
-.example-chip:hover { border-color: var(--accent-line); color: var(--accent); }
+.disclose:hover { border-color: var(--line-2); color: var(--ink); }
+.disclose[aria-expanded="true"] { border-color: var(--accent-line); color: var(--accent); background: var(--accent-soft); }
+.disclose .chev { margin-left: auto; font: 13px var(--mono); line-height: 1; }
+.disclosed { animation: disclose-in var(--dur-enter) var(--ease-enter) both; }
+@keyframes disclose-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+
+.samples { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 11px; }
+.samples-h { font-size: 11.5px; line-height: 1.5; color: var(--ink-3); margin-bottom: 8px; }
+.sample-row {
+  display: flex; align-items: baseline; gap: 8px; width: 100%; text-align: left;
+  border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; margin-top: 6px;
+  background: var(--surface);
+  transition: border-color var(--dur-hover) var(--ease), background var(--dur-hover) var(--ease);
+}
+.sample-row:hover { border-color: var(--accent-line); background: var(--accent-soft); }
+.sample-row .sr-name { font-size: 12.5px; font-weight: 600; color: var(--ink); }
+.sample-row .sr-file { margin-left: auto; font: 10px var(--mono); color: var(--ink-3); }
 
 .error-box {
   margin-top: 10px; border: 1px solid #eccaca; background: var(--err-soft);

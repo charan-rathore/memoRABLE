@@ -2,135 +2,111 @@
 
 **Turn information into memory.**
 
-Bring one document. Leave with reusable memories. Every memory stays linked to its source. Those memories are composed into Email, Web and Document with [Unlayer Elements](https://github.com/unlayer/elements).
+**[Live demo →](https://memo-rable.vercel.app)** — open a sample brief, or tap **Watch the 1-minute demo**.
 
-![memoRABLE replays the whole journey: a board brief arrives, six memories are found, and the document assembles itself](public/media/replay.gif)
+![memoRABLE silent GIF walkthrough](public/media/replay.gif)
 
-**[Live demo →](https://memo-rable.vercel.app)** — no install, Atlas already remembered.
+[▶ 1-minute demo with audio (MP4)](public/media/demo.mp4) · [WebM](public/media/demo.webm) · [Download MP4](https://github.com/charan-rathore/memoRABLE/raw/main/public/media/demo.mp4)
 
-## Why memoRABLE exists
+---
 
-Documents are easy to store and hard to remember. Traditional summarization loses context. People need reusable, traceable knowledge — not another summary that drifts from the source.
+## Why does this exist?
 
-memoRABLE reads your document once and *remembers* it as six source-linked Memory Blocks: Snapshot, Signals, Decisions, Timeline, Risks, Actions. Every memory knows exactly where it came from. From that single memory graph it publishes Web, Email and Document — three surfaces that can never disagree.
+Documents are easy to **store** and hard to **remember**.
 
-Nothing is uploaded. Understanding happens locally and deterministically. AI is optional and off by default.
+A board brief gets pasted into email, retyped into a status page, then rewritten again for a slide. Facts drift. Context disappears. “Summarize this PDF” tools make another blob of text — still ungrounded, still one-format, still easy to mistrust.
 
-## Why Elements?
+People don’t need another summary.  
+They need **reusable knowledge** that stays tied to the source and can leave as Email, Web, or Document without being rewritten.
 
-Elements is the composition engine.
+That’s why memoRABLE exists.
 
-Extracted memories become structured React trees built with [`@unlayer/react-elements`](https://github.com/unlayer/elements). Those same trees render to:
+---
 
-- **Email** — 600px, Outlook-safe
-- **Web** — full-bleed page
-- **Document** — print-ready A4
+## What is the product?
 
-One understanding. Multiple outputs. Same memory graph. Different publications.
+memoRABLE is a **Memory Engine**.
 
-```tsx
-// src/render/build-root.tsx — Document output
-<Document backgroundColor={colors.paper} contentWidth="760px" fontFamily={fonts.serif} textColor={colors.ink}>
-  {cover}
-  {contents}
-  {blockRows}   {/* one or more Rows per Memory Block */}
-  {footer}
-</Document>
-```
+1. **Bring** one document (PDF, Markdown, plain text, or JSON).
+2. **Remember** it as six source-linked Memory Blocks:  
+   Snapshot · Signals · Timeline · Decisions · Risks · Actions
+3. **Ground** every memory — click it, and the exact source lines highlight.
+4. **Publish** once with [Unlayer Elements](https://github.com/unlayer/elements) into Email, Web, and Document.
 
-```ts
-// src/render/render-bundle.ts — one tree, both exporters, per mode
-base.html = renderToHtml(built.root);
-const json = renderToJson(built.root);
-```
+One understanding. Three publications. Same memory graph.  
+Nothing is uploaded by default. AI is optional and off unless you turn it on.
 
-## The five verbs
+---
 
-| Verb | What happens |
+## Why should people use it?
+
+| If you… | memoRABLE gives you… |
 | --- | --- |
-| **Bring** | Drop PDF / Markdown / text / JSON, or paste. PDFs: first 40 pages. Nothing is uploaded. |
-| **Understand** | Strict JSON import or a conservative local text parser. No AI by default. |
-| **Remember** | Exactly six Memory Blocks, each with provenance (*Remembered from*). |
-| **Arrange** | Reorder memories. Ids, provenance and content hashes survive. |
-| **Publish** | Ends on **"Published."** — Web, Email, Document, downloadable as HTML / PDF / Word + Unlayer JSON. |
+| Rewrite the same brief into email + docs + web | One memory → three outputs that can’t disagree |
+| Don’t trust AI summaries | Provenance: *Remembered from* the exact lines |
+| Need Elements to be obvious in a demo | UI says **Powered by Elements** / **Composed using Elements** |
+| Care about privacy | Local-first by default |
+| Work with PDFs and notes | Drop a file or paste — PDFs: first 40 pages |
 
-## 20-second walkthrough
+```text
+Document → Memory Extraction → Memory Graph (6 blocks) → Unlayer Elements → Email · Web · Document
+```
 
-1. **Bring** a PDF, Markdown, notes or JSON — or open the sample brief.
-2. Watch **Reading → Understanding → Remembering → Arranging → Publishing**.
-3. Click a memory → the source scrolls and highlights the exact lines. Hover soft-highlights.
-4. Switch Email / Web / Document — each says **Composed using Elements**.
-5. **Publish** — three outputs side by side.
+---
 
-![The home screen](public/media/00-home.png)
+## Try it
 
-![Document-first workbench](public/media/01-document-first.png)
+1. Open **[memo-rable.vercel.app](https://memo-rable.vercel.app)**.
+2. Click **Watch the 1-minute demo** (video + sound, or silent GIF), **or**
+3. Click **Open a sample brief** / drop your own file.
+4. Click a memory → source highlights.
+5. Switch Email / Web / Document → **Publish**.
 
-![Provenance inspector](public/media/02-memories-provenance.png)
+---
 
-![Published: three outputs](public/media/03-published-three-outputs.png)
+## Setup (local)
 
-Press **Replay the 20-second story** to watch the real import pipeline run live.
+**Need:** Node **20.9–24** (`.nvmrc` pins 22).
+
+```bash
+git clone https://github.com/charan-rathore/memoRABLE.git
+cd memoRABLE
+
+nvm use                 # or: nvm install 22 && nvm use 22
+npm install
+npm run dev             # → http://localhost:3000
+```
+
+| Command | What it does |
+| --- | --- |
+| `npm run dev` | Local app |
+| `npm run verify` | Lint + types + tests + production build |
+| `npm run test:e2e` | Playwright (`npx playwright install chromium` once) |
+| `npm run demo:video` | Regenerate `public/media/demo.mp4` + GIF |
+
+---
 
 ## Architecture
 
-```
-Document (PDF / MD / text / JSON)
-  ↓
-Memory Extraction (local, deterministic)
-  ↓
-Memory Graph (6 grounded blocks)
-  ↓
-Elements Composition Engine
-  ↓
-Email · Web · Document
+```mermaid
+flowchart LR
+  D[Document] --> X[Memory Extraction]
+  X --> G[Memory Graph]
+  G --> E[Unlayer Elements]
+  E --> O1[Email]
+  E --> O2[Web]
+  E --> O3[Document]
 ```
 
-- **Deterministic core.** Optional AI (`ENABLE_AI=true`) only *improves* a local result.
-- **Grounding as the demo.** Click → source scroll → paragraph + sentence highlight → memory pulse.
-- **Reliability.** All-or-nothing JSON, last-good per mode, renderer fault isolation, sandboxed iframes, CSP.
+[architecture](docs/architecture.md) · [why memory](docs/why-memory.md) · [reliability](docs/reliability.md)
 
-Docs: [architecture](docs/architecture.md) · [reliability](docs/reliability.md) · [design principles](docs/design-principles.md) · [why memory](docs/why-memory.md)
+---
 
-## Key features
+## Stack
 
-- Grounded memories with source traceability
-- Elements composition (visible in the product UI)
-- Multi-format publishing (Email / Web / Document)
-- Memory-first UX (Bring → Understand → Remember → Arrange → Publish)
-- PDF upload (first 40 pages remembered)
-- Local-first — nothing leaves the browser by default
+Next.js 15 · React 19 · TypeScript · Zod · [`@unlayer/react-elements`](https://github.com/unlayer/elements) · pdf.js · Vitest · Playwright
 
-## Technical stack
-
-Next.js 15 · React 19 · TypeScript · Zod · `@unlayer/react-elements` · pdf.js (client PDF text) · Vitest · Playwright
-
-## Local development
-
-Requires **Node 20.9–24** (`.nvmrc` pins 22).
-
-```bash
-nvm use
-npm install
-npm run dev          # http://localhost:3000
-
-npm run verify       # lint + typecheck + tests + production build
-npm run test:e2e     # Playwright (first run: npx playwright install chromium)
-```
-
-## Demo script (≈2 minutes)
-
-1. **Problem** — documents get retyped into email, status page, slide; truth drifts.
-2. **Bring** — drop a brief (or open the sample). Show Reading → Remembering stages.
-3. **Click a memory** — source scrolls, highlight appears: “this came from HERE.”
-4. **Elements** — point at *Powered by Elements* and switch Email / Web / Document.
-5. **Publish** — three outputs, same memories. Close on: *Memory Engine built around Elements.*
-
-## Future work
-
-- Richer PDF layout awareness (tables / multi-column)
-- Optional persisted memory library across visits
-- Deeper Elements design-tool round-trip
+---
 
 ## License
 

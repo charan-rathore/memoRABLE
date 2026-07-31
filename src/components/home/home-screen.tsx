@@ -30,12 +30,14 @@ export function HomeScreen({
   onImport,
   onUseExample,
   onReplayBrand,
+  onWatchDemo,
   understanding,
 }: {
   errors: Diagnostic[];
   onImport: (text: string, label: string, meta?: Partial<SourceMeta>) => void | Promise<void>;
   onUseExample: (id: "atlas-json" | "atlas-notes") => void;
   onReplayBrand?: () => void;
+  onWatchDemo?: () => void;
   understanding?: { stage: ImportStage; percent: number } | null;
 }) {
   const [mode, setMode] = useState<"choose" | "paste">("choose");
@@ -269,6 +271,14 @@ export function HomeScreen({
           <button type="button" className="linkish" onClick={() => onUseExample("atlas-json")}>
             Open a sample brief
           </button>
+          {onWatchDemo ? (
+            <>
+              {" · "}
+              <button type="button" className="linkish" onClick={onWatchDemo} data-testid="watch-demo">
+                Watch the 1-minute demo
+              </button>
+            </>
+          ) : null}
         </p>
 
         {tally && (

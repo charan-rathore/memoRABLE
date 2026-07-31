@@ -16,6 +16,9 @@
 # misc
 .DS_Store
 *.pem
+public/media/.demo-work/
+# large local VO source (kept on disk for remix; optional in git)
+# public/media/research/voiceover-raw.m4a
 
 # debug
 npm-debug.log*

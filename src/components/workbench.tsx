@@ -331,6 +331,7 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
             onImport={(text, label, meta) => runImport(text, label, meta)}
             onUseExample={loadExample}
             onReplayBrand={() => setSplash(true)}
+            onWatchDemo={() => setDemoOpen(true)}
             understanding={importProgress}
           />
         </div>

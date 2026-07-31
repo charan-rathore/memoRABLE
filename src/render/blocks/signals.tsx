@@ -22,7 +22,16 @@ export function renderSignalsRows(block: MemoryBlock, ctx: BlockRenderContext): 
     return rows;
   }
 
-  const perRow = ctx.mode === "email" ? 2 : entries.length === 4 ? 2 : Math.min(entries.length, 3);
+  const perRow =
+    ctx.mode === "email"
+      ? 2
+      : ctx.theme.webHorizontal && ctx.mode === "web"
+        ? Math.min(entries.length, 4)
+        : ctx.theme.chartEmphasis
+          ? Math.min(entries.length, 3)
+          : entries.length === 4
+            ? 2
+            : Math.min(entries.length, 3);
   for (let i = 0; i < entries.length; i += perRow) {
     const chunk = entries.slice(i, i + perRow);
     const isLast = i + perRow >= entries.length && !entries.some((e) => e.implication) && notes.length === 0;

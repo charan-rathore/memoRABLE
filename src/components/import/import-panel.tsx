@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Diagnostic } from "@/reliability/diagnostics";
 import { formatDiagnostic } from "@/reliability/diagnostics";
 import type { ImportWarning } from "@/domain/memory/schema";
@@ -34,6 +34,7 @@ export function ImportPanel({
   onUseVerified,
   onImproveWithAi,
   aiBusy,
+  forceBringOpen = 0,
 }: {
   sourceLabel: string;
   sourceOk: boolean;
@@ -48,12 +49,18 @@ export function ImportPanel({
   onUseVerified: () => void;
   onImproveWithAi: () => void;
   aiBusy: boolean;
+  /** Increment to force the bring panel open (journey strip → Bring). */
+  forceBringOpen?: number;
 }) {
   const [pasteOpen, setPasteOpen] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   // Open only while there is nothing to lose. With a document already
   // remembered, bringing another is a deliberate act behind a deliberate door.
   const [bringOpen, setBringOpen] = useState(!sourceOk);
+
+  useEffect(() => {
+    if (forceBringOpen > 0) setBringOpen(true);
+  }, [forceBringOpen]);
   const fileInput = useRef<HTMLInputElement>(null);
   const format = detectFormat(sourceText);
 

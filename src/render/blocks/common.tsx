@@ -3,6 +3,8 @@ import { Column, ColumnLayouts, Divider, Heading, Paragraph, Row } from "@unlaye
 import type { MemoryBlock } from "@/domain/memory/schema";
 import type { OutputMode } from "@/domain/memory/types";
 import { colors, fonts } from "../tokens";
+import type { PublishTheme } from "../themes";
+import { resolveTheme } from "../themes";
 import { escapeHtml, inlineText } from "../safe-inline";
 
 /** Context threaded to every block renderer. */
@@ -17,6 +19,23 @@ export interface BlockRenderContext {
    * email stay on one surface, where banding costs ink and clients choke on it.
    */
   surface: string;
+  /** Active publish theme (default editorial = legacy look). */
+  theme: PublishTheme;
+}
+
+export function defaultThemeContext(
+  mode: OutputMode,
+  position: number,
+  documentTitle: string,
+  theme = resolveTheme("editorial"),
+): BlockRenderContext {
+  const surface =
+    mode !== "web" ? theme.colors.surface : position % 2 === 0 ? theme.colors.surface : theme.colors.paper;
+  return { mode, position, documentTitle, surface, theme };
+}
+
+export function scaledPx(base: number, scale: number): string {
+  return `${Math.round(base * scale)}px`;
 }
 
 const ROMAN = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"];

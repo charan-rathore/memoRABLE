@@ -114,7 +114,7 @@ describe("render cache", () => {
 describe("renderAll — onlyMode", () => {
   it("renders only the requested mode when onlyMode is set", () => {
     const doc = atlas();
-    const result = renderAll(doc, [], "web", "web");
+    const result = renderAll(doc, [], "web", "editorial", "web");
     expect(result.outputs.web!.html).toBeTruthy();
     expect(result.outputs.web!.error).toBeNull();
     // email and document were not rendered.

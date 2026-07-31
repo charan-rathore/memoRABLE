@@ -3,6 +3,7 @@ import type { MemoryDocument } from "@/domain/memory/schema";
 import { reorderBlocks } from "@/domain/memory/normalize";
 import { renderMode, type ModeOutput } from "@/render/render-bundle";
 import { OUTPUT_MODES, type OutputMode } from "@/domain/memory/types";
+import type { PublishThemeId } from "@/render/themes";
 
 /**
  * Workbench state — a pure, framework-free core so every transition is
@@ -30,6 +31,7 @@ export interface WorkbenchState {
   /** Errors of the most recent failed import (empty when healthy). */
   errors: Diagnostic[];
   mode: OutputMode;
+  theme: PublishThemeId;
   selectedBlockId: string | null;
   /** Wall-clock label of the last successful import, for the journey strip. */
   importedAt: string | null;
@@ -42,6 +44,7 @@ export type WorkbenchAction =
   | { type: "importFailed"; sourceText: string; sourceLabel: string; errors: Diagnostic[] }
   | { type: "reordered"; blockId: string; direction: -1 | 1 }
   | { type: "modeChanged"; mode: OutputMode }
+  | { type: "themeChanged"; theme: PublishThemeId }
   | { type: "blockSelected"; blockId: string | null }
   | { type: "sourceEdited"; sourceText: string }
   | { type: "published"; at: string }
@@ -74,6 +77,7 @@ export function initialWorkbenchState(init: {
     lastGood: pickGood(init.outputs),
     errors: [],
     mode: "document",
+    theme: "editorial",
     selectedBlockId: null,
     importedAt: init.at,
     publishedAt: null,
@@ -97,7 +101,7 @@ export function workbenchReducer(state: WorkbenchState, action: WorkbenchAction)
       // Only this mode renders synchronously; the other two are deferred so the
       // UI responds before the heavy Elements SSR.
       const preferred: OutputMode = "document";
-      const { outputs, cache } = renderAll(action.document, state.cache, preferred, preferred);
+      const { outputs, cache } = renderAll(action.document, state.cache, preferred, state.theme, preferred);
       return {
         ...state,
         sourceText: action.sourceText,
@@ -133,7 +137,7 @@ export function workbenchReducer(state: WorkbenchState, action: WorkbenchAction)
       [nextIds[index], nextIds[target]] = [nextIds[target]!, nextIds[index]!];
       const reordered = reorderBlocks(state.document, nextIds);
       // Only render the active mode synchronously; defer the other two.
-      const { outputs, cache } = renderAll(reordered, state.cache, state.mode, state.mode);
+      const { outputs, cache } = renderAll(reordered, state.cache, state.mode, state.theme, state.mode);
       return {
         ...state,
         document: reordered,
@@ -145,6 +149,18 @@ export function workbenchReducer(state: WorkbenchState, action: WorkbenchAction)
     }
     case "modeChanged":
       return { ...state, mode: action.mode };
+    case "themeChanged": {
+      if (!state.document || state.theme === action.theme) return { ...state, theme: action.theme };
+      const { outputs, cache } = renderAll(state.document, [], state.mode, action.theme, state.mode);
+      return {
+        ...state,
+        theme: action.theme,
+        outputs,
+        lastGood: { ...state.lastGood, ...pickGood(outputs) },
+        publishedAt: null,
+        cache,
+      };
+    }
     case "blockSelected":
       return { ...state, selectedBlockId: action.blockId };
     case "sourceEdited":
@@ -187,6 +203,7 @@ export function renderAll(
   doc: MemoryDocument,
   cache: RenderCacheEntry[],
   activeMode: OutputMode,
+  theme: PublishThemeId = "editorial",
   onlyMode?: OutputMode,
 ): { outputs: Record<OutputMode, ModeOutput>; cache: RenderCacheEntry[] } {
   const orderedModes = onlyMode
@@ -195,13 +212,13 @@ export function renderAll(
   const outputs = {} as Record<OutputMode, ModeOutput>;
   let nextCache = [...cache];
   for (const mode of orderedModes) {
-    const key = `${doc.contentHash}:${mode}`;
+    const key = `${doc.contentHash}:${mode}:${theme}`;
     const hit = nextCache.find((e) => e.key === key);
     if (hit) {
       outputs[mode] = hit.output;
       nextCache = [hit, ...nextCache.filter((e) => e.key !== key)];
     } else {
-      const output = renderMode(doc, mode);
+      const output = renderMode(doc, mode, theme);
       outputs[mode] = output;
       nextCache = [{ key, output }, ...nextCache].slice(0, RENDER_CACHE_SIZE);
     }

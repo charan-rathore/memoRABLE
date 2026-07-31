@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { OUTPUT_MODE_LABELS, type OutputMode } from "@/domain/memory/types";
 import { ElementsStory } from "./elements-story";
+import type { PublishThemeId } from "@/render/themes";
 
 /**
  * The actual output, always: a sandboxed iframe containing the generated
@@ -16,6 +17,7 @@ export function PreviewPane({
   error,
   documentTitle,
   blockCount,
+  theme = "editorial",
 }: {
   mode: OutputMode;
   html: string | null;
@@ -23,6 +25,7 @@ export function PreviewPane({
   error: string | null;
   documentTitle: string;
   blockCount: number;
+  theme?: PublishThemeId;
 }) {
   const [displayed, setDisplayed] = useState(html);
   const [fading, setFading] = useState(false);
@@ -83,7 +86,7 @@ export function PreviewPane({
         <span aria-hidden="true">·</span>
         <span>rendered with Unlayer Elements 0.1.20</span>
       </div>
-      <ElementsStory mode={mode} blockCount={blockCount} />
+      <ElementsStory mode={mode} blockCount={blockCount} theme={theme} />
     </div>
   );
 }

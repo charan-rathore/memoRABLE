@@ -3,6 +3,8 @@ import type { MemoryDocument } from "@/domain/memory/schema";
 import { OUTPUT_MODES, type OutputMode } from "@/domain/memory/types";
 import { buildRoot } from "./build-root";
 import { validateDesignJson, type DesignJsonSummary } from "./compatibility";
+import type { PublishThemeId } from "./themes";
+import { resolveTheme } from "./themes";
 
 /**
  * Independent render bundle (reliability layer 6). Each mode renders on its
@@ -43,7 +45,11 @@ export function renderBundle(doc: MemoryDocument): RenderBundle {
 }
 
 /** Render a single mode (HTML + validated design JSON). Never throws. */
-export function renderMode(doc: MemoryDocument, mode: OutputMode): ModeOutput {
+export function renderMode(
+  doc: MemoryDocument,
+  mode: OutputMode,
+  themeId: PublishThemeId = "editorial",
+): ModeOutput {
   const base: ModeOutput = {
     mode,
     html: null,
@@ -54,7 +60,7 @@ export function renderMode(doc: MemoryDocument, mode: OutputMode): ModeOutput {
     designJsonError: null,
   };
   try {
-    const built = buildRoot(doc, mode);
+    const built = buildRoot(doc, mode, resolveTheme(themeId));
     base.usedRecoveryRows = built.blocks.some((b) => b.recovered);
     base.html = renderToHtml(built.root);
     try {

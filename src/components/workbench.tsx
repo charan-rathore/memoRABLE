@@ -20,6 +20,8 @@ import { StageAnnouncer } from "./ui/stage-announcer";
 import { BrandSplash } from "./ui/brand-splash";
 import { DemoVideo } from "./ui/demo-video";
 import { recordDocument, recordPublished } from "@/stats/local-stats";
+import { rememberLibraryDoc } from "@/stats/doc-library";
+import type { PublishThemeId } from "@/render/themes";
 import { HomeScreen } from "./home/home-screen";
 import { useReplay } from "./replay/use-replay";
 import {
@@ -61,6 +63,11 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
   const [demoOpen, setDemoOpen] = useState(false);
   const [importProgress, setImportProgress] = useState<{ stage: ImportStage; percent: number } | null>(null);
   const [hoveredBlockId, setHoveredBlockId] = useState<string | null>(null);
+  const [bringForceOpen, setBringForceOpen] = useState(0);
+  const memoriesRef = useRef<HTMLDivElement>(null);
+  const bringRef = useRef<HTMLDivElement>(null);
+  const themeRef = useRef<PublishThemeId>("editorial");
+  themeRef.current = state?.theme ?? "editorial";
 
   useEffect(() => {
     setReducedMotion(window.matchMedia("(prefers-reduced-motion: reduce)").matches);
@@ -94,10 +101,11 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
         await mark("arranging");
         dispatch({ type: "imported", sourceText: text, sourceLabel: label, document: result.value, at: nowLabel() });
         recordDocument(result.value.blocks.length);
+        rememberLibraryDoc({ title: result.value.title, label, sourceText: text });
         setView("workbench");
         setMobileTab("publish");
         await mark("publishing");
-        scheduleLazyRenders(result.value, [], "document", dispatch);
+        scheduleLazyRenders(result.value, [], "document", themeRef.current, dispatch);
         announce(`Understood: 6 memories created from ${label}.`);
       } else {
         dispatch({ type: "importFailed", sourceText: text, sourceLabel: label, errors: [...result.errors] });
@@ -266,14 +274,36 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
     (key: string) => {
       if (key === "bring") {
         setMobileTab("bring");
-        announce("Bring information.");
+        setBringForceOpen((n) => n + 1);
+        requestAnimationFrame(() => bringRef.current?.scrollIntoView({ block: "start", behavior: "smooth" }));
+        announce("Bring: paste, drop a file, or reopen a recent document.");
         return;
       }
-      if (key === "understand" || key === "remember" || key === "arrange") {
+      if (key === "understand") {
         setMobileTab("memories");
         const first = state.document?.blocks[0];
         if (first) dispatch({ type: "blockSelected", blockId: first.id });
-        announce(key === "arrange" ? "Arrange the memories." : "Look at what was remembered.");
+        requestAnimationFrame(() => memoriesRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" }));
+        announce("Understand: six memory types recognized from the source.");
+        return;
+      }
+      if (key === "remember") {
+        setMobileTab("memories");
+        const first = state.document?.blocks[0];
+        if (first) {
+          dispatch({ type: "blockSelected", blockId: first.id });
+          setSourceModal(first);
+        }
+        requestAnimationFrame(() => memoriesRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" }));
+        announce("Remember: open a memory to see exactly where it came from.");
+        return;
+      }
+      if (key === "arrange") {
+        setMobileTab("memories");
+        const first = state.document?.blocks[0];
+        if (first) dispatch({ type: "blockSelected", blockId: first.id });
+        requestAnimationFrame(() => memoriesRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" }));
+        announce("Arrange: use ↑ ↓ on a selected memory to reorder publication.");
         return;
       }
       if (key === "publish") {
@@ -340,6 +370,13 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
             `Composed using Elements · ${mode === "web" ? "Web page" : mode === "email" ? "Email" : "Document"}.`,
           );
         }}
+        theme={state.theme}
+        onThemeChange={(theme) => {
+          dispatch({ type: "themeChanged", theme });
+          announce(`Theme: ${theme}. Outputs recomposed with Elements.`);
+          if (state.document) scheduleLazyRenders(state.document, [], state.mode, theme, dispatch);
+        }}
+        onOpenRecent={(text, label) => void runImport(text, label)}
         aiEnabled={aiEnabled}
         replayActive={replay.active}
         onReplay={() => (replay.active ? replay.cancel() : replay.start())}
@@ -375,7 +412,7 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
 
       <main className="shell">
         <div className="rail-l">
-          <div className={mobileTab === "bring" ? "" : "mobile-hide"}>
+          <div ref={bringRef} className={mobileTab === "bring" ? "" : "mobile-hide"}>
             <ImportPanel
               sourceLabel={state.sourceLabel}
               sourceOk={state.document !== null && state.errors.length === 0}
@@ -385,6 +422,7 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
               hasVerified={hasVerified}
               aiEnabled={aiEnabled && state.document?.sourceMethod === "local-parser"}
               aiBusy={aiBusy}
+              forceBringOpen={bringForceOpen}
               onEditSource={(text) => dispatch({ type: "sourceEdited", sourceText: text })}
               onImport={runImport}
               onUseExample={loadExample}
@@ -392,7 +430,7 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
               onImproveWithAi={() => void improveWithAi()}
             />
           </div>
-          <div className={mobileTab === "memories" ? "" : "mobile-hide"}>
+          <div ref={memoriesRef} className={`mem-rail${mobileTab === "memories" ? "" : " mobile-hide"}`}>
             <BlocksPanel
               blocks={state.document?.blocks ?? []}
               selectedBlockId={state.selectedBlockId}
@@ -430,6 +468,7 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
               error={error}
               documentTitle={state.document?.title ?? "untitled"}
               blockCount={state.document?.blocks.length ?? 0}
+              theme={state.theme}
             />
           ) : (
             <div className="empty-canvas">
@@ -516,14 +555,16 @@ function scheduleLazyRenders(
   doc: MemoryDocument,
   _cache: RenderCacheEntry[],
   activeMode: OutputMode,
+  theme: PublishThemeId,
   dispatch: React.Dispatch<WorkbenchAction>,
 ) {
+  if (!doc) return;
   const remaining = OUTPUT_MODES.filter((m) => m !== activeMode);
   if (remaining.length === 0) return;
   setTimeout(() => {
     const filled: Partial<Record<OutputMode, ModeOutput>> = {};
     for (const m of remaining) {
-      const output = renderMode(doc, m);
+      const output = renderMode(doc, m, theme);
       filled[m] = output;
     }
     dispatch({ type: "lazyRendered", outputs: filled, cache: [] });

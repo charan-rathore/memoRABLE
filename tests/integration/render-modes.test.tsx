@@ -9,6 +9,7 @@ import { validateDesignJson } from "@/render/compatibility";
 import { blockRenderers, renderBlockRows } from "@/render/block-registry";
 import type { MemoryDocument } from "@/domain/memory/schema";
 import { escapeHtml } from "@/render/safe-inline";
+import { resolveTheme } from "@/render/themes";
 
 function atlas(): MemoryDocument {
   const result = importSource({ raw: ATLAS_JSON_SOURCE, label: "atlas-q3-brief.json" });
@@ -221,6 +222,7 @@ describe("block isolation (layer 5)", () => {
         position: 1,
         documentTitle: doc.title,
         surface: "#FFFFFF",
+        theme: resolveTheme("editorial"),
       });
       expect(rendered.recovered).toBe(true);
       expect(rendered.rows).toHaveLength(1);

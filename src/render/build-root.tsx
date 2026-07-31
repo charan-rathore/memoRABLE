@@ -15,6 +15,8 @@ import {
 import type { MemoryBlock, MemoryDocument } from "@/domain/memory/schema";
 import type { OutputMode } from "@/domain/memory/types";
 import { colors, fonts } from "./tokens";
+import type { PublishTheme } from "./themes";
+import { resolveTheme } from "./themes";
 import { escapeHtml, inlineLink, inlineText } from "./safe-inline";
 import { renderBlockRows, type RenderedBlock } from "./block-registry";
 import { roman, type BlockRenderContext } from "./blocks/common";
@@ -44,13 +46,20 @@ export function sectionAnchor(block: MemoryBlock): string {
   return `section-${block.kind}`;
 }
 
-export function buildRoot(doc: MemoryDocument, mode: OutputMode): BuiltRoot {
+export function buildRoot(
+  doc: MemoryDocument,
+  mode: OutputMode,
+  theme: PublishTheme = resolveTheme("editorial"),
+): BuiltRoot {
+  const palette = theme.colors;
+  const type = theme.fonts;
   const renderedBlocks = doc.blocks.map((block, position) => {
     const ctx: BlockRenderContext = {
       mode,
       position,
       documentTitle: doc.title,
-      surface: surfaceFor(mode, position),
+      surface: surfaceFor(mode, position, theme),
+      theme,
     };
     return renderBlockRows(block, ctx);
   });
@@ -66,12 +75,12 @@ export function buildRoot(doc: MemoryDocument, mode: OutputMode): BuiltRoot {
       blocks: renderedBlocks,
       root: (
         <Email
-          backgroundColor={colors.paper}
+          backgroundColor={palette.paper}
           contentWidth="600px"
-          fontFamily={fonts.sans}
-          textColor={colors.ink}
+          fontFamily={type.sans}
+          textColor={palette.ink}
           previewText={previewTextOf(doc)}
-          linkStyle={{ linkColor: colors.accent, linkUnderline: false }}
+          linkStyle={{ linkColor: palette.accent, linkUnderline: false }}
           _meta={{ htmlID: "u_content_body_1" }}
         >
           {emailHeaderRows(doc)}
@@ -89,11 +98,11 @@ export function buildRoot(doc: MemoryDocument, mode: OutputMode): BuiltRoot {
       blocks: renderedBlocks,
       root: (
         <Document
-          backgroundColor={colors.paper}
+          backgroundColor={palette.paper}
           contentWidth="760px"
-          fontFamily={fonts.serif}
-          textColor={colors.ink}
-          linkStyle={{ linkColor: colors.accent, linkUnderline: false }}
+          fontFamily={type.serif}
+          textColor={palette.ink}
+          linkStyle={{ linkColor: palette.accent, linkUnderline: false }}
           _meta={{ htmlID: "u_content_body_1" }}
         >
           {blockRows.slice(0, coverRowCount(renderedBlocks))}
@@ -111,11 +120,11 @@ export function buildRoot(doc: MemoryDocument, mode: OutputMode): BuiltRoot {
     blocks: renderedBlocks,
     root: (
       <Page
-        backgroundColor={colors.paper}
-        contentWidth="760px"
-        fontFamily={fonts.sans}
-        textColor={colors.ink}
-        linkStyle={{ linkColor: colors.accent, linkUnderline: false }}
+        backgroundColor={palette.paper}
+        contentWidth={theme.webContentWidth}
+        fontFamily={type.sans}
+        textColor={palette.ink}
+        linkStyle={{ linkColor: palette.accent, linkUnderline: false }}
         _meta={{ htmlID: "u_content_body_1" }}
       >
         {webNavRows(doc)}
@@ -137,9 +146,9 @@ export function buildDocumentRoot(doc: MemoryDocument): ReactElement {
   return buildRoot(doc, "document").root;
 }
 
-function surfaceFor(mode: OutputMode, position: number): string {
-  if (mode !== "web") return colors.surface;
-  return position % 2 === 0 ? colors.surface : colors.paper;
+function surfaceFor(mode: OutputMode, position: number, theme: PublishTheme = resolveTheme("editorial")): string {
+  if (mode !== "web") return theme.colors.surface;
+  return position % 2 === 0 ? theme.colors.surface : theme.colors.paper;
 }
 
 function coverRowCount(blocks: RenderedBlock[]): number {

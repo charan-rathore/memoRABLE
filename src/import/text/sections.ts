@@ -50,7 +50,6 @@ const HEADING_KEYWORDS: Record<string, BlockKind> = {
   outcomes: "signals",
   targets: "signals",
   benchmarks: "signals",
-  performance: "signals",
   criteria: "signals",
   "success criteria": "signals",
   "acceptance criteria": "signals",

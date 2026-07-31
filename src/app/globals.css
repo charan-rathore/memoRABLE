@@ -350,7 +350,8 @@ a { color: var(--accent); }
   display: block; border: 0; background: var(--paper); pointer-events: none;
   width: 400%; height: 880px; transform: scale(0.25); transform-origin: top left;
 }
-.pub-card .pc-a { display: flex; gap: 6px; padding: 8px 10px; background: var(--surface); border-top: 1px solid var(--line); }
+.pub-card .pc-a { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 10px; background: var(--surface); border-top: 1px solid var(--line); }
+.pub-card .pc-a .btn { flex: 1 1 auto; justify-content: center; }
 .published-head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
 .published-head .tick {
   width: 26px; height: 26px; border-radius: 50%; background: var(--ok-soft); color: var(--ok);

@@ -5,6 +5,7 @@ import { OUTPUT_MODES, OUTPUT_MODE_LABELS, type OutputMode } from "@/domain/memo
 import type { WorkbenchState } from "../workbench-state";
 import { canonicalJsonString } from "@/render/export-source";
 import { baseNameFor, copyToClipboard, downloadTextFile } from "@/utils/download";
+import { buildWordDocument, printHtmlDocument } from "@/utils/print-export";
 
 /**
  * Publish: the confirmation that ends on value — "Published." with all three
@@ -50,6 +51,30 @@ export function PublishPanel({
         setCopyNote(copied ? "Download failed — the HTML was copied to your clipboard instead." : "Download failed and clipboard is unavailable."),
       );
     }
+  };
+
+  const htmlFor = (mode: OutputMode) => state.outputs[mode]?.html ?? state.lastGood[mode]?.html ?? null;
+
+  const printPdf = (mode: OutputMode) => {
+    const html = htmlFor(mode);
+    if (!html) return;
+    const result = printHtmlDocument(html);
+    if (result.ok) {
+      onDownloaded(`Opened the print dialog — choose “Save as PDF” to keep the ${OUTPUT_MODE_LABELS[mode]} output.`);
+    } else {
+      setCopyNote("Printing is unavailable in this browser — download the HTML and print it instead.");
+    }
+  };
+
+  const downloadWord = (mode: OutputMode) => {
+    const html = htmlFor(mode);
+    if (!html) return;
+    const result = downloadTextFile({
+      filename: `${base}-${mode}.doc`,
+      content: buildWordDocument(html, doc.title),
+      mimeType: "application/msword",
+    });
+    if (result.ok) onDownloaded(`Downloaded the ${OUTPUT_MODE_LABELS[mode]} output as a Word document.`);
   };
 
   const downloadCanonical = () => {
@@ -121,7 +146,25 @@ export function PublishPanel({
                   )}
                   <div className="pc-a">
                     <button type="button" className="btn pri small" onClick={() => download(mode)} disabled={!html}>
-                      Download HTML
+                      HTML
+                    </button>
+                    <button
+                      type="button"
+                      className="btn ghost small"
+                      onClick={() => printPdf(mode)}
+                      disabled={!html}
+                      title="Opens the print dialog — choose “Save as PDF”"
+                    >
+                      PDF
+                    </button>
+                    <button
+                      type="button"
+                      className="btn ghost small"
+                      onClick={() => downloadWord(mode)}
+                      disabled={!html}
+                      title="Downloads a .doc file that Word opens directly"
+                    >
+                      Word
                     </button>
                     <button
                       type="button"
@@ -130,7 +173,7 @@ export function PublishPanel({
                       disabled={!output?.designJson}
                       title={output?.designJson ? "Unlayer design JSON" : (output?.designJsonError ?? "Design JSON unavailable")}
                     >
-                      Unlayer JSON
+                      JSON
                     </button>
                   </div>
                 </div>

@@ -59,11 +59,19 @@ export function stripListMarker(line: string): string {
 /** Leading glyphs authors use as bullets that markdown does not define. */
 const GLYPH_PREFIX = /^\s*[✓✔✅×✗✘→⇒▸▪▫◦·+]\s*/;
 
+/** Remove markdown emphasis so rendered output never shows raw `**` or backticks. */
+export function stripEmphasis(text: string): string {
+  return text
+    .replace(/\*\*(.+?)\*\*/g, "$1")
+    .replace(/__(.+?)__/g, "$1")
+    .replace(/(^|\W)\*(\S(?:.*?\S)?)\*(?=\W|$)/g, "$1$2")
+    .replace(/`([^`]+)`/g, "$1")
+    .trim();
+}
+
 /** Normalize a line to its human content: list marker, glyph and emphasis removed. */
 export function plainContentOf(line: string): string {
-  let text = stripListMarker(line).replace(GLYPH_PREFIX, "").trim();
-  text = text.replace(/\*\*(.+?)\*\*/g, "$1").replace(/`([^`]+)`/g, "$1");
-  return text.trim();
+  return stripEmphasis(stripListMarker(line).replace(GLYPH_PREFIX, "").trim());
 }
 
 /** A line carrying no content of its own — a lone arrow or divider in a diagram. */
@@ -185,6 +193,10 @@ export function parseDecisionLine(raw: string): DecisionEntry | null {
   }
   // Require a ref, a list marker or an explicit status — bare prose is not a decision.
   if (!ref && !item && !foundStatus) return null;
+  // A short noun phrase in a list ("Redis", "Docker Swarm") is something the
+  // author enumerated, not a position they took. Without a reference or an
+  // explicit status, a decision has to read like a statement.
+  if (!ref && !foundStatus && rest.split(/\s+/).length < 3 && !/[.!?]$/.test(rest)) return null;
   if (rest.length < 2) return null;
   const entry: DecisionEntry = { text: rest, status };
   if (ref) entry.ref = ref;
@@ -379,6 +391,8 @@ export function parseDecisionLineLenient(raw: string): DecisionEntry | null {
   if (!text) return null;
   const strict = parseDecisionLine(raw);
   if (strict) return strict;
+  // A bare noun ("Redis") is an item in a list, not a position someone took.
+  if (text.split(/\s+/).length < 2) return null;
   return { text, status: "proposed" };
 }
 

@@ -35,6 +35,7 @@ import {
   plainContentOf,
   splitListItem,
   splitTableRow,
+  stripEmphasis,
   stripListMarker,
 } from "./patterns";
 
@@ -225,7 +226,9 @@ function buildBlock(kind: BlockKind, matched: Section[], ctx: BuildContext): Blo
   const method =
     kind !== "snapshot" && entryCount === 0 && hasNotes ? ("recovered" as const) : ("local-parser" as const);
 
-  const primary = matched[0] ?? null;
+  // Point provenance at the section that actually named this memory, not
+  // merely the first one that happened to land here.
+  const primary = matched.find((s) => s.assigned) ?? matched[0] ?? null;
   return {
     kind,
     payload,
@@ -314,6 +317,9 @@ function buildEntriesPayload(
 
 const BYLINE = /^(prepared\s+by|by\s+\w|reviewed\s+by|author)/i;
 
+/** How many lines from unmatched sections the snapshot will carry. */
+const LEFTOVER_NOTE_BUDGET = 24;
+
 function buildSnapshotPayload(
   contentLines: SourceLine[],
   title: string,
@@ -345,7 +351,7 @@ function buildSnapshotPayload(
       if (notes.length < LIMITS.maxNotesPerBlock) notes.push(stripListMarker(text));
       continue;
     }
-    buffer.push(text);
+    buffer.push(stripEmphasis(text));
   }
   flush();
 
@@ -355,13 +361,22 @@ function buildSnapshotPayload(
   }
 
   // Sections that matched no memory are preserved here, heading included, so
-  // that nothing in the source disappears.
+  // nothing in the source vanishes silently. The budget is deliberately far
+  // below the note cap: the full text stays one "View source" click away, and
+  // a published page should not degenerate into a transcript of the upload.
+  let budget = LEFTOVER_NOTE_BUDGET;
   for (const section of leftovers) {
-    if (section.headingText && notes.length < LIMITS.maxNotesPerBlock) notes.push(section.headingText);
+    if (budget <= 0 || notes.length >= LIMITS.maxNotesPerBlock) break;
+    if (section.headingText) {
+      notes.push(stripEmphasis(section.headingText));
+      budget--;
+    }
     for (const line of section.lines) {
+      if (budget <= 0 || notes.length >= LIMITS.maxNotesPerBlock) break;
       const text = line.text.trim();
       if (text === "" || isDecorativeLine(text) || isTableSeparator(text)) continue;
-      if (notes.length < LIMITS.maxNotesPerBlock) notes.push(stripListMarker(text));
+      notes.push(plainContentOf(line.text));
+      budget--;
     }
   }
 

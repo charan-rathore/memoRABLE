@@ -16,6 +16,7 @@ const config = [
       "test-results/**",
       "coverage/**",
       "next-env.d.ts",
+      "public/pdf.worker.min.mjs",
     ],
   },
   ...compat.extends("next/core-web-vitals", "next/typescript"),

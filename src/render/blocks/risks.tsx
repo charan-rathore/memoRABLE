@@ -6,9 +6,9 @@ import { escapeHtml } from "../safe-inline";
 import { emptyBlockRow, notesRows, sectionLabelRow, PAD, type BlockRenderContext } from "./common";
 
 /**
- * Risks — the one genuinely tabular memory. The exporter silently ignores the
+ * Risks: the one genuinely tabular memory. The exporter silently ignores the
  * convenient `headerBackgroundColor` / `contentColor` props, so the designed
- * table is built through per-cell `values.table` — the only route that actually
+ * table is built through per-cell `values.table`, the only route that actually
  * emits background, colour and padding today.
  */
 export function renderRisksRows(block: MemoryBlock, ctx: BlockRenderContext): ReactElement[] {
@@ -18,7 +18,7 @@ export function renderRisksRows(block: MemoryBlock, ctx: BlockRenderContext): Re
   const rows: ReactElement[] = [...sectionLabelRow(block, ctx)];
 
   if (entries.length === 0) {
-    rows.push(emptyBlockRow(block, "No risks were recognized in this source — nothing was invented.", ctx.surface));
+    rows.push(emptyBlockRow(block, "No risks were recognized in this source. Nothing was invented.", ctx.surface));
     rows.push(...notesRows(block, notes, ctx.surface));
     return rows;
   }
@@ -41,6 +41,13 @@ export function renderRisksRows(block: MemoryBlock, ctx: BlockRenderContext): Re
     padding: "9px 11px",
     textAlign: opts.align ?? ("left" as const),
   });
+
+  const riskCell = (e: (typeof entries)[number]) => {
+    const parts = [e.risk];
+    if (e.because) parts.push(`Why it matters: ${e.because}`);
+    if (e.consequence) parts.push(`If nothing changes: ${e.consequence}`);
+    return escapeHtml(parts.join(". "));
+  };
 
   rows.push(
     <Row
@@ -69,17 +76,17 @@ export function renderRisksRows(block: MemoryBlock, ctx: BlockRenderContext): Re
                 rows: entries.map((e) => ({
                   height: 0,
                   cells: [
-                    cell(escapeHtml(e.risk)),
+                    cell(riskCell(e)),
                     ...(hasSeverity
                       ? [
-                          cell(escapeHtml(e.severity ?? "—"), {
+                          cell(escapeHtml(e.severity ?? "·"), {
                             color: e.severity ? severityColor(e.severity) : colors.ink3,
                             align: "center",
                           }),
                         ]
                       : []),
                     ...(hasMitigation
-                      ? [cell(escapeHtml(e.mitigation ?? "—"), { color: colors.ink2 })]
+                      ? [cell(escapeHtml(e.mitigation ?? "·"), { color: colors.ink2 })]
                       : []),
                   ],
                 })),

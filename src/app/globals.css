@@ -343,6 +343,17 @@ a { color: var(--accent); }
 .field-row { display: flex; gap: 8px; font: 11.5px var(--mono); }
 .field-row .fk { color: var(--ink-3); width: 74px; flex: none; }
 .field-row .fv { color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+button.field-row.talk {
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  padding: 4px 0;
+  cursor: pointer;
+  border-radius: 4px;
+}
+button.field-row.talk:hover:not(:disabled) { background: var(--accent-soft, #EEF0FB); }
+button.field-row.talk:disabled { cursor: default; opacity: 0.7; }
 .prov { display: flex; flex-direction: column; gap: 7px; }
 .prov .plabel { font: 600 10px var(--mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-3); }
 .prov .pmethod { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: var(--ink); }

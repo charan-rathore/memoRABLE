@@ -368,7 +368,12 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
         </div>
 
         <div className={`rail-r${selectedBlock && mobileTab === "memories" ? " open" : ""}`}>
-          <Inspector block={selectedBlock} onViewSource={(block) => setSourceModal(block)} />
+          <Inspector
+            block={selectedBlock}
+            document={state.document}
+            onViewSource={(block) => setSourceModal(block)}
+            onSelectRelated={(blockId) => dispatch({ type: "blockSelected", blockId })}
+          />
         </div>
       </main>
 

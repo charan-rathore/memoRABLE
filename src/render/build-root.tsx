@@ -75,6 +75,7 @@ export function buildRoot(doc: MemoryDocument, mode: OutputMode): BuiltRoot {
           _meta={{ htmlID: "u_content_body_1" }}
         >
           {emailHeaderRows(doc)}
+          {conversationRows(doc)}
           {blockRows}
           {emailFooterRows(doc)}
         </Email>
@@ -97,6 +98,7 @@ export function buildRoot(doc: MemoryDocument, mode: OutputMode): BuiltRoot {
         >
           {blockRows.slice(0, coverRowCount(renderedBlocks))}
           {contentsRows(doc)}
+          {conversationRows(doc)}
           {blockRows.slice(coverRowCount(renderedBlocks))}
           {documentFooterRows(doc)}
         </Document>
@@ -117,6 +119,7 @@ export function buildRoot(doc: MemoryDocument, mode: OutputMode): BuiltRoot {
         _meta={{ htmlID: "u_content_body_1" }}
       >
         {webNavRows(doc)}
+        {conversationRows(doc)}
         {blockRows}
         {webFooterRows(doc)}
       </Page>
@@ -157,9 +160,54 @@ function menuItems(doc: MemoryDocument) {
     .map((b) => ({
       text: b.title.replace(/\s+[—–-].*$/, "").trim(),
       href: `#${sectionAnchor(b)}`,
-      // Elements defaults menu links to _blank — wrong for in-document jumps.
+      // Elements defaults menu links to _blank; wrong for in-document jumps.
       target: "_self" as const,
     }));
+}
+
+/**
+ * A short strip of how the memories speak to each other.
+ * Each line is a jump, so reading feels like following a conversation.
+ */
+function conversationRows(doc: MemoryDocument): ReactElement[] {
+  const edges = (doc.relations ?? [])
+    .filter((r) => r.relation !== "frames")
+    .slice(0, 4);
+  if (edges.length === 0) return [];
+
+  const labelFor = (ref: string) => {
+    const kind = ref.split(":")[0]!;
+    const block = doc.blocks.find((b) => b.kind === kind);
+    return block?.title.replace(/\s+[—–-].*$/, "").trim() ?? kind;
+  };
+
+  const lines = edges.map((edge) => {
+    const from = labelFor(edge.from);
+    const to = labelFor(edge.to);
+    const verb = edge.relation === "implements" ? "carries out" : edge.relation === "threatens" ? "points at" : edge.relation === "unblocks" ? "unblocks" : edge.relation === "schedules" ? "is scheduled by" : "informs";
+    const targetKind = edge.to.split(":")[0]!;
+    const target = doc.blocks.find((b) => b.kind === targetKind);
+    const href = target ? `#${sectionAnchor(target)}` : "#";
+    return inlineLink(href, `${from} ${verb} ${to}`, colors.ink2);
+  });
+
+  return [
+    <Row key="conversation" layout={ColumnLayouts.OneColumn} backgroundColor={colors.surface2} padding="14px 44px 16px 44px">
+      <Column>
+        <Paragraph
+          html={inlineText("A conversation inside the document")}
+          fontFamily={fonts.mono}
+          fontSize="10px"
+          color={colors.ink3}
+          letterSpacing="0.12em"
+          lineHeight="150%"
+        />
+        {lines.map((html, i) => (
+          <Paragraph key={`talk-${i}`} html={html} fontFamily={fonts.sans} fontSize="13px" color={colors.ink2} lineHeight="170%" />
+        ))}
+      </Column>
+    </Row>,
+  ];
 }
 
 /* --------------------------------- email --------------------------------- */
@@ -234,7 +282,7 @@ function emailFooterRows(doc: MemoryDocument): ReactElement[] {
     <Row key="email-footer" layout={ColumnLayouts.OneColumn} backgroundColor={colors.surface2} padding="20px 40px 24px 40px">
       <Column>
         <Paragraph
-          html={inlineText(`${doc.title} — ${provenanceLine(doc)} · memoRABLE`)}
+          html={inlineText(`${doc.title}. ${provenanceLine(doc)}. memoRABLE`)}
           fontFamily={fonts.mono}
           fontSize="10.5px"
           color={colors.ink3}
@@ -311,7 +359,7 @@ function documentFooterRows(doc: MemoryDocument): ReactElement[] {
       <Column padding="0px">
         <Divider borderTopWidth="1px" borderTopStyle="solid" borderTopColor={colors.line} />
         <Paragraph
-          html={inlineText(`${doc.title} — ${provenanceLine(doc)}`)}
+          html={inlineText(`${doc.title}. ${provenanceLine(doc)}`)}
           fontFamily={fonts.mono}
           fontSize="10.5px"
           color={colors.ink3}
@@ -397,8 +445,13 @@ function provenanceLine(doc: MemoryDocument): string {
 
 function previewTextOf(doc: MemoryDocument): string {
   const snapshot = doc.blocks.find((b) => b.kind === "snapshot");
-  const summary =
-    snapshot && "summary" in snapshot.payload ? String(snapshot.payload.summary) : doc.title;
-  const plain = escapeHtml(summary.replace(/\s+/g, " ").trim());
+  const payload = snapshot && "summary" in snapshot.payload ? snapshot.payload : null;
+  const lead =
+    payload && "hook" in payload && typeof payload.hook === "string" && payload.hook.trim()
+      ? payload.hook
+      : payload
+        ? String(payload.summary)
+        : doc.title;
+  const plain = escapeHtml(lead.replace(/\s+/g, " ").trim());
   return plain.length > 140 ? plain.slice(0, 139) + "…" : plain;
 }

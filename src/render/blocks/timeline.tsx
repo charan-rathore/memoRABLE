@@ -3,9 +3,9 @@ import { Column, ColumnLayouts, Paragraph, Row } from "@unlayer/react-elements";
 import type { MemoryBlock, TimelineEntry, TimelinePayload } from "@/domain/memory/schema";
 import { colors, fonts, HAIRLINE, statusColor, statusLabel } from "../tokens";
 import { inlineBold, inlineText } from "../safe-inline";
-import { emptyBlockRow, notesRows, sectionLabelRow, PAD, type BlockRenderContext } from "./common";
+import { emptyBlockRow, notesRows, sectionLabelRow, asideParagraph, PAD, type BlockRenderContext } from "./common";
 
-/** Timeline — date · milestone · state, ruled like a schedule. */
+/** Timeline: date, milestone, state, plus what it produces and what it needs. */
 export function renderTimelineRows(block: MemoryBlock, ctx: BlockRenderContext): ReactElement[] {
   const payload = block.payload as TimelinePayload;
   const entries = payload.entries;
@@ -13,7 +13,7 @@ export function renderTimelineRows(block: MemoryBlock, ctx: BlockRenderContext):
   const rows: ReactElement[] = [...sectionLabelRow(block, ctx)];
 
   if (entries.length === 0) {
-    rows.push(emptyBlockRow(block, "No timeline entries were recognized in this source — nothing was invented.", ctx.surface));
+    rows.push(emptyBlockRow(block, "No timeline entries were recognized in this source. Nothing was invented.", ctx.surface));
     rows.push(...notesRows(block, notes, ctx.surface));
     return rows;
   }
@@ -35,6 +35,10 @@ function timelineRow(
   hairline: boolean,
 ): ReactElement {
   const cellBorder = hairline ? HAIRLINE : undefined;
+  const chain = [
+    entry.requires ? `Needs: ${entry.requires}` : null,
+    entry.produces ? `Leaves: ${entry.produces}` : null,
+  ].filter(Boolean) as string[];
   return (
     <Row
       key={`${block.id}-timeline-${index}`}
@@ -54,6 +58,7 @@ function timelineRow(
       </Column>
       <Column padding="12px 12px" border={cellBorder}>
         <Paragraph html={inlineBold(entry.title)} fontFamily={fonts.sans} fontSize="13.5px" color={colors.ink} lineHeight="150%" />
+        {chain.map((line, i) => asideParagraph(line, `${block.id}-chain-${index}-${i}`))}
       </Column>
       <Column padding="12px 0px 12px 12px" border={cellBorder}>
         <Paragraph

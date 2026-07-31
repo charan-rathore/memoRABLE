@@ -90,6 +90,24 @@ export function sectionLabelRow(block: MemoryBlock, ctx: BlockRenderContext, suf
   ];
 }
 
+/**
+ * A quiet aside under a memory: the reasoning that turns a fact into a
+ * remembered thought. Kept short and soft so it reads like a friend leaning
+ * in, not like another column of data.
+ */
+export function asideParagraph(text: string, key: string): ReactElement {
+  return (
+    <Paragraph
+      key={key}
+      html={inlineText(text)}
+      fontFamily={fonts.sans}
+      fontSize="12.5px"
+      color={colors.ink3}
+      lineHeight="155%"
+    />
+  );
+}
+
 /** Honest empty state for a block whose section was absent/unclear. */
 export function emptyBlockRow(block: MemoryBlock, message: string, surface: string = colors.surface): ReactElement {
   return (

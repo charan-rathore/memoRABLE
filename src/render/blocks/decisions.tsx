@@ -3,9 +3,9 @@ import { Column, ColumnLayouts, Paragraph, Row } from "@unlayer/react-elements";
 import type { DecisionEntry, MemoryBlock, DecisionsPayload } from "@/domain/memory/schema";
 import { colors, fonts, HAIRLINE, statusColor, statusLabel } from "../tokens";
 import { inlineBold, inlineText } from "../safe-inline";
-import { emptyBlockRow, notesRows, sectionLabelRow, PAD, type BlockRenderContext } from "./common";
+import { emptyBlockRow, notesRows, sectionLabelRow, asideParagraph, PAD, type BlockRenderContext } from "./common";
 
-/** Decisions — ref · text · status rows with hairline separators. */
+/** Decisions: ref, text, status, with commitment and reason when known. */
 export function renderDecisionsRows(block: MemoryBlock, ctx: BlockRenderContext): ReactElement[] {
   const payload = block.payload as DecisionsPayload;
   const entries = payload.entries;
@@ -13,7 +13,7 @@ export function renderDecisionsRows(block: MemoryBlock, ctx: BlockRenderContext)
   const rows: ReactElement[] = [...sectionLabelRow(block, ctx)];
 
   if (entries.length === 0) {
-    rows.push(emptyBlockRow(block, "No decisions were recognized in this source — nothing was invented.", ctx.surface));
+    rows.push(emptyBlockRow(block, "No decisions were recognized in this source. Nothing was invented.", ctx.surface));
     rows.push(...notesRows(block, notes, ctx.surface));
     return rows;
   }
@@ -35,6 +35,10 @@ function decisionRow(
   hairline: boolean,
 ): ReactElement {
   const cellBorder = hairline ? HAIRLINE : undefined;
+  const statusBits = [
+    statusLabel(entry.status),
+    entry.commitment === "committed" ? "committed" : entry.commitment === "considered" ? "considered" : null,
+  ].filter(Boolean);
   return (
     <Row
       key={`${block.id}-decision-${index}`}
@@ -44,7 +48,7 @@ function decisionRow(
     >
       <Column padding="13px 12px 13px 0px" border={cellBorder}>
         <Paragraph
-          html={inlineText(entry.ref ?? "—")}
+          html={inlineText(entry.ref ?? "·")}
           fontFamily={fonts.mono}
           fontSize="11.5px"
           color={entry.ref ? colors.accent : colors.ink3}
@@ -53,10 +57,13 @@ function decisionRow(
       </Column>
       <Column padding="13px 12px" border={cellBorder}>
         <Paragraph html={inlineBold(entry.text)} fontFamily={fonts.sans} fontSize="13.5px" color={colors.ink} lineHeight="152%" />
+        {entry.because
+          ? asideParagraph(`Because: ${entry.because}`, `${block.id}-because-${index}`)
+          : null}
       </Column>
       <Column padding="13px 0px 13px 12px" border={cellBorder}>
         <Paragraph
-          html={inlineText(statusLabel(entry.status).toUpperCase())}
+          html={inlineText(statusBits.join(" · ").toUpperCase())}
           fontFamily={fonts.mono}
           fontSize="10.5px"
           color={statusColor(entry.status)}

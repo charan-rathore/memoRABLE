@@ -3,9 +3,9 @@ import { Column, ColumnLayouts, Paragraph, Row } from "@unlayer/react-elements";
 import type { ActionEntry, ActionsPayload, MemoryBlock } from "@/domain/memory/schema";
 import { colors, fonts, HAIRLINE, statusColor, statusLabel } from "../tokens";
 import { inlineBold, inlineText } from "../safe-inline";
-import { emptyBlockRow, notesRows, sectionLabelRow, PAD, type BlockRenderContext } from "./common";
+import { emptyBlockRow, notesRows, sectionLabelRow, asideParagraph, PAD, type BlockRenderContext } from "./common";
 
-/** Actions — task on the left, whoever owns it and its state on the right. */
+/** Actions: task on the left, owner/state on the right, linked back to a decision. */
 export function renderActionsRows(block: MemoryBlock, ctx: BlockRenderContext): ReactElement[] {
   const payload = block.payload as ActionsPayload;
   const entries = payload.entries;
@@ -13,7 +13,7 @@ export function renderActionsRows(block: MemoryBlock, ctx: BlockRenderContext): 
   const rows: ReactElement[] = [...sectionLabelRow(block, ctx)];
 
   if (entries.length === 0) {
-    rows.push(emptyBlockRow(block, "No action items were recognized in this source — nothing was invented.", ctx.surface));
+    rows.push(emptyBlockRow(block, "No action items were recognized in this source. Nothing was invented.", ctx.surface));
     rows.push(...notesRows(block, notes, ctx.surface));
     return rows;
   }
@@ -48,6 +48,9 @@ function actionRow(
         {who ? (
           <Paragraph html={inlineText(who)} fontFamily={fonts.mono} fontSize="11px" color={colors.ink3} lineHeight="150%" />
         ) : null}
+        {entry.from
+          ? asideParagraph(`Carries out ${entry.from}`, `${block.id}-from-${index}`)
+          : null}
       </Column>
       <Column padding="12px 0px 12px 12px" border={cellBorder}>
         <Paragraph

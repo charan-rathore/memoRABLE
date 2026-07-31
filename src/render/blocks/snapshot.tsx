@@ -56,6 +56,15 @@ function webHero(block: MemoryBlock, ctx: BlockRenderContext, payload: SnapshotP
         >
           {escapeHtml(payload.heading)}
         </Heading>
+        {payload.hook ? (
+          <Paragraph
+            html={inlineText(payload.hook)}
+            fontFamily={fonts.serif}
+            fontSize="18px"
+            color={colors.paper}
+            lineHeight="145%"
+          />
+        ) : null}
         <Paragraph
           html={inlineText(payload.summary)}
           fontFamily={fonts.sans}
@@ -100,6 +109,9 @@ function documentCover(block: MemoryBlock, ctx: BlockRenderContext, payload: Sna
         <Heading headingType="h1" fontFamily={fonts.serif} fontSize="34px" fontWeight={700} color={colors.ink} lineHeight="116%">
           {escapeHtml(payload.heading)}
         </Heading>
+        {payload.hook ? (
+          <Paragraph html={inlineText(payload.hook)} fontFamily={fonts.serif} fontSize="16px" color={colors.ink} lineHeight="150%" />
+        ) : null}
         <Paragraph html={inlineText(payload.summary)} fontFamily={fonts.serif} fontSize="15px" color={colors.ink2} lineHeight="168%" />
         {payload.byline ? (
           <Paragraph html={inlineText(payload.byline)} fontFamily={fonts.sans} fontSize="12px" color={colors.ink3} lineHeight="150%" />
@@ -124,6 +136,9 @@ function emailMasthead(block: MemoryBlock, ctx: BlockRenderContext, payload: Sna
         <Heading headingType="h1" fontFamily={fonts.serif} fontSize="27px" fontWeight={700} color={colors.ink} lineHeight="118%">
           {escapeHtml(payload.heading)}
         </Heading>
+        {payload.hook ? (
+          <Paragraph html={inlineText(payload.hook)} fontFamily={fonts.serif} fontSize="15px" color={colors.ink} lineHeight="145%" />
+        ) : null}
         <Paragraph html={inlineText(payload.summary)} fontFamily={fonts.sans} fontSize="14.5px" color={colors.ink2} lineHeight="165%" />
         {payload.byline ? (
           <Paragraph html={inlineText(payload.byline)} fontFamily={fonts.sans} fontSize="12px" color={colors.ink3} lineHeight="150%" />
@@ -149,6 +164,15 @@ function plainSnapshotRow(block: MemoryBlock, ctx: BlockRenderContext, payload: 
         >
           {escapeHtml(payload.heading)}
         </Heading>
+        {payload.hook ? (
+          <Paragraph
+            html={inlineText(payload.hook)}
+            fontFamily={fonts.serif}
+            fontSize="15px"
+            color={colors.ink}
+            lineHeight="150%"
+          />
+        ) : null}
         <Paragraph
           html={inlineText(payload.summary)}
           fontFamily={fonts.sans}

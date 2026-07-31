@@ -3,10 +3,10 @@ import { Column, ColumnLayouts, Heading, Paragraph, Row } from "@unlayer/react-e
 import type { MemoryBlock, SignalEntry, SignalsPayload } from "@/domain/memory/schema";
 import { colors, fonts, trendColor } from "../tokens";
 import { escapeHtml, inlineText } from "../safe-inline";
-import { emptyBlockRow, notesRows, sectionLabelRow, PAD, type BlockRenderContext } from "./common";
+import { emptyBlockRow, notesRows, sectionLabelRow, asideParagraph, PAD, type BlockRenderContext } from "./common";
 
 /**
- * Signals — the numbers, set as cards rather than a bare grid so a figure
+ * Signals: the numbers, set as cards rather than a bare grid so a figure
  * reads as a figure. Email keeps to two across; anything narrower collapses
  * badly in Outlook.
  */
@@ -17,7 +17,7 @@ export function renderSignalsRows(block: MemoryBlock, ctx: BlockRenderContext): 
   const rows: ReactElement[] = [...sectionLabelRow(block, ctx)];
 
   if (entries.length === 0) {
-    rows.push(emptyBlockRow(block, "No signals were recognized in this source — nothing was invented.", ctx.surface));
+    rows.push(emptyBlockRow(block, "No signals were recognized in this source. Nothing was invented.", ctx.surface));
     rows.push(...notesRows(block, notes, ctx.surface));
     return rows;
   }
@@ -25,9 +25,31 @@ export function renderSignalsRows(block: MemoryBlock, ctx: BlockRenderContext): 
   const perRow = ctx.mode === "email" ? 2 : entries.length === 4 ? 2 : Math.min(entries.length, 3);
   for (let i = 0; i < entries.length; i += perRow) {
     const chunk = entries.slice(i, i + perRow);
-    const isLast = i + perRow >= entries.length;
-    rows.push(kpiRow(block, ctx, chunk, i, isLast && notes.length === 0));
+    const isLast = i + perRow >= entries.length && !entries.some((e) => e.implication) && notes.length === 0;
+    rows.push(kpiRow(block, ctx, chunk, i, isLast));
   }
+
+  const withMeaning = entries.filter((e) => e.implication);
+  if (withMeaning.length > 0) {
+    rows.push(
+      <Row
+        key={`${block.id}-meaning`}
+        layout={ColumnLayouts.OneColumn}
+        backgroundColor={ctx.surface}
+        padding={notes.length === 0 ? PAD.last : PAD.body}
+      >
+        <Column>
+          {withMeaning.map((entry, i) =>
+            asideParagraph(
+              `What ${entry.label} tends to mean: ${entry.implication}`,
+              `${block.id}-impl-${i}`,
+            ),
+          )}
+        </Column>
+      </Row>,
+    );
+  }
+
   rows.push(...notesRows(block, notes, ctx.surface));
   return rows;
 }

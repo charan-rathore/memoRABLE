@@ -215,35 +215,50 @@ export function JourneyStrip({
 
   const openStep = steps.find((s) => s.key === openKey) ?? null;
 
-  return (
-    <div className="pipe-wrap">
-      <nav className="pipe" aria-label="Your progress">
-        {steps.map((step, i) => (
-          <span key={step.key} style={{ display: "contents" }}>
-            {i > 0 && (
-              <span className="psep" aria-hidden="true">
-                →
-              </span>
-            )}
-            <button
-              type="button"
-              className={`pstep ${step.status}${openKey === step.key ? " peek" : ""}`}
-              onClick={() => setOpenKey((k) => (k === step.key ? null : step.key))}
-              aria-expanded={openKey === step.key}
-              aria-controls={openKey === step.key ? "journey-peek" : undefined}
-              title={`Show what ${step.label} means`}
-            >
-              <span className="dot" aria-hidden="true" />
-              <span className="k">{step.index}</span>
-              <b>{step.label}</b>
-              <span>{step.detail}</span>
-            </button>
+  const renderSteps = (suffix: string, inert = false) =>
+    steps.map((step, i) => (
+      <span key={`${suffix}-${step.key}`} style={{ display: "contents" }}>
+        {i > 0 && (
+          <span className="psep" aria-hidden="true">
+            →
           </span>
-        ))}
+        )}
+        <button
+          type="button"
+          className={`pstep ${step.status}${openKey === step.key ? " peek" : ""}`}
+          onClick={() => {
+            if (inert) return;
+            setOpenKey((k) => (k === step.key ? null : step.key));
+          }}
+          tabIndex={inert ? -1 : 0}
+          aria-hidden={inert || undefined}
+          aria-expanded={!inert && openKey === step.key}
+          aria-controls={!inert && openKey === step.key ? "journey-peek" : undefined}
+          title={`Show what ${step.label} means`}
+        >
+          <span className="dot" aria-hidden="true" />
+          <span className="k">{step.index}</span>
+          <b>{step.label}</b>
+          <span>{step.detail}</span>
+        </button>
+      </span>
+    ));
+
+  return (
+    <div className={`pipe-wrap${openKey ? " paused" : ""}`}>
+      <div className="pipe" aria-label="Your progress">
+        <div className="pipe-viewport">
+          <div className="pipe-track">
+            <nav className="pipe-group">{renderSteps("a")}</nav>
+            <nav className="pipe-group" aria-hidden="true">
+              {renderSteps("b", true)}
+            </nav>
+          </div>
+        </div>
         <span className="pmeta">
           {state.document ? `publish: ${state.mode} · ${state.document.blocks.length} memories` : "nothing here yet"}
         </span>
-      </nav>
+      </div>
       {openStep && (
         <article id="journey-peek" className={`jcard jcard-peek ${openStep.status}`} aria-live="polite">
           <header className="jcard-h">

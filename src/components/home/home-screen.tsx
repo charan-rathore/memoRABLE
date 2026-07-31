@@ -172,7 +172,7 @@ export function HomeScreen({
 
         <p className="home-footnote">
           Nothing to hand?{" "}
-          <button type="button" className="linkish" onClick={() => onUseExample("atlas-notes")}>
+          <button type="button" className="linkish" onClick={() => onUseExample("atlas-json")}>
             Open a sample brief
           </button>
         </p>

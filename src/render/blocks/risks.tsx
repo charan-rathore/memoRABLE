@@ -10,11 +10,11 @@ export function renderRisksRows(block: MemoryBlock, ctx: BlockRenderContext): Re
   const payload = block.payload as RisksPayload;
   const entries = payload.entries;
   const notes = payload.notes ?? [];
-  const rows: ReactElement[] = [sectionLabelRow(block, ctx)];
+  const rows: ReactElement[] = [...sectionLabelRow(block, ctx)];
 
   if (entries.length === 0) {
-    rows.push(emptyBlockRow(block, "No risks were recognized in this source — nothing was invented."));
-    rows.push(...notesRows(block, notes));
+    rows.push(emptyBlockRow(block, "No risks were recognized in this source — nothing was invented.", ctx.surface));
+    rows.push(...notesRows(block, notes, ctx.surface));
     return rows;
   }
 
@@ -32,7 +32,7 @@ export function renderRisksRows(block: MemoryBlock, ctx: BlockRenderContext): Re
     <Row
       key={`${block.id}-table`}
       layout={ColumnLayouts.OneColumn}
-      backgroundColor={colors.surface}
+      backgroundColor={ctx.surface}
       padding={notes.length === 0 ? PAD.last : PAD.body}
     >
       <Column padding="6px 0px">
@@ -55,6 +55,6 @@ export function renderRisksRows(block: MemoryBlock, ctx: BlockRenderContext): Re
       </Column>
     </Row>,
   );
-  rows.push(...notesRows(block, notes));
+  rows.push(...notesRows(block, notes, ctx.surface));
   return rows;
 }

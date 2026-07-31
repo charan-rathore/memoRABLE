@@ -15,8 +15,27 @@ const MEMORY_NAMES = [
   "Action Items — 3 open",
 ];
 
+// Entrance animations — the brand splash above all — settle immediately, so
+// tests wait on state rather than on choreography.
+test.beforeEach(async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+});
+
 function memNames(page: Page) {
   return page.locator("ul[aria-label='Memory Blocks in order'] .mem .name");
+}
+
+/**
+ * The app opens on the home screen. Every workbench test starts by bringing
+ * the board brief in, which is also the journey a first-time visitor takes.
+ */
+async function enterWorkbench(page: Page) {
+  await page.goto("/");
+  // The brand splash covers the page while it plays; under the reduced-motion
+  // setting in playwright.config this is a short hold.
+  await page.getByTestId("brand-splash").waitFor({ state: "detached" });
+  await page.getByRole("button", { name: "Open a sample brief" }).click();
+  await page.locator(".shell").waitFor();
 }
 
 async function openMobileTab(page: Page, tab: "Bring" | "Memories" | "Publish", isMobile: boolean) {
@@ -28,9 +47,58 @@ async function openMobileTab(page: Page, tab: "Bring" | "Memories" | "Publish", 
   }
 }
 
-test.describe("preloaded document", () => {
-  test("opens with the Atlas brief already remembered as six blocks", async ({ page }) => {
+test.describe("home screen", () => {
+  test("offers exactly two ways in, and nothing else", async ({ page }) => {
     await page.goto("/");
+    await page.getByTestId("brand-splash").waitFor({ state: "detached" });
+
+    const home = page.getByTestId("home-screen");
+    await expect(home.getByRole("heading", { name: "Turn information into memory." })).toBeVisible();
+    await expect(home.locator(".home-card")).toHaveCount(2);
+    await expect(home.getByText("Drop a file")).toBeVisible();
+    await expect(home.getByText("Paste text")).toBeVisible();
+
+    // None of the workbench is on show before there is anything to work on.
+    await expect(page.locator(".shell")).toHaveCount(0);
+    await expect(page.locator(".journey")).toHaveCount(0);
+    await expect(page.locator("iframe")).toHaveCount(0);
+  });
+
+  test("pasting text moves the visitor into the workbench", async ({ page }) => {
+    await page.goto("/");
+    await page.getByTestId("brand-splash").waitFor({ state: "detached" });
+
+    await page.getByRole("button", { name: /Paste text/ }).click();
+    await page
+      .getByLabel("Paste JSON, Markdown or plain text")
+      .fill("# Field notes\n\nThe pilot held.\n\n## Risks\n\n- Vendor lead times slipped\n");
+    await page.getByRole("button", { name: "Remember this" }).click();
+
+    await expect(page.locator(".shell")).toBeVisible();
+    await expect(page.locator(".doc-title .t")).toHaveText("Field notes");
+    await expect(memNames(page)).toHaveCount(6);
+  });
+
+  test("the wordmark returns to the start", async ({ page }) => {
+    await enterWorkbench(page);
+    await page.getByRole("button", { name: "memoRABLE — back to the start" }).click();
+    await expect(page.getByTestId("home-screen")).toBeVisible();
+    await expect(page.locator(".shell")).toHaveCount(0);
+  });
+
+  test("has no critical or serious accessibility violations", async ({ page }) => {
+    const { AxeBuilder } = await import("@axe-core/playwright");
+    await page.goto("/");
+    await page.getByTestId("brand-splash").waitFor({ state: "detached" });
+    const results = await new AxeBuilder({ page }).analyze();
+    const serious = results.violations.filter((v) => v.impact === "critical" || v.impact === "serious");
+    expect(serious, JSON.stringify(serious, null, 2)).toEqual([]);
+  });
+});
+
+test.describe("the brief in the workbench", () => {
+  test("arrives already remembered as six blocks", async ({ page }) => {
+    await enterWorkbench(page);
 
     await expect(page).toHaveTitle(/memoRABLE/i);
     await expect(page.locator(".doc-title .t")).toHaveText("Q3 Board Report");
@@ -47,7 +115,7 @@ test.describe("preloaded document", () => {
   test("has no critical or serious accessibility violations", async ({ page }) => {
     test.slow();
     const { AxeBuilder } = await import("@axe-core/playwright");
-    await page.goto("/");
+    await enterWorkbench(page);
     // The preview iframe is visible in every layout (mobile's default tab is Publish).
     await page.locator("iframe[title='Document output preview']").waitFor();
     // Scope to the app shell: the previews are `sandbox=""` iframes, so axe can
@@ -65,7 +133,7 @@ test.describe("bring + understand", () => {
     page,
     isMobile,
   }) => {
-    await page.goto("/");
+    await enterWorkbench(page);
     await openMobileTab(page, "Bring", isMobile);
 
     await page.getByRole("button", { name: "Paste" }).click();
@@ -82,11 +150,11 @@ test.describe("bring + understand", () => {
     await expect(page.locator("iframe[title='Document output preview']")).toBeAttached();
   });
 
-  test("the Markdown example is recognized locally and switches to the Web output", async ({
+  test("the Markdown example is recognized locally and lands on the Document output", async ({
     page,
     isMobile,
   }) => {
-    await page.goto("/");
+    await enterWorkbench(page);
     await openMobileTab(page, "Bring", isMobile);
 
     await page.getByRole("button", { name: "Launch notes · Markdown" }).click();
@@ -94,10 +162,10 @@ test.describe("bring + understand", () => {
     await expect(memNames(page)).toHaveCount(6);
     await expect(page.locator(".doc-title .t")).toHaveText("Atlas Launch Notes");
     await openMobileTab(page, "Publish", isMobile);
-    // A fresh import flips the preview to the Web page output.
-    await expect(page.locator("iframe[title='Web page output preview']")).toBeAttached();
+    // Document-first: every import lands on the Document output.
+    await expect(page.locator("iframe[title='Document output preview']")).toBeAttached();
     await expect(
-      page.getByRole("button", { name: "Web page" }).first(),
+      page.getByRole("button", { name: "Document", exact: true }).first(),
     ).toHaveAttribute("aria-pressed", "true");
   });
 });
@@ -107,7 +175,7 @@ test.describe("remember + arrange", () => {
     page,
     isMobile,
   }) => {
-    await page.goto("/");
+    await enterWorkbench(page);
     await openMobileTab(page, "Memories", isMobile);
 
     await page.getByRole("button", { name: "Signals — quarter over quarter — show details" }).click();
@@ -120,7 +188,7 @@ test.describe("remember + arrange", () => {
 
   test("up/down buttons rearrange the memories and the new order sticks", async ({ page, isMobile }) => {
     test.skip(isMobile === true, "arrange is covered on desktop");
-    await page.goto("/");
+    await enterWorkbench(page);
 
     await page.getByRole("button", { name: "Signals — quarter over quarter — show details" }).click();
     await page.getByRole("button", { name: "Move Signals — quarter over quarter down" }).click();
@@ -144,7 +212,7 @@ test.describe("remember + arrange", () => {
 
 test.describe("publish", () => {
   test("mode switch swaps the sandboxed preview", async ({ page, isMobile }) => {
-    await page.goto("/");
+    await enterWorkbench(page);
     await openMobileTab(page, "Publish", isMobile);
 
     await page.getByRole("button", { name: "Email", exact: true }).click();
@@ -155,21 +223,28 @@ test.describe("publish", () => {
   });
 
   test("Publish ends on 'Published.' with working downloads", async ({ page }) => {
-    await page.goto("/");
+    await enterWorkbench(page);
     await page.locator(".topbar").getByRole("button", { name: "Publish", exact: true }).click();
 
     const dialog = page.getByRole("dialog");
     await expect(dialog.getByRole("heading", { name: "Published." })).toBeVisible();
     await expect(dialog.getByText("one memory, three useful outputs")).toBeVisible();
 
-    // Three output cards, each with a downloadable HTML export.
-    const htmlButtons = dialog.getByRole("button", { name: "Download HTML" });
+    // Three output cards, each offering HTML, PDF, Word and design JSON.
+    const htmlButtons = dialog.getByRole("button", { name: "HTML", exact: true });
     await expect(htmlButtons).toHaveCount(3);
+    await expect(dialog.getByRole("button", { name: "PDF", exact: true })).toHaveCount(3);
+    await expect(dialog.getByRole("button", { name: "Word", exact: true })).toHaveCount(3);
 
     const downloadPromise = page.waitForEvent("download");
     await htmlButtons.first().click();
     const download = await downloadPromise;
     expect(download.suggestedFilename()).toMatch(/-web\.html$/);
+
+    const wordPromise = page.waitForEvent("download");
+    await dialog.getByRole("button", { name: "Word", exact: true }).first().click();
+    const word = await wordPromise;
+    expect(word.suggestedFilename()).toMatch(/-web\.doc$/);
 
     const canonicalPromise = page.waitForEvent("download");
     await dialog.getByRole("button", { name: "memoRABLE JSON (canonical)" }).click();
@@ -183,11 +258,14 @@ test.describe("publish", () => {
 
 test.describe("replay", () => {
   test("the story starts instantly and Escape stops it, restoring state", async ({ page }) => {
-    await page.goto("/");
+    await enterWorkbench(page);
 
     await page.getByRole("button", { name: "Replay the 20-second story" }).click();
+    // Reduced motion collapses the choreography to its end state, so the
+    // banner's wording depends on the setting — that it narrates at all does not.
     const banner = page.locator(".replay-banner");
-    await expect(banner).toContainText("Turn information into memory.");
+    await expect(banner).toBeVisible();
+    await expect(banner.locator(".rb-msg")).not.toBeEmpty();
 
     await page.keyboard.press("Escape");
     await expect(banner).not.toBeVisible();
@@ -201,7 +279,7 @@ test.describe("replay", () => {
 test.describe("mobile shell", () => {
   test("bottom tabs switch between Bring, Memories and Publish", async ({ page, isMobile }) => {
     test.skip(!isMobile, "mobile-only layout");
-    await page.goto("/");
+    await enterWorkbench(page);
 
     const tabs = page.getByRole("navigation", { name: "Workbench sections" });
     await expect(tabs).toBeVisible();

@@ -23,10 +23,10 @@ export function BlocksPanel({
 }) {
   const visible = revealCount === null || revealCount === undefined ? blocks : blocks.slice(0, revealCount);
   return (
-    <section className="card" aria-labelledby="mem-h">
+    <section className="card mem-card" aria-labelledby="mem-h">
       <div className="card-h" id="mem-h">
         <h3>Memories</h3>
-        <span className="ct">6 types</span>
+        <span className="ct">{blocks.length} types</span>
       </div>
       <div className="card-b">
         <ul className="mem-list" aria-label="Memory Blocks in order">

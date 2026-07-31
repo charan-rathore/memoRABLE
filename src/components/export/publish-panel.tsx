@@ -136,9 +136,7 @@ export function PublishPanel({
                     <span className="tag">{mode === "email" ? "600px" : mode === "document" ? "A4" : "fluid"}</span>
                   </div>
                   {html ? (
-                    <div className="pc-thumb">
-                      <iframe title={`${OUTPUT_MODE_LABELS[mode]} thumbnail`} sandbox="" referrerPolicy="no-referrer" srcDoc={html} />
-                    </div>
+                    <Thumbnail label={OUTPUT_MODE_LABELS[mode]} html={html} />
                   ) : (
                     <div style={{ padding: 16, fontSize: 12, color: "var(--ink-3)" }}>
                       This output couldn’t be rendered.
@@ -189,6 +187,26 @@ export function PublishPanel({
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+/**
+ * A scaled-down page preview. Fading in on load is not only manners: a
+ * sandboxed iframe inside a scaled box can stay unpainted until the compositor
+ * is given a reason to look again, and the opacity change is that reason.
+ */
+function Thumbnail({ label, html }: { label: string; html: string }) {
+  const [loaded, setLoaded] = useState(false);
+  return (
+    <div className={`pc-thumb${loaded ? " ready" : ""}`}>
+      <iframe
+        title={`${label} thumbnail`}
+        sandbox=""
+        referrerPolicy="no-referrer"
+        srcDoc={html}
+        onLoad={() => setLoaded(true)}
+      />
     </div>
   );
 }

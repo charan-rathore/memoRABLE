@@ -76,7 +76,7 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
         setView("workbench");
         announce(`Understood — 6 memories created from ${label}.`);
         // Render the remaining two modes asynchronously so the UI stays responsive.
-        scheduleLazyRenders(result.value, [], "web", dispatch);
+        scheduleLazyRenders(result.value, [], "document", dispatch);
       } else {
         dispatch({ type: "importFailed", sourceText: text, sourceLabel: label, errors: [...result.errors] });
         announce(`We couldn't understand this. Nothing was changed — ${result.errors.length} ${result.errors.length === 1 ? "error" : "errors"}.`);
@@ -315,7 +315,15 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
           </div>
         </div>
 
-        <div className={`canvas${mobileTab !== "publish" ? " mobile-hide" : ""}`}>
+        {/* The canvas scrolls on its own, so it needs to be reachable by
+            keyboard: its only child is a sandboxed iframe, which can never
+            take focus on the parent's behalf. */}
+        <div
+          className={`canvas${mobileTab !== "publish" ? " mobile-hide" : ""}`}
+          tabIndex={0}
+          role="region"
+          aria-label="Output preview"
+        >
           {html || !error ? (
             <PreviewPane
               mode={state.mode}

@@ -29,6 +29,13 @@ const DESKTOP = { width: 1440, height: 900 };
 /** Matches REPLAY_MS in src/components/replay/use-replay.ts, plus a beat to land. */
 const REPLAY_MS = 20_000;
 
+/** The app opens on the home screen; every later shot is past that door. */
+async function enterWorkbench(page) {
+  await page.getByTestId("brand-splash").waitFor({ state: "detached" }).catch(() => {});
+  await page.getByRole("button", { name: "Open a sample brief" }).click();
+  await page.locator(".shell").waitFor();
+}
+
 async function captureScreens(browser) {
   const context = await browser.newContext({
     viewport: DESKTOP,
@@ -42,19 +49,25 @@ async function captureScreens(browser) {
     console.log(`captured ${name}`);
   };
 
-  // 1 — Output first: the Atlas document is already remembered and published.
+  // 1 — The door: one decision, drop a file or paste text.
   await page.goto(baseURL, { waitUntil: "networkidle" });
+  await page.getByTestId("home-screen").waitFor();
+  await page.getByTestId("brand-splash").waitFor({ state: "detached" }).catch(() => {});
+  await shot("00-home.png");
+
+  // 2 — Document first: the brief arrives already remembered.
+  await enterWorkbench(page);
   await page.locator("iframe[title='Document output preview']").waitFor();
   await page.getByText("6 memories").first().waitFor();
   await shot("01-document-first.png");
 
-  // 2 — Six memories with the provenance inspector open on Signals.
+  // 3 — Six memories with the provenance inspector open on Signals.
   await page.getByRole("button", { name: "Signals — quarter over quarter — show details" }).click();
   const inspector = page.getByTestId("inspector");
   await inspector.getByText("Remembered from").waitFor();
   await shot("02-memories-provenance.png");
 
-  // 3 — One memory, three outputs, side by side.
+  // 4 — One memory, three outputs, side by side.
   await page.locator(".topbar").getByRole("button", { name: "Publish", exact: true }).click();
   const dialog = page.getByRole("dialog");
   await dialog.getByRole("heading", { name: "Published." }).waitFor();
@@ -76,6 +89,7 @@ async function captureReplay(browser) {
   const page = await context.newPage();
 
   await page.goto(baseURL, { waitUntil: "networkidle" });
+  await enterWorkbench(page);
   await page.locator("iframe[title='Document output preview']").waitFor();
 
   await page.getByRole("button", { name: "Replay the 20-second story" }).click();

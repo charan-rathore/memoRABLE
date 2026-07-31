@@ -188,7 +188,12 @@ describe("block isolation (layer 5)", () => {
     blockRenderers.signals = () => [<div key="x" />] as never;
     try {
       const block = doc.blocks.find((b) => b.kind === "signals")!;
-      const rendered = renderBlockRows(block, { mode: "web", position: 1, documentTitle: doc.title });
+      const rendered = renderBlockRows(block, {
+        mode: "web",
+        position: 1,
+        documentTitle: doc.title,
+        surface: "#FFFFFF",
+      });
       expect(rendered.recovered).toBe(true);
       expect(rendered.rows).toHaveLength(1);
       expect((rendered.rows[0] as ReactElement).type).toBe(Row);

@@ -93,9 +93,10 @@ function pickGood(outputs: Partial<Record<OutputMode, ModeOutput>>): Partial<Rec
 export function workbenchReducer(state: WorkbenchState, action: WorkbenchAction): WorkbenchState {
   switch (action.type) {
     case "imported": {
-      // Render only the active-preferred mode synchronously; the other two
-      // modes are deferred so the UI responds before the heavy Elements SSR.
-      const preferred: OutputMode = "web";
+      // Document-first: what arrives is a document, so that is what you meet.
+      // Only this mode renders synchronously; the other two are deferred so the
+      // UI responds before the heavy Elements SSR.
+      const preferred: OutputMode = "document";
       const { outputs, cache } = renderAll(action.document, state.cache, preferred, preferred);
       return {
         ...state,

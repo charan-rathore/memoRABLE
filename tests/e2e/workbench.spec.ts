@@ -29,11 +29,20 @@ function memNames(page: Page) {
  * The app opens on the home screen. Every workbench test starts by bringing
  * the board brief in, which is also the journey a first-time visitor takes.
  */
+async function dismissOverlays(page: Page) {
+  // The brand splash covers the page while it plays; under reduced motion this
+  // is a short hold. The first-visit demo may then open on top.
+  await page.getByTestId("brand-splash").waitFor({ state: "detached" });
+  const demo = page.getByTestId("demo-video");
+  if (await demo.count()) {
+    await demo.getByRole("button", { name: "Close demo" }).click();
+    await demo.waitFor({ state: "detached" });
+  }
+}
+
 async function enterWorkbench(page: Page) {
   await page.goto("/");
-  // The brand splash covers the page while it plays; under the reduced-motion
-  // setting in playwright.config this is a short hold.
-  await page.getByTestId("brand-splash").waitFor({ state: "detached" });
+  await dismissOverlays(page);
   await page.getByRole("button", { name: "Open a sample brief" }).click();
   await page.locator(".shell").waitFor();
 }
@@ -50,7 +59,7 @@ async function openMobileTab(page: Page, tab: "Bring" | "Memories" | "Publish", 
 test.describe("home screen", () => {
   test("offers exactly two ways in, and nothing else", async ({ page }) => {
     await page.goto("/");
-    await page.getByTestId("brand-splash").waitFor({ state: "detached" });
+    await dismissOverlays(page);
 
     const home = page.getByTestId("home-screen");
     await expect(home.getByRole("heading", { name: "Turn information into memory." })).toBeVisible();
@@ -64,9 +73,21 @@ test.describe("home screen", () => {
     await expect(page.locator("iframe")).toHaveCount(0);
   });
 
+  test("the brand splash plays every time the home screen loads", async ({ page }) => {
+    await page.goto("/");
+    await expect(page.getByTestId("brand-splash")).toBeVisible();
+    await dismissOverlays(page);
+    await expect(page.getByTestId("home-screen")).toBeVisible();
+
+    // A full reload must play the splash again — it is not a once-per-session toll.
+    await page.reload();
+    await expect(page.getByTestId("brand-splash")).toBeVisible();
+    await page.getByTestId("brand-splash").waitFor({ state: "detached" });
+  });
+
   test("pasting text moves the visitor into the workbench", async ({ page }) => {
     await page.goto("/");
-    await page.getByTestId("brand-splash").waitFor({ state: "detached" });
+    await dismissOverlays(page);
 
     await page.getByRole("button", { name: /Paste text/ }).click();
     await page
@@ -82,14 +103,32 @@ test.describe("home screen", () => {
   test("the wordmark returns to the start", async ({ page }) => {
     await enterWorkbench(page);
     await page.getByRole("button", { name: "memoRABLE — back to the start" }).click();
+    await page.getByTestId("brand-splash").waitFor({ state: "detached" });
     await expect(page.getByTestId("home-screen")).toBeVisible();
     await expect(page.locator(".shell")).toHaveCount(0);
+  });
+
+  test("counts what this browser has done, and says where the count lives", async ({ page }) => {
+    await page.goto("/");
+    await dismissOverlays(page);
+
+    // A first visit has nothing to report, and three zeros are worse than silence.
+    await expect(page.getByTestId("local-tally")).toHaveCount(0);
+
+    await page.getByRole("button", { name: "Open a sample brief" }).click();
+    await page.locator(".shell").waitFor();
+    await page.getByRole("button", { name: "memoRABLE — back to the start" }).click();
+    await page.getByTestId("brand-splash").waitFor({ state: "detached" });
+
+    const tally = page.getByTestId("local-tally");
+    await expect(tally).toContainText("1 document remembered · 6 memories");
+    await expect(tally).toContainText("counted in this browser, and nowhere else");
   });
 
   test("has no critical or serious accessibility violations", async ({ page }) => {
     const { AxeBuilder } = await import("@axe-core/playwright");
     await page.goto("/");
-    await page.getByTestId("brand-splash").waitFor({ state: "detached" });
+    await dismissOverlays(page);
     const results = await new AxeBuilder({ page }).analyze();
     const serious = results.violations.filter((v) => v.impact === "critical" || v.impact === "serious");
     expect(serious, JSON.stringify(serious, null, 2)).toEqual([]);
@@ -136,7 +175,8 @@ test.describe("bring + understand", () => {
     await enterWorkbench(page);
     await openMobileTab(page, "Bring", isMobile);
 
-    await page.getByRole("button", { name: "Paste" }).click();
+    await page.getByRole("button", { name: /Bring something else/ }).click();
+    await page.getByRole("button", { name: "Paste", exact: true }).click();
     await page.getByLabel("Paste JSON, Markdown or plain text").fill('{"version": 1, "title": "broken"');
     await page.getByRole("button", { name: "Remember this information" }).click();
 
@@ -157,7 +197,8 @@ test.describe("bring + understand", () => {
     await enterWorkbench(page);
     await openMobileTab(page, "Bring", isMobile);
 
-    await page.getByRole("button", { name: "Launch notes · Markdown" }).click();
+    await page.getByRole("button", { name: /Bring something else/ }).click();
+    await page.getByRole("button", { name: /Launch notes/ }).click();
 
     await expect(memNames(page)).toHaveCount(6);
     await expect(page.locator(".doc-title .t")).toHaveText("Atlas Launch Notes");
@@ -291,6 +332,6 @@ test.describe("mobile shell", () => {
     await expect(memNames(page)).toHaveCount(6);
 
     await tabs.getByRole("button", { name: "Bring" }).click();
-    await expect(page.getByRole("button", { name: "Launch notes · Markdown" })).toBeVisible();
+    await expect(page.getByRole("button", { name: /Bring something else/ })).toBeVisible();
   });
 });

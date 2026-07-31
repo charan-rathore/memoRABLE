@@ -13,6 +13,7 @@ export function BlocksPanel({
   onSelect,
   onMove,
   revealCount,
+  enterKey,
 }: {
   blocks: MemoryBlock[];
   selectedBlockId: string | null;
@@ -20,8 +21,11 @@ export function BlocksPanel({
   onMove: (blockId: string, direction: -1 | 1) => void;
   /** Replay reveal: when set, only the first N blocks are shown. */
   revealCount?: number | null;
+  /** Changes when a new document arrives, so the list can enter as a group. */
+  enterKey?: string | null;
 }) {
   const visible = revealCount === null || revealCount === undefined ? blocks : blocks.slice(0, revealCount);
+  const staggered = revealCount != null || Boolean(enterKey);
   return (
     <section className="card mem-card" aria-labelledby="mem-h">
       <div className="card-h" id="mem-h">
@@ -29,12 +33,15 @@ export function BlocksPanel({
         <span className="ct">{blocks.length} types</span>
       </div>
       <div className="card-b">
-        <ul className="mem-list" aria-label="Memory Blocks in order">
+        {/* Re-keying on the document makes the whole list mount afresh, so the
+            memories arrive as a group the moment a document is understood.
+            40ms apart: any slower and it becomes a queue you have to watch. */}
+        <ul className="mem-list" aria-label="Memory Blocks in order" key={enterKey ?? "static"}>
           {visible.map((block, index) => (
             <li key={block.id} style={{ display: "contents" }}>
               <div
-                className={`mem${block.id === selectedBlockId ? " sel" : ""}${revealCount != null ? " entering" : ""}`}
-                style={revealCount != null ? { animationDelay: `${Math.min(index * 80, 480)}ms` } : undefined}
+                className={`mem${block.id === selectedBlockId ? " sel" : ""}${staggered ? " entering" : ""}`}
+                style={staggered ? { animationDelay: `${Math.min(index * 40, 240)}ms` } : undefined}
               >
                 <button
                   type="button"

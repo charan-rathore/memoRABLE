@@ -5,17 +5,17 @@ import { BrandMark } from "./brand-mark";
 
 /**
  * The opening moment: the mark assembles in the centre of the screen while the
- * workbench sits blurred behind it, then both resolve into place.
+ * home sits blurred behind it, then both resolve into place.
  *
- * It runs once per browser session, never blocks input for longer than its own
- * animation, and collapses to a brief static hold when the visitor has asked
- * for reduced motion.
+ * It plays every time the visitor arrives on the home screen (including a
+ * full reload), never blocks input for longer than its own animation, and
+ * collapses to a brief static hold when they have asked for reduced motion.
  */
 
-const SESSION_KEY = "memorable.splash.seen";
-const HOLD_MS = 1650;
-const REDUCED_HOLD_MS = 450;
-const EXIT_MS = 520;
+/** Past about 1.2s a brand moment stops being a moment and becomes a toll booth. */
+const HOLD_MS = 780;
+const REDUCED_HOLD_MS = 400;
+const EXIT_MS = 300;
 
 export function BrandSplash({ onFinished }: { onFinished: () => void }) {
   const [leaving, setLeaving] = useState(false);
@@ -33,7 +33,6 @@ export function BrandSplash({ onFinished }: { onFinished: () => void }) {
     };
 
     const holdTimer = window.setTimeout(finish, hold);
-    // Any deliberate input skips straight to the workbench.
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape" || event.key === "Enter" || event.key === " ") finish();
     };
@@ -60,16 +59,4 @@ export function BrandSplash({ onFinished }: { onFinished: () => void }) {
       </div>
     </div>
   );
-}
-
-/** True the first time this browser session shows the app. */
-export function shouldShowSplash(): boolean {
-  try {
-    if (window.sessionStorage.getItem(SESSION_KEY) === "1") return false;
-    window.sessionStorage.setItem(SESSION_KEY, "1");
-    return true;
-  } catch {
-    // Private modes without storage still deserve the moment, just every time.
-    return true;
-  }
 }

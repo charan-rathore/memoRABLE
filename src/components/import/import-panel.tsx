@@ -8,8 +8,15 @@ import { EXAMPLES } from "@/import/examples/catalog";
 import { detectFormat } from "@/import/import-source";
 
 /**
- * Bring information: paste, drop a file, or use a checked-in example.
+ * Bring information: paste, drop a file, or start from a checked-in sample.
  * Everything is understood locally — the source never leaves the browser.
+ *
+ * Once something has been brought, this panel is mostly done: it states what
+ * is loaded and how it went, and folds the machinery for bringing something
+ * *else* away behind one door. Replacing the current document is a destructive
+ * act, so it is never one stray click away — and the samples in particular sat
+ * inside the dropzone, where they read as a description of what you could drop
+ * rather than as buttons that would overwrite your work.
  */
 export function ImportPanel({
   sourceLabel,
@@ -42,6 +49,9 @@ export function ImportPanel({
 }) {
   const [pasteOpen, setPasteOpen] = useState(false);
   const [dragOver, setDragOver] = useState(false);
+  // Open only while there is nothing to lose. With a document already
+  // remembered, bringing another is a deliberate act behind a deliberate door.
+  const [bringOpen, setBringOpen] = useState(!sourceOk);
   const fileInput = useRef<HTMLInputElement>(null);
   const format = detectFormat(sourceText);
 
@@ -71,80 +81,123 @@ export function ImportPanel({
           {errors.length > 0 && <span className="st err">✕ {errors.length} {errors.length === 1 ? "error" : "errors"}</span>}
         </div>
 
-        <div className="import-actions">
-          <button type="button" className="mini-btn" onClick={() => setPasteOpen((v) => !v)} aria-expanded={pasteOpen}>
-            Paste
-          </button>
-          <button type="button" className="mini-btn" onClick={() => fileInput.current?.click()}>
-            Drop file
-          </button>
-          <input
-            ref={fileInput}
-            type="file"
-            accept=".json,.md,.markdown,.txt,application/json,text/plain,text/markdown"
-            className="visually-hidden"
-            aria-label="Choose a JSON, Markdown or text file"
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) openFile(file);
-              e.target.value = "";
-            }}
-          />
-        </div>
-
-        <div
-          className={`dropzone${dragOver ? " over" : ""}`}
-          onDragOver={(e) => {
-            e.preventDefault();
-            setDragOver(true);
-          }}
-          onDragLeave={() => setDragOver(false)}
-          onDrop={(e) => {
-            e.preventDefault();
-            setDragOver(false);
-            const file = e.dataTransfer.files?.[0];
-            if (file) openFile(file);
-          }}
+        <button
+          type="button"
+          className="disclose"
+          aria-expanded={bringOpen}
+          onClick={() => setBringOpen((v) => !v)}
         >
-          Drop a .json, .md or .txt file here
-          <div className="or">— understood on arrival, never uploaded —</div>
-          <div className="example-chips" role="group" aria-label="Try a sample">
-            {EXAMPLES.map((example) => (
-              <button key={example.id} type="button" className="example-chip" onClick={() => onUseExample(example.id)}>
-                {example.description}
-              </button>
-            ))}
-          </div>
-        </div>
+          <span>{sourceOk ? "Bring something else" : "Bring information"}</span>
+          <span className="chev" aria-hidden="true">
+            {bringOpen ? "−" : "+"}
+          </span>
+        </button>
 
-        {pasteOpen && (
-          <div>
-            <textarea
-              className="paste-area"
-              aria-label="Paste JSON, Markdown or plain text"
-              placeholder={'{"version": 1, "title": "…", "blocks": [ … ]}\n\n— or —\n\n# Notes\n\n## Signals\n- ARR: $4.2M (+18%)'}
-              value={sourceText}
-              onChange={(e) => onEditSource(e.target.value)}
-              spellCheck={false}
-            />
+        {bringOpen && (
+          <div className="disclosed">
             <div className="import-actions">
-              <button
-                type="button"
-                className="btn pri"
-                style={{ flex: 1 }}
-                onClick={() => onImport(sourceText, sourceLabel || "Pasted notes")}
-                disabled={sourceText.trim().length === 0}
-              >
-                Remember this information
+              <button type="button" className="mini-btn" onClick={() => setPasteOpen((v) => !v)} aria-expanded={pasteOpen}>
+                Paste
               </button>
+              <button type="button" className="mini-btn" onClick={() => fileInput.current?.click()}>
+                Drop file
+              </button>
+              <input
+                ref={fileInput}
+                type="file"
+                accept=".json,.md,.markdown,.txt,application/json,text/plain,text/markdown"
+                className="visually-hidden"
+                aria-label="Choose a JSON, Markdown or text file"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) openFile(file);
+                  e.target.value = "";
+                }}
+              />
             </div>
-            <p className="import-note">
-              {format === "json"
-                ? "Detected JSON — strict, all-or-nothing."
-                : format === "text"
-                  ? "Detected notes — recognized locally, unclear text is kept."
-                  : "Paste JSON, Markdown or plain text."}
-            </p>
+
+            <div
+              className={`dropzone${dragOver ? " over" : ""}`}
+              onDragOver={(e) => {
+                e.preventDefault();
+                setDragOver(true);
+              }}
+              onDragLeave={() => setDragOver(false)}
+              onDrop={(e) => {
+                e.preventDefault();
+                setDragOver(false);
+                const file = e.dataTransfer.files?.[0];
+                if (file) openFile(file);
+              }}
+            >
+              Drop a .json, .md or .txt file here
+              <div className="or">— understood on arrival, never uploaded —</div>
+            </div>
+
+            {pasteOpen && (
+              <div>
+                <textarea
+                  className="paste-area"
+                  aria-label="Paste JSON, Markdown or plain text"
+                  placeholder={'{"version": 1, "title": "…", "blocks": [ … ]}\n\n— or —\n\n# Notes\n\n## Signals\n- ARR: $4.2M (+18%)'}
+                  value={sourceText}
+                  onChange={(e) => onEditSource(e.target.value)}
+                  spellCheck={false}
+                />
+                <div className="import-actions">
+                  <button
+                    type="button"
+                    className="btn pri"
+                    style={{ flex: 1 }}
+                    onClick={() => onImport(sourceText, sourceLabel || "Pasted notes")}
+                    disabled={sourceText.trim().length === 0}
+                  >
+                    Remember this information
+                  </button>
+                </div>
+                <p className="import-note">
+                  {format === "json"
+                    ? "Detected JSON — strict, all-or-nothing."
+                    : format === "text"
+                      ? "Detected notes — recognized locally, unclear text is kept."
+                      : "Paste JSON, Markdown or plain text."}
+                </p>
+              </div>
+            )}
+
+            <div className="samples" role="group" aria-labelledby="samples-h">
+              <p className="samples-h" id="samples-h">
+                Or start from a sample — the same fictional company, written two ways
+                {sourceOk ? ". This replaces what is loaded now." : "."}
+              </p>
+              {EXAMPLES.map((example) => (
+                <button
+                  key={example.id}
+                  type="button"
+                  className="sample-row"
+                  onClick={() => onUseExample(example.id)}
+                >
+                  <span className="sr-name">{example.description}</span>
+                  <span className="sr-file">{example.label}</span>
+                </button>
+              ))}
+            </div>
+
+            {hasVerified && (
+              <div className="import-actions">
+                <button type="button" className="mini-btn" onClick={onUseVerified}>
+                  Use verified example extraction
+                </button>
+              </div>
+            )}
+
+            {aiEnabled && sourceOk && (
+              <div className="import-actions">
+                <button type="button" className="mini-btn" onClick={onImproveWithAi} disabled={aiBusy}>
+                  {aiBusy ? "Improving…" : "Improve with AI (explicit)"}
+                </button>
+              </div>
+            )}
           </div>
         )}
 
@@ -169,22 +222,6 @@ export function ImportPanel({
                 <li key={i}>{warning.message}</li>
               ))}
             </ul>
-          </div>
-        )}
-
-        {hasVerified && (
-          <div className="import-actions">
-            <button type="button" className="mini-btn" onClick={onUseVerified}>
-              Use verified example extraction
-            </button>
-          </div>
-        )}
-
-        {aiEnabled && sourceOk && (
-          <div className="import-actions">
-            <button type="button" className="mini-btn" onClick={onImproveWithAi} disabled={aiBusy}>
-              {aiBusy ? "Improving…" : "Improve with AI (explicit)"}
-            </button>
           </div>
         )}
       </div>

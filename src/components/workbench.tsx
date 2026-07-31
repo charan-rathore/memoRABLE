@@ -17,7 +17,9 @@ import { PreviewPane } from "./preview/preview-pane";
 import { SourceModal } from "./preview/source-modal";
 import { PublishPanel } from "./export/publish-panel";
 import { StageAnnouncer } from "./ui/stage-announcer";
-import { BrandSplash, shouldShowSplash } from "./ui/brand-splash";
+import { BrandSplash } from "./ui/brand-splash";
+import { DemoVideo } from "./ui/demo-video";
+import { recordDocument, recordPublished } from "@/stats/local-stats";
 import { HomeScreen } from "./home/home-screen";
 import { useReplay } from "./replay/use-replay";
 
@@ -46,11 +48,9 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
   const [reducedMotion, setReducedMotion] = useState(false);
   /** The workbench is withheld until the visitor has brought something to it. */
   const [view, setView] = useState<"home" | "workbench">("home");
-  const [splash, setSplash] = useState(false);
-
-  useEffect(() => {
-    if (shouldShowSplash()) setSplash(true);
-  }, []);
+  /** Splash plays on every arrival at home — reload included. */
+  const [splash, setSplash] = useState(true);
+  const [demoOpen, setDemoOpen] = useState(false);
 
   useEffect(() => {
     setReducedMotion(window.matchMedia("(prefers-reduced-motion: reduce)").matches);
@@ -73,6 +73,7 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
       const result = importSource({ raw: text, label });
       if (result.ok) {
         dispatch({ type: "imported", sourceText: text, sourceLabel: label, document: result.value, at: nowLabel() });
+        recordDocument(result.value.blocks.length);
         setView("workbench");
         announce(`Understood — 6 memories created from ${label}.`);
         // Render the remaining two modes asynchronously so the UI stays responsive.
@@ -232,6 +233,7 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
 
   const publish = useCallback(() => {
     dispatch({ type: "published", at: nowLabel() });
+    recordPublished();
     setPublishOpen(true);
     announce("Published — one memory, three useful outputs.");
   }, [announce]);
@@ -240,17 +242,33 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
     if (replay.active) replay.cancel();
     setPublishOpen(false);
     setSourceModal(null);
+    setDemoOpen(false);
+    setSplash(true);
     setView("home");
     announce("Back to the start. Your memories are kept.");
   }, [replay, announce]);
 
+  const finishSplash = useCallback(() => {
+    setSplash(false);
+    // First visit in this browser: offer the short demo after the brand moment.
+    try {
+      if (window.sessionStorage.getItem("memorable.demo.seen") !== "1") {
+        window.sessionStorage.setItem("memorable.demo.seen", "1");
+        setDemoOpen(true);
+      }
+    } catch {
+      setDemoOpen(true);
+    }
+  }, []);
+
   if (view === "home") {
     return (
       <>
-        {splash && <BrandSplash onFinished={() => setSplash(false)} />}
+        {splash && <BrandSplash onFinished={finishSplash} />}
         <div className={splash ? "app-behind" : undefined}>
           <HomeScreen errors={[...state.errors]} onImport={runImport} onUseExample={loadExample} />
         </div>
+        {demoOpen && !splash && <DemoVideo onClose={() => setDemoOpen(false)} />}
         <StageAnnouncer message={announcement} />
       </>
     );
@@ -311,6 +329,7 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
               onSelect={(id) => dispatch({ type: "blockSelected", blockId: id })}
               onMove={moveBlock}
               revealCount={replay.view?.revealCount ?? null}
+              enterKey={state.importedAt}
             />
           </div>
         </div>

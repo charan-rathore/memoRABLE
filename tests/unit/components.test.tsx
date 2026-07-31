@@ -97,10 +97,29 @@ describe("ImportPanel", () => {
     expect(screen.getByRole("alert")).toHaveTextContent("line 1, column 20");
   });
 
-  it("shows the examples and never shows AI when disabled", () => {
+  it("keeps the samples behind a door once something is loaded, and warns that they replace it", () => {
     render(<ImportPanel {...base} />);
-    expect(screen.getByRole("button", { name: "Board brief · JSON" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Launch notes · Markdown" })).toBeInTheDocument();
+
+    // Replacing a remembered document is destructive, so it is never one stray
+    // click away — and the samples used to sit inside the dropzone, where they
+    // read as a description of what you could drop.
+    expect(screen.queryByRole("button", { name: /Board brief/ })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Bring something else/ }));
+
+    expect(screen.getByRole("button", { name: /Board brief/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Launch notes/ })).toBeInTheDocument();
+    expect(screen.getByText(/replaces what is loaded now/)).toBeInTheDocument();
+  });
+
+  it("opens ready to receive when there is nothing to lose", () => {
+    render(<ImportPanel {...base} sourceOk={false} sourceLabel="" />);
+    expect(screen.getByRole("button", { name: /Board brief/ })).toBeInTheDocument();
+    expect(screen.queryByText(/replaces what is loaded now/)).not.toBeInTheDocument();
+  });
+
+  it("never shows AI when disabled", () => {
+    render(<ImportPanel {...base} />);
     expect(screen.queryByText(/Improve with AI/)).not.toBeInTheDocument();
   });
 

@@ -1,11 +1,16 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Diagnostic } from "@/reliability/diagnostics";
 import { formatDiagnostic } from "@/reliability/diagnostics";
 import { detectFormat } from "@/import/import-source";
 import { BrandMark } from "../ui/brand-mark";
+import { StaggerTitle } from "../ui/stagger-title";
 import { formatBytes, readTextFileWithProgress } from "../import/read-file";
+import { readStats, summarize } from "@/stats/local-stats";
+
+const ACCEPTED = /\.(json|md|markdown|txt)$/i;
+const MAX_BYTES = 2 * 1024 * 1024;
 
 /**
  * The first screen. One decision only: bring a file, or paste text.
@@ -24,25 +29,48 @@ export function HomeScreen({
   onUseExample: (id: "atlas-json" | "atlas-notes") => void;
 }) {
   const [mode, setMode] = useState<"choose" | "paste">("choose");
-  const [dragOver, setDragOver] = useState(false);
+  const [drag, setDrag] = useState<"none" | "over" | "reject">("none");
   const [pasted, setPasted] = useState("");
   const [reading, setReading] = useState<{ name: string; size: number; percent: number } | null>(null);
   const [readError, setReadError] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
+  // Read after mount: the tally lives in localStorage, which the server has no
+  // view of, so reading it during render would mismatch the prerendered HTML.
+  const [tally, setTally] = useState<string | null>(null);
+  useEffect(() => setTally(summarize(readStats())), []);
+  // dragleave fires every time the cursor crosses a child, so a naive boolean
+  // strobes as the pointer moves over the icon and the labels. Counting enters
+  // against leaves is the only reliable way to know we have actually left.
+  const dragDepth = useRef(0);
 
   const openFile = async (file: File) => {
     setReadError(null);
-    setReading({ name: file.name, size: file.size, percent: 0 });
+    if (!ACCEPTED.test(file.name)) {
+      setReadError(`“${file.name}” isn’t a format we read. Try Markdown, plain text or memoRABLE JSON.`);
+      return;
+    }
+    if (file.size > MAX_BYTES) {
+      setReadError(`“${file.name}” is ${formatBytes(file.size)} — the limit is ${formatBytes(MAX_BYTES)}.`);
+      return;
+    }
     try {
-      const { text } = await readTextFileWithProgress(file, (percent) =>
-        setReading((current) => (current ? { ...current, percent } : current)),
-      );
+      const { text } = await readTextFileWithProgress(file, ({ percent, visible }) => {
+        if (!visible) return;
+        setReading((current) =>
+          current ? { ...current, percent } : { name: file.name, size: file.size, percent },
+        );
+      });
       setReading(null);
       onImport(text, file.name);
     } catch (error) {
       setReading(null);
       setReadError(error instanceof Error ? error.message : "The file could not be read.");
     }
+  };
+
+  const endDrag = () => {
+    dragDepth.current = 0;
+    setDrag("none");
   };
 
   const format = detectFormat(pasted);
@@ -57,9 +85,10 @@ export function HomeScreen({
           </span>
         </div>
 
-        <h1 className="home-title">Turn information into memory.</h1>
-        <p className="home-sub">
-          Bring a document. It is understood here, in this browser, and never uploaded.
+        <StaggerTitle text="Turn information into memory." className="home-title sweep" />
+        <p className="home-sub rise-in">
+          One document in. A web page, an email and a print-ready document out — every line
+          traceable to where it came from, and nothing understood anywhere but this browser.
         </p>
 
         {reading ? (
@@ -99,19 +128,31 @@ export function HomeScreen({
             </div>
           </div>
         ) : (
+          <>
           <div className="home-choices">
             <button
               type="button"
-              className={`home-card drop${dragOver ? " over" : ""}`}
+              className={`home-card drop${drag === "none" ? "" : ` ${drag}`}`}
               onClick={() => fileInput.current?.click()}
-              onDragOver={(e) => {
+              onDragEnter={(e) => {
                 e.preventDefault();
-                setDragOver(true);
+                dragDepth.current += 1;
+                const item = e.dataTransfer.items?.[0];
+                const named = item?.kind === "file" ? item.type : "";
+                // Filenames are withheld during a drag, so the MIME type is all
+                // there is to judge on — and an unknown type is not yet a wrong
+                // one, so only a positively wrong one is refused.
+                const wrong = Boolean(named) && !/^(text\/|application\/json)/.test(named);
+                setDrag(wrong ? "reject" : "over");
               }}
-              onDragLeave={() => setDragOver(false)}
+              onDragOver={(e) => e.preventDefault()}
+              onDragLeave={() => {
+                dragDepth.current -= 1;
+                if (dragDepth.current <= 0) endDrag();
+              }}
               onDrop={(e) => {
                 e.preventDefault();
-                setDragOver(false);
+                endDrag();
                 const file = e.dataTransfer.files?.[0];
                 if (file) void openFile(file);
               }}
@@ -124,7 +165,9 @@ export function HomeScreen({
                 </svg>
               </span>
               <span className="hc-title">Drop a file</span>
-              <span className="hc-sub">or click to choose · json · md · txt</span>
+              <span className="hc-sub">
+                {drag === "reject" ? "that format isn’t read here" : "or click to choose"}
+              </span>
             </button>
 
             <button type="button" className="home-card paste-choice" onClick={() => setMode("paste")}>
@@ -138,6 +181,9 @@ export function HomeScreen({
               <span className="hc-sub">notes, Markdown or memoRABLE JSON</span>
             </button>
           </div>
+          {/* The contract sits beside the control, not behind a rejected drop. */}
+          <p className="home-limits">Markdown, plain text or memoRABLE JSON · up to 2 MB</p>
+          </>
         )}
 
         <input
@@ -176,6 +222,12 @@ export function HomeScreen({
             Open a sample brief
           </button>
         </p>
+
+        {tally && (
+          <p className="home-tally" data-testid="local-tally">
+            {tally} — counted in this browser, and nowhere else.
+          </p>
+        )}
       </div>
     </main>
   );

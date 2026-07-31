@@ -86,7 +86,17 @@ export function Topbar({
         <button type="button" className="btn ghost" onClick={onReplay}>
           {replayActive ? "Stop replay" : "Replay the 20-second story"}
         </button>
-        <button type="button" className="btn pri" onClick={onPublish} disabled={!canPublish}>
+        <button
+          type="button"
+          className="btn pri magnetic"
+          onClick={onPublish}
+          disabled={!canPublish}
+          onPointerMove={(e) => {
+            const rect = e.currentTarget.getBoundingClientRect();
+            e.currentTarget.style.setProperty("--mx", `${((e.clientX - rect.left) / rect.width) * 100}%`);
+            e.currentTarget.style.setProperty("--my", `${((e.clientY - rect.top) / rect.height) * 100}%`);
+          }}
+        >
           Publish
         </button>
       </div>

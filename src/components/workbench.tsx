@@ -17,6 +17,8 @@ import { PreviewPane } from "./preview/preview-pane";
 import { SourceModal } from "./preview/source-modal";
 import { PublishPanel } from "./export/publish-panel";
 import { StageAnnouncer } from "./ui/stage-announcer";
+import { BrandSplash, shouldShowSplash } from "./ui/brand-splash";
+import { HomeScreen } from "./home/home-screen";
 import { useReplay } from "./replay/use-replay";
 
 export interface WorkbenchInitial {
@@ -42,6 +44,13 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
   const [aiBusy, setAiBusy] = useState(false);
   const [mobileTab, setMobileTab] = useState<MobileTab>("publish");
   const [reducedMotion, setReducedMotion] = useState(false);
+  /** The workbench is withheld until the visitor has brought something to it. */
+  const [view, setView] = useState<"home" | "workbench">("home");
+  const [splash, setSplash] = useState(false);
+
+  useEffect(() => {
+    if (shouldShowSplash()) setSplash(true);
+  }, []);
 
   useEffect(() => {
     setReducedMotion(window.matchMedia("(prefers-reduced-motion: reduce)").matches);
@@ -64,6 +73,7 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
       const result = importSource({ raw: text, label });
       if (result.ok) {
         dispatch({ type: "imported", sourceText: text, sourceLabel: label, document: result.value, at: nowLabel() });
+        setView("workbench");
         announce(`Understood — 6 memories created from ${label}.`);
         // Render the remaining two modes asynchronously so the UI stays responsive.
         scheduleLazyRenders(result.value, [], "web", dispatch);
@@ -226,9 +236,30 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
     announce("Published — one memory, three useful outputs.");
   }, [announce]);
 
+  const goHome = useCallback(() => {
+    if (replay.active) replay.cancel();
+    setPublishOpen(false);
+    setSourceModal(null);
+    setView("home");
+    announce("Back to the start. Your memories are kept.");
+  }, [replay, announce]);
+
+  if (view === "home") {
+    return (
+      <>
+        {splash && <BrandSplash onFinished={() => setSplash(false)} />}
+        <div className={splash ? "app-behind" : undefined}>
+          <HomeScreen errors={[...state.errors]} onImport={runImport} onUseExample={loadExample} />
+        </div>
+        <StageAnnouncer message={announcement} />
+      </>
+    );
+  }
+
   return (
     <div className="replay-wrap">
       <Topbar
+        onHome={goHome}
         documentTitle={state.document?.title ?? "Untitled document"}
         blockCount={state.document?.blocks.length ?? 0}
         mode={state.mode}

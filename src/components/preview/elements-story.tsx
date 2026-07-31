@@ -2,7 +2,7 @@
 
 import type { OutputMode } from "@/domain/memory/types";
 import { OUTPUT_MODE_LABELS } from "@/domain/memory/types";
-import { ELEMENTS_BY_MODE, ELEMENTS_REPO } from "@/render/elements-used";
+import { ELEMENTS_REPO, elementsFor } from "@/render/elements-used";
 import type { PublishThemeId } from "@/render/themes";
 import { PUBLISH_THEMES } from "@/render/themes";
 
@@ -20,7 +20,7 @@ export function ElementsStory({
   theme: PublishThemeId;
 }) {
   const memories = blockCount > 0 ? `${blockCount} Memories` : "6 Memories";
-  const elements = ELEMENTS_BY_MODE[mode];
+  const elements = elementsFor(mode, theme);
   const themeMeta = PUBLISH_THEMES[theme];
   return (
     <section className="elements-story" aria-labelledby="elements-story-h" data-testid="elements-story">

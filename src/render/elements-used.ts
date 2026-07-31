@@ -1,7 +1,9 @@
 import type { OutputMode } from "@/domain/memory/types";
+import type { PublishThemeId } from "./themes";
+import { resolveTheme } from "./themes";
 
 /**
- * Exact Unlayer Elements used per publication mode, with deep links into
+ * Exact Unlayer Elements used for a mode + preset, with deep links into
  * https://github.com/unlayer/elements so judges can verify composition.
  */
 
@@ -13,40 +15,61 @@ export interface ElementRef {
   role: string;
 }
 
+const el = (name: string, file: string, role: string): ElementRef => ({
+  name,
+  href: `${ROOT}/${file}`,
+  role,
+});
+
+const CORE = {
+  Email: el("Email", "Email.tsx", "Root: Outlook/Gmail-safe shell"),
+  Page: el("Page", "Page.tsx", "Root: responsive web page"),
+  Document: el("Document", "Document.tsx", "Root: print/PDF optimized"),
+  Row: el("Row", "Row.tsx", "Layout band"),
+  Column: el("Column", "Column.tsx", "Column inside a Row"),
+  Heading: el("Heading", "Heading.tsx", "Titles"),
+  Paragraph: el("Paragraph", "Paragraph.tsx", "Body copy"),
+  Menu: el("Menu", "Menu.tsx", "Jump navigation"),
+  Button: el("Button", "Button.tsx", "Call to action"),
+  Divider: el("Divider", "Divider.tsx", "Section rule"),
+  Table: el("Table", "Table.tsx", "Risks / data grid"),
+};
+
+/** Elements actually composed for this mode under the active preset. */
+export function elementsFor(mode: OutputMode, themeId: PublishThemeId | string = "editorial"): ElementRef[] {
+  const theme = resolveTheme(themeId);
+  const { chrome } = theme;
+  const root =
+    mode === "email" ? CORE.Email : mode === "web" ? CORE.Page : CORE.Document;
+
+  const list: ElementRef[] = [root, CORE.Row, CORE.Column, CORE.Heading, CORE.Paragraph];
+
+  if (chrome.showNavMenu) {
+    list.push({ ...CORE.Menu, role: mode === "document" ? "Contents jump list" : "In-document navigation" });
+  }
+  if (chrome.showFooterButton) {
+    list.push({ ...CORE.Button, role: mode === "email" ? "Jump CTA" : "Next-step CTA" });
+  }
+  if (chrome.showToc || theme.calloutStyle === "rule" || theme.id === "editorial" || theme.id === "academic") {
+    list.push({ ...CORE.Divider, role: theme.id === "academic" ? "Scholarly hairline rules" : "Cover / section rules" });
+  }
+  if (chrome.preferTables) {
+    list.push({ ...CORE.Table, role: theme.id === "executive" ? "KPI / risks table" : "Risks table" });
+  }
+
+  // Minimal: deliberately spare (no Menu, Button, Table, Divider extras beyond type).
+  if (theme.id === "minimal") {
+    return [root, CORE.Row, CORE.Column, CORE.Heading, CORE.Paragraph];
+  }
+
+  return list;
+}
+
+/** @deprecated prefer elementsFor(mode, theme) */
 export const ELEMENTS_BY_MODE: Record<OutputMode, ElementRef[]> = {
-  email: [
-    { name: "Email", href: `${ROOT}/Email.tsx`, role: "Root: Outlook/Gmail-safe shell" },
-    { name: "Row", href: `${ROOT}/Row.tsx`, role: "Layout band" },
-    { name: "Column", href: `${ROOT}/Column.tsx`, role: "Column inside a Row" },
-    { name: "Heading", href: `${ROOT}/Heading.tsx`, role: "Masthead & section titles" },
-    { name: "Paragraph", href: `${ROOT}/Paragraph.tsx`, role: "Body copy" },
-    { name: "Menu", href: `${ROOT}/Menu.tsx`, role: "Jump navigation" },
-    { name: "Button", href: `${ROOT}/Button.tsx`, role: "Footer CTA" },
-    { name: "Divider", href: `${ROOT}/Divider.tsx`, role: "Rules between bands" },
-    { name: "Table", href: `${ROOT}/Table.tsx`, role: "Risks grid" },
-  ],
-  web: [
-    { name: "Page", href: `${ROOT}/Page.tsx`, role: "Root: responsive web page" },
-    { name: "Row", href: `${ROOT}/Row.tsx`, role: "Full-bleed & content bands" },
-    { name: "Column", href: `${ROOT}/Column.tsx`, role: "Column inside a Row" },
-    { name: "Heading", href: `${ROOT}/Heading.tsx`, role: "Hero & section titles" },
-    { name: "Paragraph", href: `${ROOT}/Paragraph.tsx`, role: "Body copy" },
-    { name: "Menu", href: `${ROOT}/Menu.tsx`, role: "In-page navigation" },
-    { name: "Button", href: `${ROOT}/Button.tsx`, role: "Next-step CTA" },
-    { name: "Divider", href: `${ROOT}/Divider.tsx`, role: "Section rules" },
-    { name: "Table", href: `${ROOT}/Table.tsx`, role: "Risks grid" },
-  ],
-  document: [
-    { name: "Document", href: `${ROOT}/Document.tsx`, role: "Root: print/PDF optimized" },
-    { name: "Row", href: `${ROOT}/Row.tsx`, role: "Cover, TOC, sections" },
-    { name: "Column", href: `${ROOT}/Column.tsx`, role: "Column inside a Row" },
-    { name: "Heading", href: `${ROOT}/Heading.tsx`, role: "Title page & roman sections" },
-    { name: "Paragraph", href: `${ROOT}/Paragraph.tsx`, role: "Body copy" },
-    { name: "Menu", href: `${ROOT}/Menu.tsx`, role: "Contents jump list" },
-    { name: "Button", href: `${ROOT}/Button.tsx`, role: "Print action" },
-    { name: "Divider", href: `${ROOT}/Divider.tsx`, role: "Cover rule" },
-    { name: "Table", href: `${ROOT}/Table.tsx`, role: "Risks table" },
-  ],
+  email: elementsFor("email", "editorial"),
+  web: elementsFor("web", "editorial"),
+  document: elementsFor("document", "editorial"),
 };
 
 export const ELEMENTS_REPO = "https://github.com/unlayer/elements";

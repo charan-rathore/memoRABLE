@@ -14,7 +14,6 @@ import {
 } from "@unlayer/react-elements";
 import type { MemoryBlock, MemoryDocument } from "@/domain/memory/schema";
 import type { OutputMode } from "@/domain/memory/types";
-import { colors, fonts } from "./tokens";
 import type { PublishTheme } from "./themes";
 import { resolveTheme } from "./themes";
 import { escapeHtml, inlineLink, inlineText } from "./safe-inline";
@@ -83,10 +82,10 @@ export function buildRoot(
           linkStyle={{ linkColor: palette.accent, linkUnderline: false }}
           _meta={{ htmlID: "u_content_body_1" }}
         >
-          {emailHeaderRows(doc)}
-          {conversationRows(doc)}
+          {emailHeaderRows(doc, theme)}
+          {theme.chrome.showConversation ? conversationRows(doc, theme) : null}
           {blockRows}
-          {emailFooterRows(doc)}
+          {emailFooterRows(doc, theme)}
         </Email>
       ),
     };
@@ -99,17 +98,17 @@ export function buildRoot(
       root: (
         <Document
           backgroundColor={palette.paper}
-          contentWidth="760px"
+          contentWidth={theme.documentContentWidth}
           fontFamily={type.serif}
           textColor={palette.ink}
           linkStyle={{ linkColor: palette.accent, linkUnderline: false }}
           _meta={{ htmlID: "u_content_body_1" }}
         >
           {blockRows.slice(0, coverRowCount(renderedBlocks))}
-          {contentsRows(doc)}
-          {conversationRows(doc)}
+          {theme.chrome.showToc ? contentsRows(doc, theme) : null}
+          {theme.chrome.showConversation ? conversationRows(doc, theme) : null}
           {blockRows.slice(coverRowCount(renderedBlocks))}
-          {documentFooterRows(doc)}
+          {documentFooterRows(doc, theme)}
         </Document>
       ),
     };
@@ -127,10 +126,10 @@ export function buildRoot(
         linkStyle={{ linkColor: palette.accent, linkUnderline: false }}
         _meta={{ htmlID: "u_content_body_1" }}
       >
-        {webNavRows(doc)}
-        {conversationRows(doc)}
+        {theme.chrome.showNavMenu ? webNavRows(doc, theme) : null}
+        {theme.chrome.showConversation ? conversationRows(doc, theme) : null}
         {blockRows}
-        {webFooterRows(doc)}
+        {webFooterRows(doc, theme)}
       </Page>
     ),
   };
@@ -178,11 +177,13 @@ function menuItems(doc: MemoryDocument) {
  * A short strip of how the memories speak to each other.
  * Each line is a jump, so reading feels like following a conversation.
  */
-function conversationRows(doc: MemoryDocument): ReactElement[] {
+function conversationRows(doc: MemoryDocument, theme: PublishTheme): ReactElement[] {
   const edges = (doc.relations ?? [])
     .filter((r) => r.relation !== "frames")
     .slice(0, 4);
   if (edges.length === 0) return [];
+  const c = theme.colors;
+  const f = theme.fonts;
 
   const labelFor = (ref: string) => {
     const kind = ref.split(":")[0]!;
@@ -197,22 +198,22 @@ function conversationRows(doc: MemoryDocument): ReactElement[] {
     const targetKind = edge.to.split(":")[0]!;
     const target = doc.blocks.find((b) => b.kind === targetKind);
     const href = target ? `#${sectionAnchor(target)}` : "#";
-    return inlineLink(href, `${from} ${verb} ${to}`, colors.ink2);
+    return inlineLink(href, `${from} ${verb} ${to}`, c.ink2);
   });
 
   return [
-    <Row key="conversation" layout={ColumnLayouts.OneColumn} backgroundColor={colors.surface2} padding="14px 44px 16px 44px">
+    <Row key="conversation" layout={ColumnLayouts.OneColumn} backgroundColor={c.surface2} padding="14px 44px 16px 44px">
       <Column>
         <Paragraph
           html={inlineText("A conversation inside the document")}
-          fontFamily={fonts.mono}
+          fontFamily={f.mono}
           fontSize="10px"
-          color={colors.ink3}
+          color={c.ink3}
           letterSpacing="0.12em"
           lineHeight="150%"
         />
         {lines.map((html, i) => (
-          <Paragraph key={`talk-${i}`} html={html} fontFamily={fonts.sans} fontSize="13px" color={colors.ink2} lineHeight="170%" />
+          <Paragraph key={`talk-${i}`} html={html} fontFamily={f.sans} fontSize="13px" color={c.ink2} lineHeight="170%" />
         ))}
       </Column>
     </Row>,
@@ -221,17 +222,20 @@ function conversationRows(doc: MemoryDocument): ReactElement[] {
 
 /* --------------------------------- email --------------------------------- */
 
-function emailHeaderRows(doc: MemoryDocument): ReactElement[] {
+function emailHeaderRows(doc: MemoryDocument, theme: PublishTheme): ReactElement[] {
   const items = menuItems(doc);
+  const c = theme.colors;
+  const f = theme.fonts;
+  const showMenu = theme.chrome.showNavMenu && items.length > 0;
   return [
-    <Row key="email-header" layout={ColumnLayouts.OneColumn} backgroundColor={colors.ink} padding="18px 40px 10px 40px">
+    <Row key="email-header" layout={ColumnLayouts.OneColumn} backgroundColor={c.ink} padding="18px 40px 10px 40px">
       <Column padding="0px">
         <Heading
           headingType="h4"
-          fontFamily={fonts.mono}
+          fontFamily={f.mono}
           fontSize="11px"
           fontWeight={700}
-          color={colors.paper}
+          color={c.paper}
           letterSpacing="0.16em"
           lineHeight="150%"
         >
@@ -239,16 +243,16 @@ function emailHeaderRows(doc: MemoryDocument): ReactElement[] {
         </Heading>
       </Column>
     </Row>,
-    items.length > 0 ? (
-      <Row key="email-nav" layout={ColumnLayouts.OneColumn} backgroundColor={colors.ink} padding="0px 40px 16px 40px">
+    showMenu ? (
+      <Row key="email-nav" layout={ColumnLayouts.OneColumn} backgroundColor={c.ink} padding="0px 40px 16px 40px">
         <Column padding="0px">
           <Menu
             items={items}
             layout="horizontal"
             align="left"
-            separator=" · "
-            linkColor={colors.heroMuted}
-            fontFamily={fonts.mono}
+            separator={theme.chrome.menuSeparator}
+            linkColor={c.heroMuted}
+            fontFamily={f.mono}
             fontSize="10.5px"
             fontWeight={600}
             letterSpacing="0.04em"
@@ -257,49 +261,51 @@ function emailHeaderRows(doc: MemoryDocument): ReactElement[] {
         </Column>
       </Row>
     ) : (
-      <Row key="email-nav-spacer" layout={ColumnLayouts.OneColumn} backgroundColor={colors.ink} padding="0px 40px 8px 40px">
+      <Row key="email-nav-spacer" layout={ColumnLayouts.OneColumn} backgroundColor={c.ink} padding="0px 40px 8px 40px">
         <Column padding="0px">
-          <Paragraph html="&nbsp;" fontSize="1px" color={colors.ink} />
+          <Paragraph html="&nbsp;" fontSize="1px" color={c.ink} />
         </Column>
       </Row>
     ),
   ];
 }
 
-function emailFooterRows(doc: MemoryDocument): ReactElement[] {
+function emailFooterRows(doc: MemoryDocument, theme: PublishTheme): ReactElement[] {
   const firstJump = doc.blocks.find((b) => b.kind !== "snapshot");
+  const c = theme.colors;
+  const f = theme.fonts;
   return [
-    <Row key="email-cta" layout={ColumnLayouts.OneColumn} backgroundColor={colors.surface} padding="8px 40px 4px 40px">
-      <Column>
-        {firstJump ? (
+    theme.chrome.showFooterButton && firstJump ? (
+      <Row key="email-cta" layout={ColumnLayouts.OneColumn} backgroundColor={c.surface} padding="8px 40px 4px 40px">
+        <Column>
           <Button
             href={`#${sectionAnchor(firstJump)}`}
             text="Jump to the memories"
-            backgroundColor={colors.accent}
-            color={colors.paper}
-            hoverBackgroundColor={colors.accentHover}
-            fontFamily={fonts.sans}
+            backgroundColor={c.accent}
+            color={c.paper}
+            hoverBackgroundColor={c.accentHover}
+            fontFamily={f.sans}
             fontSize="13px"
             fontWeight={700}
             borderRadius="8px"
             padding="10px 18px"
             containerPadding="8px 0px"
           />
-        ) : null}
-      </Column>
-    </Row>,
-    <Row key="email-footer" layout={ColumnLayouts.OneColumn} backgroundColor={colors.surface2} padding="20px 40px 24px 40px">
+        </Column>
+      </Row>
+    ) : null,
+    <Row key="email-footer" layout={ColumnLayouts.OneColumn} backgroundColor={c.surface2} padding="20px 40px 24px 40px">
       <Column>
         <Paragraph
           html={inlineText(`${doc.title}. ${provenanceLine(doc)}. memoRABLE`)}
-          fontFamily={fonts.mono}
+          fontFamily={f.mono}
           fontSize="10.5px"
-          color={colors.ink3}
+          color={c.ink3}
           lineHeight="160%"
         />
       </Column>
     </Row>,
-  ];
+  ].filter(Boolean) as ReactElement[];
 }
 
 /* ------------------------------- document -------------------------------- */
@@ -309,20 +315,22 @@ function emailFooterRows(doc: MemoryDocument): ReactElement[] {
  * in-document anchor — the one kind of "interactivity" that survives
  * print-to-PDF and most email clients.
  */
-function contentsRows(doc: MemoryDocument): ReactElement[] {
+function contentsRows(doc: MemoryDocument, theme: PublishTheme): ReactElement[] {
   const sections = doc.blocks.slice(1);
   if (sections.length === 0) return [];
   const half = Math.ceil(sections.length / 2);
-  const columns = [sections.slice(0, half), sections.slice(half)].filter((c) => c.length > 0);
+  const columns = [sections.slice(0, half), sections.slice(half)].filter((col) => col.length > 0);
+  const c = theme.colors;
+  const f = theme.fonts;
   return [
-    <Row key="contents-label" layout={ColumnLayouts.OneColumn} backgroundColor={colors.surface} padding="6px 44px 8px 44px">
-      <Column border={{ borderTopWidth: "1px", borderTopStyle: "solid", borderTopColor: colors.line }} padding="14px 0px 0px 0px">
+    <Row key="contents-label" layout={ColumnLayouts.OneColumn} backgroundColor={c.surface} padding="6px 44px 8px 44px">
+      <Column border={{ borderTopWidth: "1px", borderTopStyle: "solid", borderTopColor: c.line }} padding="14px 0px 0px 0px">
         <Heading
           headingType="h4"
-          fontFamily={fonts.mono}
+          fontFamily={f.mono}
           fontSize="10px"
           fontWeight={700}
-          color={colors.ink3}
+          color={c.ink3}
           letterSpacing="0.16em"
           lineHeight="150%"
         >
@@ -333,7 +341,7 @@ function contentsRows(doc: MemoryDocument): ReactElement[] {
     <Row
       key="contents"
       layout={columns.length === 2 ? ColumnLayouts.TwoEqual : ColumnLayouts.OneColumn}
-      backgroundColor={colors.surface}
+      backgroundColor={c.surface}
       padding="0px 44px 26px 44px"
     >
       {columns.map((group, columnIndex) => (
@@ -341,10 +349,10 @@ function contentsRows(doc: MemoryDocument): ReactElement[] {
           {group.map((block) => (
             <Paragraph
               key={`contents-${block.id}`}
-              html={tocLink(doc, block)}
-              fontFamily={fonts.serif}
+              html={tocLink(doc, block, theme)}
+              fontFamily={f.serif}
               fontSize="13.5px"
-              color={colors.ink2}
+              color={c.ink2}
               lineHeight="185%"
             />
           ))}
@@ -354,24 +362,26 @@ function contentsRows(doc: MemoryDocument): ReactElement[] {
   ];
 }
 
-function tocLink(doc: MemoryDocument, block: MemoryBlock): string {
+function tocLink(doc: MemoryDocument, block: MemoryBlock, theme: PublishTheme): string {
   return inlineLink(
     `#${sectionAnchor(block)}`,
     `${roman(doc.blocks.indexOf(block))}. ${block.title}`,
-    colors.ink,
+    theme.colors.ink,
   );
 }
 
-function documentFooterRows(doc: MemoryDocument): ReactElement[] {
+function documentFooterRows(doc: MemoryDocument, theme: PublishTheme): ReactElement[] {
+  const c = theme.colors;
+  const f = theme.fonts;
   return [
-    <Row key="doc-footer" layout={ColumnLayouts.OneColumn} backgroundColor={colors.surface} padding="10px 44px 40px 44px">
+    <Row key="doc-footer" layout={ColumnLayouts.OneColumn} backgroundColor={c.surface} padding="10px 44px 40px 44px">
       <Column padding="0px">
-        <Divider borderTopWidth="1px" borderTopStyle="solid" borderTopColor={colors.line} />
+        <Divider borderTopWidth="1px" borderTopStyle="solid" borderTopColor={c.line} />
         <Paragraph
           html={inlineText(`${doc.title}. ${provenanceLine(doc)}`)}
-          fontFamily={fonts.mono}
+          fontFamily={f.mono}
           fontSize="10.5px"
-          color={colors.ink3}
+          color={c.ink3}
           lineHeight="180%"
         />
       </Column>
@@ -381,11 +391,13 @@ function documentFooterRows(doc: MemoryDocument): ReactElement[] {
 
 /* ---------------------------------- web ---------------------------------- */
 
-function webNavRows(doc: MemoryDocument): ReactElement[] {
+function webNavRows(doc: MemoryDocument, theme: PublishTheme): ReactElement[] {
   const items = menuItems(doc);
   if (items.length === 0) return [];
+  const c = theme.colors;
+  const f = theme.fonts;
   return [
-    <Row key="web-nav" layout={ColumnLayouts.OneColumn} backgroundColor={colors.ink} padding="14px 44px 14px 44px">
+    <Row key="web-nav" layout={ColumnLayouts.OneColumn} backgroundColor={c.ink} padding="14px 44px 14px 44px">
       <Column padding="0px">
         <Menu
           items={[
@@ -394,9 +406,9 @@ function webNavRows(doc: MemoryDocument): ReactElement[] {
           ]}
           layout="horizontal"
           align="left"
-          separator="  "
-          linkColor={colors.heroInk}
-          fontFamily={fonts.mono}
+          separator={theme.chrome.menuSeparator}
+          linkColor={c.heroInk}
+          fontFamily={f.mono}
           fontSize="11px"
           fontWeight={600}
           letterSpacing="0.06em"
@@ -407,33 +419,35 @@ function webNavRows(doc: MemoryDocument): ReactElement[] {
   ];
 }
 
-function webFooterRows(doc: MemoryDocument): ReactElement[] {
+function webFooterRows(doc: MemoryDocument, theme: PublishTheme): ReactElement[] {
   const firstJump = doc.blocks.find((b) => b.kind !== "snapshot");
+  const c = theme.colors;
+  const f = theme.fonts;
   return [
-    <Row key="web-footer" layout={ColumnLayouts.OneColumn} backgroundColor={colors.ink} padding="34px 44px 38px 44px">
+    <Row key="web-footer" layout={ColumnLayouts.OneColumn} backgroundColor={c.ink} padding="34px 44px 38px 44px">
       <Column>
         <Paragraph
           html={inlineText(doc.title)}
-          fontFamily={fonts.serif}
+          fontFamily={f.serif}
           fontSize="18px"
-          color={colors.paper}
+          color={c.paper}
           lineHeight="140%"
         />
         <Paragraph
           html={inlineText(provenanceLine(doc))}
-          fontFamily={fonts.mono}
+          fontFamily={f.mono}
           fontSize="10.5px"
-          color={colors.heroMuted}
+          color={c.heroMuted}
           lineHeight="170%"
         />
-        {firstJump ? (
+        {theme.chrome.showFooterButton && firstJump ? (
           <Button
             href={`#${sectionAnchor(firstJump)}`}
             text="Back to the first memory"
-            backgroundColor={colors.accent}
-            color={colors.paper}
-            hoverBackgroundColor={colors.accentHover}
-            fontFamily={fonts.sans}
+            backgroundColor={c.accent}
+            color={c.paper}
+            hoverBackgroundColor={c.accentHover}
+            fontFamily={f.sans}
             fontSize="13px"
             fontWeight={700}
             borderRadius="8px"

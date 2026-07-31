@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import type { WorkbenchState } from "./workbench-state";
 import { OUTPUT_MODE_LABELS } from "@/domain/memory/types";
 import { BLOCK_KIND_LABELS } from "@/domain/memory/schema";
@@ -7,7 +8,6 @@ import { formatBytes } from "./import/read-file";
 
 export type StepStatus = "done" | "live" | "pending" | "error";
 
-/** Optional file facts collected at bring-time (size, pages, etc.). */
 export interface SourceMeta {
   filename: string;
   fileType: string;
@@ -21,9 +21,12 @@ export interface JourneyStep {
   key: string;
   index: string;
   label: string;
+  detail: string;
   status: StepStatus;
   lines: string[];
 }
+
+const CARD_OPEN_MS = 5200;
 
 function fileTypeOf(label: string): string {
   const lower = label.toLowerCase();
@@ -48,7 +51,6 @@ function countSections(sourceText: string): number {
   return sourceText.split("\n").filter((l) => /^#{1,3}\s+\S/.test(l.trim())).length;
 }
 
-/** The persistent human journey: 01 Bring → … → 05 Publish as info cards. */
 export function journeyOf(
   state: WorkbenchState,
   replayStep: number | null,
@@ -84,6 +86,7 @@ export function journeyOf(
       key: "bring",
       index: "01",
       label: "Bring information",
+      detail: state.sourceLabel || "paste or drop to begin",
       status: hasErrors ? "error" : hasDoc ? "done" : "pending",
       lines: bringLines,
     },
@@ -91,6 +94,11 @@ export function journeyOf(
       key: "understand",
       index: "02",
       label: "Understand",
+      detail: hasErrors
+        ? `couldn't understand · ${state.errors.length} ${state.errors.length === 1 ? "error" : "errors"}`
+        : hasDoc
+          ? "six types found"
+          : "waiting",
       status: hasErrors ? "error" : hasDoc ? "done" : "pending",
       lines: hasDoc
         ? [
@@ -112,12 +120,13 @@ export function journeyOf(
       key: "remember",
       index: "03",
       label: "Remember",
+      detail: hasDoc ? `${state.document!.blocks.length} memories` : "0 memories",
       status: hasErrors ? "error" : hasDoc ? "done" : "pending",
       lines: hasDoc
         ? [
             `${state.document!.blocks.length} grounded memories`,
             "Each keeps method, locator and excerpt",
-            "Click a memory to see its source lines",
+            "Click a memory to see its source heading",
             "Nothing is invented beyond the source",
           ]
         : [
@@ -131,6 +140,7 @@ export function journeyOf(
       key: "arrange",
       index: "04",
       label: "Arrange",
+      detail: hasDoc ? `${state.document!.blocks.length} in place` : "·",
       status: hasErrors ? "error" : hasDoc ? "done" : "pending",
       lines: hasDoc
         ? [
@@ -150,6 +160,7 @@ export function journeyOf(
       key: "publish",
       index: "05",
       label: "Publish",
+      detail: state.publishedAt ? "Published" : hasDoc ? `${OUTPUT_MODE_LABELS[state.mode]} · ready` : "·",
       status: hasErrors ? "error" : state.publishedAt ? "done" : hasDoc ? "live" : "pending",
       lines: hasDoc
         ? [
@@ -180,6 +191,10 @@ export function journeyOf(
   return steps;
 }
 
+/**
+ * Compact journey bar by default. Click a step to peek its info card;
+ * the card auto-closes after a few seconds.
+ */
 export function JourneyStrip({
   state,
   replayStep,
@@ -190,22 +205,60 @@ export function JourneyStrip({
   sourceMeta?: SourceMeta | null;
 }) {
   const steps = journeyOf(state, replayStep, sourceMeta ?? null);
+  const [openKey, setOpenKey] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!openKey) return;
+    const t = window.setTimeout(() => setOpenKey(null), CARD_OPEN_MS);
+    return () => window.clearTimeout(t);
+  }, [openKey]);
+
+  const openStep = steps.find((s) => s.key === openKey) ?? null;
+
   return (
-    <nav className="pipe pipe-cards" aria-label="Your progress">
-      {steps.map((step) => (
-        <article key={step.key} className={`jcard ${step.status}`} aria-label={step.label}>
+    <div className="pipe-wrap">
+      <nav className="pipe" aria-label="Your progress">
+        {steps.map((step, i) => (
+          <span key={step.key} style={{ display: "contents" }}>
+            {i > 0 && (
+              <span className="psep" aria-hidden="true">
+                →
+              </span>
+            )}
+            <button
+              type="button"
+              className={`pstep ${step.status}${openKey === step.key ? " peek" : ""}`}
+              onClick={() => setOpenKey((k) => (k === step.key ? null : step.key))}
+              aria-expanded={openKey === step.key}
+              aria-controls={openKey === step.key ? "journey-peek" : undefined}
+              title={`Show what ${step.label} means`}
+            >
+              <span className="dot" aria-hidden="true" />
+              <span className="k">{step.index}</span>
+              <b>{step.label}</b>
+              <span>{step.detail}</span>
+            </button>
+          </span>
+        ))}
+        <span className="pmeta">
+          {state.document ? `publish: ${state.mode} · ${state.document.blocks.length} memories` : "nothing here yet"}
+        </span>
+      </nav>
+      {openStep && (
+        <article id="journey-peek" className={`jcard jcard-peek ${openStep.status}`} aria-live="polite">
           <header className="jcard-h">
             <span className="dot" aria-hidden="true" />
-            <span className="k">{step.index}</span>
-            <b>{step.label}</b>
+            <span className="k">{openStep.index}</span>
+            <b>{openStep.label}</b>
+            <span className="jcard-hint">closes shortly</span>
           </header>
           <ul className="jcard-lines">
-            {step.lines.map((line) => (
+            {openStep.lines.map((line) => (
               <li key={line}>{line}</li>
             ))}
           </ul>
         </article>
-      ))}
-    </nav>
+      )}
+    </div>
   );
 }

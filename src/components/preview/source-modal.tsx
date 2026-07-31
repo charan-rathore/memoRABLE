@@ -100,50 +100,66 @@ export function SourceModal({
 }
 
 /**
- * Find the 1-based source lines a block came from. Prefers the locator's
- * explicit line range; otherwise locates the excerpt in the source.
+ * Highlight only the heading the memory traces to (one line), never the
+ * whole following paragraph.
  */
 export function highlightRange(sourceText: string, block: MemoryBlock): Set<number> {
   const lines = sourceText.split("\n");
+  let anchor = 0;
   const range = /lines? (\d+)(?:–(\d+))?/.exec(block.provenance.locator);
   if (range) {
-    const start = Number(range[1]);
-    const end = range[2] ? Number(range[2]) : start;
-    const set = new Set<number>();
-    for (let i = start; i <= Math.min(end, lines.length); i++) set.add(i);
-    return set;
-  }
-  const needle = block.provenance.excerpt.slice(0, 40).trim();
-  const set = new Set<number>();
-  if (needle.length >= 8) {
-    const index = lines.findIndex((l) => needle.startsWith(l.trim().slice(0, 40)) || l.includes(needle.slice(0, 30)));
-    if (index >= 0) {
-      for (let i = index; i < Math.min(index + 4, lines.length); i++) set.add(i + 1);
+    anchor = Number(range[1]);
+  } else {
+    const needle = block.provenance.excerpt.slice(0, 40).trim();
+    if (needle.length >= 8) {
+      const index = lines.findIndex(
+        (l) => needle.startsWith(l.trim().slice(0, 40)) || l.includes(needle.slice(0, 30)),
+      );
+      if (index >= 0) anchor = index + 1;
     }
   }
-  return set;
+  if (anchor < 1 || anchor > lines.length) return new Set();
+  return new Set([nearestHeadingLine(lines, anchor)]);
 }
 
+function isHeadingLine(line: string): boolean {
+  const t = line.trim();
+  if (!t) return false;
+  if (/^#{1,6}\s+\S/.test(t)) return true;
+  if (/^[A-Z0-9][A-Z0-9 /&:,.()-]{2,90}$/.test(t) && t.length <= 90) return true;
+  if (
+    /^(POSITIONS|ACADEMIC|EXPERIENCE|EDUCATION|SKILLS|PROJECTS|SUMMARY|OBJECTIVE|RISKS?|SIGNALS?|DECISIONS?|ACTIONS?|TIMELINE|BACKGROUND|INTRODUCTION)\b/i.test(
+      t,
+    )
+  ) {
+    return true;
+  }
+  // Short title-like line that doesn't end like a sentence.
+  if (t.length <= 72 && /^[A-Z]/.test(t) && !/[.!?]$/.test(t) && !/^[-*•]/.test(t)) return true;
+  return false;
+}
+
+function nearestHeadingLine(lines: string[], from1: number): number {
+  for (let i = from1; i >= 1; i--) {
+    if (isHeadingLine(lines[i - 1] ?? "")) return i;
+  }
+  for (let i = from1; i <= lines.length; i++) {
+    if (isHeadingLine(lines[i - 1] ?? "")) return i;
+  }
+  return from1;
+}
+
+/** Mark the whole heading line (not a sentence slice of a body paragraph). */
 function sentenceOnLines(
   sourceText: string,
-  block: MemoryBlock,
-  lines: Set<number>,
+  _block: MemoryBlock,
+  highlighted: Set<number>,
 ): { line: number; start: number; end: number } {
   const empty = { line: 0, start: 0, end: 0 };
-  const first = [...lines][0];
+  const first = [...highlighted][0];
   if (first === undefined) return empty;
-  const all = sourceText.split("\n");
-  const text = all[first - 1] ?? "";
-  const excerpt = block.provenance.excerpt.trim();
-  if (excerpt.length >= 6) {
-    const idx = text.toLowerCase().indexOf(excerpt.slice(0, 48).toLowerCase());
-    if (idx >= 0) {
-      return { line: first, start: idx, end: Math.min(text.length, idx + Math.min(excerpt.length, 120)) };
-    }
-  }
-  const match = /[^.!?]+[.!?]/.exec(text);
-  if (match && match.index != null) {
-    return { line: first, start: match.index, end: match.index + match[0].length };
-  }
-  return { line: first, start: 0, end: Math.min(text.length, 80) };
+  const text = sourceText.split("\n")[first - 1] ?? "";
+  const trimmed = text.trimStart();
+  const lead = text.length - trimmed.length;
+  return { line: first, start: lead, end: text.length };
 }

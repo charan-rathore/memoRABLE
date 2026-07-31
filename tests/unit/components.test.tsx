@@ -28,7 +28,7 @@ describe("BlocksPanel", () => {
     const doc = atlas();
     const onSelect = vi.fn();
     render(<BlocksPanel blocks={doc.blocks} selectedBlockId={null} onSelect={onSelect} onMove={() => {}} />);
-    fireEvent.click(screen.getByRole("button", { name: "Signals — show details" }));
+    fireEvent.click(screen.getByRole("button", { name: "Signals: show details" }));
     expect(onSelect).toHaveBeenCalledWith(doc.blocks[1]!.id);
   });
 
@@ -90,7 +90,7 @@ describe("ImportPanel", () => {
         {...base}
         sourceText='{"version": 1, broken'
         sourceOk={false}
-        errors={[{ code: "json.syntax", message: "We couldn't understand this JSON — check the syntax here.", line: 1, column: 20 }]}
+        errors={[{ code: "json.syntax", message: "We couldn't understand this JSON. check the syntax here.", line: 1, column: 20 }]}
       />,
     );
     expect(screen.getByRole("alert")).toHaveTextContent("We couldn’t understand this JSON. Nothing was changed.");
@@ -101,7 +101,7 @@ describe("ImportPanel", () => {
     render(<ImportPanel {...base} />);
 
     // Replacing a remembered document is destructive, so it is never one stray
-    // click away — and the samples used to sit inside the dropzone, where they
+    // click away. and the samples used to sit inside the dropzone, where they
     // read as a description of what you could drop.
     expect(screen.queryByRole("button", { name: /Board brief/ })).not.toBeInTheDocument();
 
@@ -124,7 +124,7 @@ describe("ImportPanel", () => {
   });
 
   it("shows warnings honestly", () => {
-    render(<ImportPanel {...base} warnings={[{ code: "text.no-blocks-recognized", message: "No risks were recognized — that memory is empty." }]} />);
-    expect(screen.getByText("No risks were recognized — that memory is empty.")).toBeInTheDocument();
+    render(<ImportPanel {...base} warnings={[{ code: "text.no-blocks-recognized", message: "No risks were recognized. that memory is empty." }]} />);
+    expect(screen.getByText("No risks were recognized. that memory is empty.")).toBeInTheDocument();
   });
 });

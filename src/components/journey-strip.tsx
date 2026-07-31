@@ -29,7 +29,11 @@ export function journeyOf(state: WorkbenchState, replayStep: number | null): Jou
       key: "understand",
       index: "02",
       label: "Understand",
-      detail: hasErrors ? `couldn't understand · ${state.errors.length} ${state.errors.length === 1 ? "error" : "errors"}` : hasDoc ? "six types found" : "—",
+      detail: hasErrors
+        ? `couldn't understand · ${state.errors.length} ${state.errors.length === 1 ? "error" : "errors"}`
+        : hasDoc
+          ? "six types found"
+          : "waiting",
       status: hasErrors ? "error" : hasDoc ? "done" : "pending",
     },
     {
@@ -43,31 +47,41 @@ export function journeyOf(state: WorkbenchState, replayStep: number | null): Jou
       key: "arrange",
       index: "04",
       label: "Arrange",
-      detail: hasDoc ? `${state.document!.blocks.length} in place` : "—",
+      detail: hasDoc ? `${state.document!.blocks.length} in place` : "·",
       status: hasErrors ? "error" : hasDoc ? "done" : "pending",
     },
     {
       key: "publish",
       index: "05",
       label: "Publish",
-      detail: state.publishedAt ? "Published" : hasDoc ? `${OUTPUT_MODE_LABELS[state.mode]} · ready` : "—",
+      detail: state.publishedAt ? "Published" : hasDoc ? `${OUTPUT_MODE_LABELS[state.mode]} · ready` : "·",
       status: hasErrors ? "error" : state.publishedAt ? "done" : hasDoc ? "live" : "pending",
     },
   ];
   if (replayStep !== null) {
     const order = ["bring", "understand", "remember", "arrange", "publish"];
     return steps.map((step, i) =>
-      order[replayStep] === step.key ? { ...step, status: "live" } : i < replayStep ? { ...step, status: "done" } : step,
+      order[replayStep] === step.key
+        ? { ...step, status: "live" }
+        : i < replayStep
+          ? { ...step, status: "done" }
+          : step,
     );
   }
   return steps;
 }
 
-export function JourneyStrip({ state, replayStep }: { state: WorkbenchState; replayStep: number | null }) {
+export function JourneyStrip({
+  state,
+  replayStep,
+  onStep,
+}: {
+  state: WorkbenchState;
+  replayStep: number | null;
+  onStep?: (key: string) => void;
+}) {
   const steps = journeyOf(state, replayStep);
   return (
-    // tabIndex: the strip can scroll horizontally on narrow screens; keyboard
-    // users must be able to reach and scroll it (WCAG 2.1.1, axe scrollable-region-focusable).
     <nav className="pipe" aria-label="Your progress" tabIndex={0}>
       {steps.map((step, i) => (
         <span key={step.key} style={{ display: "contents" }}>
@@ -76,17 +90,28 @@ export function JourneyStrip({ state, replayStep }: { state: WorkbenchState; rep
               →
             </span>
           )}
-          <span className={`pstep ${step.status}`}>
+          <button
+            type="button"
+            className={`pstep ${step.status}`}
+            onClick={() => onStep?.(step.key)}
+            aria-current={step.status === "live" ? "step" : undefined}
+            title={`Go to ${step.label}`}
+          >
             <span className="dot" aria-hidden="true" />
             <span className="k">{step.index}</span>
             <b>{step.label}</b>
             <span>{step.detail}</span>
-          </span>
+          </button>
         </span>
       ))}
-      <span className="pmeta">
+      <button
+        type="button"
+        className="pmeta"
+        onClick={() => onStep?.(state.document ? "publish" : "bring")}
+        title={state.document ? "Jump to publish" : "Bring something in"}
+      >
         {state.document ? `publish: ${state.mode} · ${state.document.blocks.length} memories` : "nothing here yet"}
-      </span>
+      </button>
     </nav>
   );
 }

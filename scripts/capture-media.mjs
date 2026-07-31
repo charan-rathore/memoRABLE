@@ -22,7 +22,7 @@ import { fileURLToPath } from "node:url";
 const run = promisify(execFile);
 
 const baseURL = process.argv[2] ?? "http://127.0.0.1:3100";
-const outDir = path.resolve(fileURLToPath(new URL("../public/media", import.meta.url)));
+const outDir = path.resolve(fileURLToPath(new URL("./public/media", import.meta.url)));
 const videoDir = path.join(outDir, ".video");
 
 const DESKTOP = { width: 1440, height: 900 };
@@ -49,25 +49,25 @@ async function captureScreens(browser) {
     console.log(`captured ${name}`);
   };
 
-  // 1 — The door: one decision, drop a file or paste text.
+  // 1. The door: one decision, drop a file or paste text.
   await page.goto(baseURL, { waitUntil: "networkidle" });
   await page.getByTestId("home-screen").waitFor();
   await page.getByTestId("brand-splash").waitFor({ state: "detached" }).catch(() => {});
   await shot("00-home.png");
 
-  // 2 — Document first: the brief arrives already remembered.
+  // 2. Document first: the brief arrives already remembered.
   await enterWorkbench(page);
   await page.locator("iframe[title='Document output preview']").waitFor();
   await page.getByText("6 memories").first().waitFor();
   await shot("01-document-first.png");
 
-  // 3 — Six memories with the provenance inspector open on Signals.
-  await page.getByRole("button", { name: "Signals — show details" }).click();
+  // 3. Six memories with the provenance inspector open on Signals.
+  await page.getByRole("button", { name: "Signals: show details" }).click();
   const inspector = page.getByTestId("inspector");
   await inspector.getByText("Remembered from").waitFor();
   await shot("02-memories-provenance.png");
 
-  // 4 — One memory, three outputs, side by side.
+  // 4. One memory, three outputs, side by side.
   await page.locator(".topbar").getByRole("button", { name: "Publish", exact: true }).click();
   const dialog = page.getByRole("dialog");
   await dialog.getByRole("heading", { name: "Published." }).waitFor();
@@ -84,7 +84,7 @@ async function captureReplay(browser) {
     recordVideo: { dir: videoDir, size: DESKTOP },
   });
   // Recording begins with the first page, so measure the lead-in and trim it
-  // later — the GIF should open on the story, not on a static page.
+  // later. the GIF should open on the story, not on a static page.
   const startedAt = Date.now();
   const page = await context.newPage();
 

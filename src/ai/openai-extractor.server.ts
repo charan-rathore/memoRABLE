@@ -10,7 +10,7 @@ import { AI_SYSTEM_PROMPT, buildAiUserPrompt } from "./prompt";
  * Isolation guarantees (reliability layer 3):
  *  - 8-second abort deadline, no automatic retries;
  *  - output validated against the exact same strict schema;
- *  - logs only request id, status class, duration and token counts —
+ *  - logs only request id, status class, duration and token counts . 
  *    never source text, prompts, model output or secrets.
  */
 
@@ -75,10 +75,10 @@ export async function extractWithAi(
     meta.statusClass = `${Math.floor(response.status / 100)}xx`;
 
     if (response.status === 429) {
-      return finish(aiFailure("rate-limited", "AI is busy right now — the local result is unchanged."));
+      return finish(aiFailure("rate-limited", "AI is busy right now. The local result is unchanged."));
     }
     if (!response.ok) {
-      return finish(aiFailure("provider-error", "The AI provider returned an error — the local result is unchanged."));
+      return finish(aiFailure("provider-error", "The AI provider returned an error. The local result is unchanged."));
     }
 
     const body = (await response.json()) as {
@@ -90,26 +90,26 @@ export async function extractWithAi(
 
     const content = body.choices?.[0]?.message?.content;
     if (typeof content !== "string") {
-      return finish(aiFailure("invalid-output", "AI returned nothing usable — the local result is unchanged."));
+      return finish(aiFailure("invalid-output", "AI returned nothing usable. The local result is unchanged."));
     }
     let parsed: unknown;
     try {
       parsed = JSON.parse(stripCodeFences(content));
     } catch {
-      return finish(aiFailure("invalid-output", "AI returned invalid JSON — the local result is unchanged."));
+      return finish(aiFailure("invalid-output", "AI returned invalid JSON. The local result is unchanged."));
     }
     const improved = memorySourceSchema.safeParse(extractImproved(parsed));
     if (!improved.success) {
-      return finish(aiFailure("invalid-output", "AI output did not match the memory schema — the local result is unchanged."));
+      return finish(aiFailure("invalid-output", "AI output did not match the memory schema. The local result is unchanged."));
     }
     return finish({ ok: true, improved: improved.data });
   } catch (error) {
     if (error instanceof Error && error.name === "AbortError") {
       meta.statusClass = "timeout";
-      return finish(aiFailure("timeout", "AI took too long — the local result is unchanged."));
+      return finish(aiFailure("timeout", "AI took too long. The local result is unchanged."));
     }
     meta.statusClass = "error";
-    return finish(aiFailure("provider-error", "AI could not be reached — the local result is unchanged."));
+    return finish(aiFailure("provider-error", "AI could not be reached. The local result is unchanged."));
   } finally {
     clearTimeout(timeout);
   }
@@ -121,7 +121,7 @@ function stripCodeFences(content: string): string {
   return fence ? fence[1]! : trimmed;
 }
 
-/** Accept either { improved: {...} } or a bare MemorySource object. */
+/** Accept either { improved: {..} } or a bare MemorySource object. */
 function extractImproved(parsed: unknown): unknown {
   if (typeof parsed === "object" && parsed !== null && "improved" in parsed) {
     return (parsed as { improved: unknown }).improved;

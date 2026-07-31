@@ -39,7 +39,7 @@ export const PAD = {
 /**
  * Section opening. Print gets a serif roman-numeral heading ("II. Signals")
  * under a full rule; screen and email get a numbered eyebrow over a short
- * accent tick — the same content, set the way each surface reads best.
+ * accent tick. the same content, set the way each surface reads best.
  */
 export function sectionLabelRow(block: MemoryBlock, ctx: BlockRenderContext, suffix?: string): ReactElement[] {
   const title = suffix ? `${block.title} ${suffix}` : block.title;
@@ -125,7 +125,7 @@ export function emptyBlockRow(block: MemoryBlock, message: string, surface: stri
 }
 
 /**
- * "Kept as text" — unclear source lines preserved verbatim (escaped) so the
+ * "Kept as text". unclear source lines preserved verbatim (escaped) so the
  * local parser is visibly lossless. Appends after recognized entries.
  */
 export function notesRows(

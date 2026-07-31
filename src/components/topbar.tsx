@@ -30,7 +30,7 @@ export function Topbar({
   const [aiOpen, setAiOpen] = useState(false);
   return (
     <header className="topbar">
-      <button type="button" className="brand" onClick={onHome} aria-label="memoRABLE — back to the start">
+      <button type="button" className="brand" onClick={onHome} aria-label="memoRABLE. back to the start">
         <BrandMark />
         <span className="wordmark">
           memo<b>RABLE</b>
@@ -57,7 +57,7 @@ export function Topbar({
                 <>
                   <b>AI is available on this deployment.</b> The local parser still runs first and produces the
                   result you see. AI only ever re-reads your source to improve that result, and you invoke it
-                  deliberately from the Bring panel — it is never automatic.
+                  deliberately from the Bring panel. It is never automatic.
                 </>
               ) : (
                 <>

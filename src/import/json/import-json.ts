@@ -14,7 +14,7 @@ import {
 import { sha256Hex } from "@/utils/sha256";
 
 /**
- * Deterministic JSON import — strict and all-or-nothing.
+ * Deterministic JSON import. strict and all-or-nothing.
  *
  * Any syntax, safety, schema or semantic problem rejects the ENTIRE import
  * with actionable, path-addressed diagnostics. Nothing is partially applied,
@@ -58,7 +58,7 @@ export function importJson(input: JsonImportInput): Result<MemoryDocument> {
     return err([
       diagnostic(
         "json.unsupported-version",
-        `This file uses version ${JSON.stringify(root.version)} — memoRABLE understands version 1.`,
+        `This file uses version ${JSON.stringify(root.version)}. memoRABLE understands version 1.`,
         { path: "$.version" },
       ),
     ]);
@@ -140,7 +140,7 @@ function checkBlockSemantics(kinds: readonly BlockKind[]): Diagnostic[] {
       problems.push(
         diagnostic(
           "json.missing-kind",
-          `A "${required}" block is missing. All six memories — ${BLOCK_KINDS.join(", ")} — are required.`,
+          `A "${required}" block is missing. All six memories. ${BLOCK_KINDS.join(", ")}. are required.`,
           { path: "$.blocks" },
         ),
       );
@@ -160,7 +160,7 @@ function issueToDiagnostic(issue: z.ZodIssue): Diagnostic {
     }
     return diagnostic(
       "json.unknown-key",
-      `Unknown ${issue.keys.length === 1 ? "key" : "keys"} ${keys} — remove ${issue.keys.length === 1 ? "it" : "them"} or check the spelling.`,
+      `Unknown ${issue.keys.length === 1 ? "key" : "keys"} ${keys}. remove ${issue.keys.length === 1 ? "it" : "them"} or check the spelling.`,
       { path: cleaned },
     );
   }
@@ -181,14 +181,14 @@ function issueToDiagnostic(issue: z.ZodIssue): Diagnostic {
   if (issue.code === "invalid_literal" && cleaned === "$.version") {
     return diagnostic(
       "json.unsupported-version",
-      `This file uses version ${JSON.stringify(issue.received)} — memoRABLE understands version 1.`,
+      `This file uses version ${JSON.stringify(issue.received)}. memoRABLE understands version 1.`,
       { path: cleaned },
     );
   }
   if (issue.code === "too_big" && issue.type === "array") {
     return diagnostic(
       "input.too-many-entries",
-      `This list has more than ${issue.maximum} entries — split the content or shorten it.`,
+      `This list has more than ${issue.maximum} entries. split the content or shorten it.`,
       { path: cleaned },
     );
   }
@@ -221,10 +221,10 @@ function formatPathSegment(segment: string | number): string {
 /** Best-effort line/column extraction for JSON.parse failures. */
 export function syntaxDiagnostic(text: string, error: unknown): Diagnostic {
   const message = error instanceof Error ? error.message : String(error);
-  // Modern engines: "... at position 123" or "... (line 4 column 12)".
+  // Modern engines: ".. at position 123" or ".. (line 4 column 12)".
   const lineCol = /\(line (\d+) column (\d+)\)/.exec(message);
   if (lineCol) {
-    return diagnostic("json.syntax", "We couldn't understand this JSON — check the syntax here.", {
+    return diagnostic("json.syntax", "We couldn't understand this JSON. Check the syntax here.", {
       line: Number(lineCol[1]),
       column: Number(lineCol[2]),
     });
@@ -232,16 +232,16 @@ export function syntaxDiagnostic(text: string, error: unknown): Diagnostic {
   const pos = /position (\d+)/.exec(message);
   if (pos) {
     const { line, column } = lineColumnOf(text, Number(pos[1]));
-    return diagnostic("json.syntax", "We couldn't understand this JSON — check the syntax here.", {
+    return diagnostic("json.syntax", "We couldn't understand this JSON. Check the syntax here.", {
       line,
       column,
     });
   }
-  return diagnostic("json.syntax", `We couldn't understand this JSON — ${message}.`);
+  return diagnostic("json.syntax", `We couldn't understand this JSON: ${message}.`);
 }
 
 /**
- * Produce a short, stable excerpt of the source region for a block kind —
+ * Produce a short, stable excerpt of the source region for a block kind . 
  * capped at 240 characters and derived deterministically from the raw text.
  */
 function excerptForKind(text: string): (kind: BlockKind, index: number) => string {

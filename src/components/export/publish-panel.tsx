@@ -8,7 +8,7 @@ import { baseNameFor, copyToClipboard, downloadTextFile } from "@/utils/download
 import { buildWordDocument, printHtmlDocument } from "@/utils/print-export";
 
 /**
- * Publish: the confirmation that ends on value — "Published." with all three
+ * Publish: the confirmation that ends on value. "Published." with all three
  * outputs side by side, then honest downloads. Unlayer JSON is offered only
  * when the design JSON validated; a failed Blob download offers copy instead.
  */
@@ -48,7 +48,7 @@ export function PublishPanel({
       onDownloaded(`Downloaded the ${OUTPUT_MODE_LABELS[mode]} output.`);
     } else {
       void copyToClipboard(html).then((copied) =>
-        setCopyNote(copied ? "Download failed — the HTML was copied to your clipboard instead." : "Download failed and clipboard is unavailable."),
+        setCopyNote(copied ? "Download failed. The HTML was copied to your clipboard instead." : "Download failed and clipboard is unavailable."),
       );
     }
   };
@@ -60,9 +60,9 @@ export function PublishPanel({
     if (!html) return;
     const result = printHtmlDocument(html);
     if (result.ok) {
-      onDownloaded(`Opened the print dialog — choose “Save as PDF” to keep the ${OUTPUT_MODE_LABELS[mode]} output.`);
+      onDownloaded(`Opened the print dialog. Choose “Save as PDF” to keep the ${OUTPUT_MODE_LABELS[mode]} output.`);
     } else {
-      setCopyNote("Printing is unavailable in this browser — download the HTML and print it instead.");
+      setCopyNote("Printing is unavailable in this browser. Download the HTML and print it instead.");
     }
   };
 
@@ -122,7 +122,7 @@ export function PublishPanel({
         </div>
         <div className="modal-b">
           <p className="published-sub">
-            <b>{doc.title}</b> — one memory, three useful outputs. Created from {doc.blocks.length} source-linked
+            <b>{doc.title}</b>: one memory, three useful outputs. Created from {doc.blocks.length} source-linked
             Memory Blocks.
           </p>
           <div className="publish-grid">
@@ -151,7 +151,7 @@ export function PublishPanel({
                       className="btn ghost small"
                       onClick={() => printPdf(mode)}
                       disabled={!html}
-                      title="Opens the print dialog — choose “Save as PDF”"
+                      title="Opens the print dialog. Choose “Save as PDF”"
                     >
                       PDF
                     </button>

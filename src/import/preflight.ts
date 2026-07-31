@@ -18,7 +18,7 @@ export interface PreflightedInput {
 
 export function preflightInput(raw: string): Result<PreflightedInput> {
   if (raw.length === 0 || raw.trim().length === 0) {
-    return err([diagnostic("input.empty", "There is nothing here yet — paste JSON, Markdown or plain text first.")]);
+    return err([diagnostic("input.empty", "There is nothing here yet. Paste JSON, Markdown or plain text first.")]);
   }
 
   const byteLength = new TextEncoder().encode(raw).length;
@@ -26,7 +26,7 @@ export function preflightInput(raw: string): Result<PreflightedInput> {
     return err([
       diagnostic(
         "input.too-large",
-        `This is ${formatBytes(byteLength)} — the limit is ${formatBytes(LIMITS.maxInputBytes)}. Try a smaller file.`,
+        `This is ${formatBytes(byteLength)}. The limit is ${formatBytes(LIMITS.maxInputBytes)}. Try a smaller file.`,
       ),
     ]);
   }
@@ -76,7 +76,7 @@ export function checkJsonSafety(value: unknown): Diagnostic[] {
         problems.push(
           diagnostic(
             "input.too-many-entries",
-            `This list has ${node.length} entries — the limit is ${LIMITS.maxEntriesPerBlock}.`,
+            `This list has ${node.length} entries. The limit is ${LIMITS.maxEntriesPerBlock}.`,
             { path },
           ),
         );

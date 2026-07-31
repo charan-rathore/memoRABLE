@@ -5,7 +5,7 @@ import type { MemoryBlock } from "@/domain/memory/schema";
 import { PROVENANCE_METHOD_LABELS } from "@/domain/memory/schema";
 
 /**
- * Source highlight — the trust interaction. The remembered source is shown
+ * Source highlight. the trust interaction. The remembered source is shown
  * with the exact lines the selected memory came from highlighted. Content is
  * rendered as text nodes (never HTML).
  */
@@ -43,7 +43,7 @@ export function SourceModal({
         </div>
         <div className="modal-b">
           <p style={{ font: "11.5px var(--mono)", color: "var(--ink-2)", marginBottom: 10 }}>
-            {block.provenance.locator} · {block.provenance.label} — the {block.title} memory comes from these
+            {block.provenance.locator} · {block.provenance.label}. the {block.title} memory comes from these
             exact lines.
           </p>
           <div className="source-view" data-testid="source-view">

@@ -5,7 +5,7 @@ import { BLOCK_KIND_LABELS } from "@/domain/memory/schema";
 
 /**
  * The six memories: selection for the inspector, and explicit up/down
- * arrangement. No drag dependency — works for keyboard and touch.
+ * arrangement. No drag dependency. works for keyboard and touch.
  */
 export function BlocksPanel({
   blocks,
@@ -45,7 +45,7 @@ export function BlocksPanel({
               >
                 <button
                   type="button"
-                  aria-label={`${block.title} — show details`}
+                  aria-label={`${block.title}: show details`}
                   aria-pressed={block.id === selectedBlockId}
                   onClick={() => onSelect(block.id === selectedBlockId ? null : block.id)}
                   style={{

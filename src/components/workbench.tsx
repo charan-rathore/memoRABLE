@@ -22,6 +22,12 @@ import { DemoVideo } from "./ui/demo-video";
 import { recordDocument, recordPublished } from "@/stats/local-stats";
 import { HomeScreen } from "./home/home-screen";
 import { useReplay } from "./replay/use-replay";
+import {
+  IMPORT_STAGE_LABEL,
+  IMPORT_STAGE_PERCENT,
+  type ImportStage,
+  yieldFrame,
+} from "./import/import-stages";
 
 export interface WorkbenchInitial {
   sourceText: string;
@@ -48,9 +54,10 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
   const [reducedMotion, setReducedMotion] = useState(false);
   /** The workbench is withheld until the visitor has brought something to it. */
   const [view, setView] = useState<"home" | "workbench">("home");
-  /** Splash plays on every arrival at home — reload included. */
+  /** Splash plays on every arrival at home. reload included. */
   const [splash, setSplash] = useState(true);
   const [demoOpen, setDemoOpen] = useState(false);
+  const [importProgress, setImportProgress] = useState<{ stage: ImportStage; percent: number } | null>(null);
 
   useEffect(() => {
     setReducedMotion(window.matchMedia("(prefers-reduced-motion: reduce)").matches);
@@ -69,19 +76,33 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
   /* ------------------------------- import flow ------------------------------- */
 
   const runImport = useCallback(
-    (text: string, label: string) => {
+    async (text: string, label: string) => {
+      const mark = async (stage: ImportStage) => {
+        setImportProgress({ stage, percent: IMPORT_STAGE_PERCENT[stage] });
+        announce(IMPORT_STAGE_LABEL[stage]);
+        await yieldFrame(stage === "publishing" ? 160 : 56);
+      };
+
+      await mark("reading");
+      await mark("understanding");
+      await mark("remembering");
       const result = importSource({ raw: text, label });
       if (result.ok) {
+        await mark("arranging");
         dispatch({ type: "imported", sourceText: text, sourceLabel: label, document: result.value, at: nowLabel() });
         recordDocument(result.value.blocks.length);
         setView("workbench");
-        announce(`Understood — 6 memories created from ${label}.`);
-        // Render the remaining two modes asynchronously so the UI stays responsive.
+        setMobileTab("publish");
+        await mark("publishing");
         scheduleLazyRenders(result.value, [], "document", dispatch);
+        announce(`Understood: 6 memories created from ${label}.`);
       } else {
         dispatch({ type: "importFailed", sourceText: text, sourceLabel: label, errors: [...result.errors] });
-        announce(`We couldn't understand this. Nothing was changed — ${result.errors.length} ${result.errors.length === 1 ? "error" : "errors"}.`);
+        announce(
+          `We couldn't understand this. Nothing was changed. ${result.errors.length} ${result.errors.length === 1 ? "error" : "errors"}.`,
+        );
       }
+      setImportProgress(null);
     },
     [announce],
   );
@@ -98,7 +119,7 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
     const doc = verifiedExtractionFor(state.sourceText, state.sourceLabel);
     if (doc) {
       dispatch({ type: "imported", sourceText: state.sourceText, sourceLabel: state.sourceLabel, document: doc, at: nowLabel() });
-      announce("Verified example extraction applied — 6 memories.");
+      announce("Verified example extraction applied. 6 memories.");
     }
   }, [state.sourceText, state.sourceLabel, announce]);
 
@@ -139,15 +160,15 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
             }),
           };
           dispatch({ type: "imported", sourceText: state.sourceText, sourceLabel: state.sourceLabel, document: doc, at: nowLabel() });
-          announce("AI improved the local result — 6 memories, same sources.");
+          announce("AI improved the local result. 6 memories, same sources.");
         } else {
-          announce("AI output didn't match the memory shape — the local result is unchanged.");
+          announce("AI output didn't match the memory shape. the local result is unchanged.");
         }
       } else {
-        announce(body.message ?? "AI is unavailable — the local result is unchanged.");
+        announce(body.message ?? "AI is unavailable. the local result is unchanged.");
       }
     } catch {
-      announce("AI could not be reached — the local result is unchanged.");
+      announce("AI could not be reached. the local result is unchanged.");
     } finally {
       setAiBusy(false);
     }
@@ -160,7 +181,7 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
       const block = state.document?.blocks.find((b) => b.id === blockId);
       dispatch({ type: "reordered", blockId, direction });
       if (block) announce(`${block.title} moved ${direction === -1 ? "up" : "down"}.`);
-      // Reorder renders only the active mode synchronously (~60-100ms) —
+      // Reorder renders only the active mode synchronously (~60-100ms) . 
       // fast enough that lazy deferral isn't needed and would risk stale state.
     },
     [state.document, announce],
@@ -235,8 +256,31 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
     dispatch({ type: "published", at: nowLabel() });
     recordPublished();
     setPublishOpen(true);
-    announce("Published — one memory, three useful outputs.");
+    announce("Published: one memory, three useful outputs.");
   }, [announce]);
+
+  const jumpJourney = useCallback(
+    (key: string) => {
+      if (key === "bring") {
+        setMobileTab("bring");
+        announce("Bring information.");
+        return;
+      }
+      if (key === "understand" || key === "remember" || key === "arrange") {
+        setMobileTab("memories");
+        const first = state.document?.blocks[0];
+        if (first) dispatch({ type: "blockSelected", blockId: first.id });
+        announce(key === "arrange" ? "Arrange the memories." : "Look at what was remembered.");
+        return;
+      }
+      if (key === "publish") {
+        setMobileTab("publish");
+        if (state.document) publish();
+        else announce("Bring a document before you publish.");
+      }
+    },
+    [announce, publish, state.document],
+  );
 
   const goHome = useCallback(() => {
     if (replay.active) replay.cancel();
@@ -266,7 +310,13 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
       <>
         {splash && <BrandSplash onFinished={finishSplash} />}
         <div className={splash ? "app-behind" : undefined}>
-          <HomeScreen errors={[...state.errors]} onImport={runImport} onUseExample={loadExample} />
+          <HomeScreen
+            errors={[...state.errors]}
+            onImport={runImport}
+            onUseExample={loadExample}
+            onReplayBrand={() => setSplash(true)}
+            understanding={importProgress}
+          />
         </div>
         {demoOpen && !splash && <DemoVideo onClose={() => setDemoOpen(false)} />}
         <StageAnnouncer message={announcement} />
@@ -291,15 +341,28 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
         onPublish={publish}
         canPublish={state.document !== null}
       />
-      <JourneyStrip state={state} replayStep={replay.view?.journeyStep ?? null} />
-      {replay.view && (
-        <div className="replay-banner" role="status">
-          <span className="rb-step">Replay</span>
-          <span className="rb-msg">{replay.view.message}</span>
-          <button type="button" onClick={replay.cancel}>
-            Stop
-          </button>
-          <span className="prog" style={{ width: `${Math.round(replay.view.progress * 100)}%` }} />
+      <JourneyStrip
+        state={state}
+        replayStep={replay.view?.journeyStep ?? null}
+        onStep={jumpJourney}
+      />
+      {(replay.view || importProgress) && (
+        <div className="replay-banner" role="status" data-testid="import-progress">
+          <span className="rb-step">{importProgress ? "Remembering" : "Replay"}</span>
+          <span className="rb-msg">
+            {importProgress ? IMPORT_STAGE_LABEL[importProgress.stage] : replay.view?.message}
+          </span>
+          {replay.view ? (
+            <button type="button" onClick={replay.cancel}>
+              Stop
+            </button>
+          ) : null}
+          <span
+            className="prog"
+            style={{
+              width: `${Math.round((importProgress?.percent ?? (replay.view?.progress ?? 0) * 100))}%`,
+            }}
+          />
         </div>
       )}
 
@@ -354,10 +417,10 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
             />
           ) : (
             <div className="empty-canvas">
-              <p className="ec-num">01 — 06</p>
+              <p className="ec-num">01. 06</p>
               <h2>Nothing here yet</h2>
               <p>
-                Bring your information and all six memories arrive together, in reading order — snapshot,
+                Bring your information and all six memories arrive together, in reading order: snapshot,
                 signals, decisions, timeline, risks, actions. Nothing is placed by hand.
               </p>
               <button type="button" className="btn pri" onClick={() => loadExample("atlas-json")}>

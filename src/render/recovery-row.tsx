@@ -3,7 +3,7 @@ import { Column, ColumnLayouts, Paragraph, Row } from "@unlayer/react-elements";
 import { colors, fonts } from "./tokens";
 
 /**
- * Reliability layer 5 — block isolation. When a single block renderer fails
+ * Reliability layer 5. block isolation. When a single block renderer fails
  * or returns an invalid structure, exactly that block is replaced by this
  * fixed, safe Elements row. It contains no imported content at all.
  */
@@ -28,7 +28,7 @@ export function recoveryRow(key: string, blockTitle: string): ReactElement {
         padding="16px"
       >
         <Paragraph
-          html={`<b>${escapeForRecovery(blockTitle)}</b> couldn't be rendered here. Its content is still safe in your source — the other memories are unaffected.`}
+          html={`<b>${escapeForRecovery(blockTitle)}</b> couldn't be rendered here. Its content is still safe in your source. The other memories are unaffected.`}
           fontFamily={fonts.sans}
           fontSize="13px"
           color={colors.ink2}

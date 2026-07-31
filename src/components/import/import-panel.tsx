@@ -6,15 +6,16 @@ import { formatDiagnostic } from "@/reliability/diagnostics";
 import type { ImportWarning } from "@/domain/memory/schema";
 import { EXAMPLES } from "@/import/examples/catalog";
 import { detectFormat } from "@/import/import-source";
+import { readTextFileWithProgress } from "./read-file";
 
 /**
  * Bring information: paste, drop a file, or start from a checked-in sample.
- * Everything is understood locally — the source never leaves the browser.
+ * Everything is understood locally. the source never leaves the browser.
  *
  * Once something has been brought, this panel is mostly done: it states what
  * is loaded and how it went, and folds the machinery for bringing something
  * *else* away behind one door. Replacing the current document is a destructive
- * act, so it is never one stray click away — and the samples in particular sat
+ * act, so it is never one stray click away. and the samples in particular sat
  * inside the dropzone, where they read as a description of what you could drop
  * rather than as buttons that would overwrite your work.
  */
@@ -41,7 +42,7 @@ export function ImportPanel({
   hasVerified: boolean;
   aiEnabled: boolean;
   onEditSource: (text: string) => void;
-  onImport: (text: string, label: string) => void;
+  onImport: (text: string, label: string) => void | Promise<void>;
   onUseExample: (id: "atlas-json" | "atlas-notes") => void;
   onUseVerified: () => void;
   onImproveWithAi: () => void;
@@ -55,15 +56,14 @@ export function ImportPanel({
   const fileInput = useRef<HTMLInputElement>(null);
   const format = detectFormat(sourceText);
 
-  const openFile = (file: File) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const text = typeof reader.result === "string" ? reader.result : "";
+  const openFile = async (file: File) => {
+    try {
+      const { text } = await readTextFileWithProgress(file, () => {});
       onEditSource(text);
-      onImport(text, file.name);
-    };
-    reader.onerror = () => onEditSource("");
-    reader.readAsText(file);
+      await onImport(text, file.name);
+    } catch {
+      onEditSource("");
+    }
   };
 
   return (
@@ -131,7 +131,7 @@ export function ImportPanel({
               }}
             >
               Drop a .json, .md or .txt file here
-              <div className="or">— understood on arrival, never uploaded —</div>
+              <div className="or">understood on arrival, never uploaded</div>
             </div>
 
             {pasteOpen && (
@@ -139,7 +139,7 @@ export function ImportPanel({
                 <textarea
                   className="paste-area"
                   aria-label="Paste JSON, Markdown or plain text"
-                  placeholder={'{"version": 1, "title": "…", "blocks": [ … ]}\n\n— or —\n\n# Notes\n\n## Signals\n- ARR: $4.2M (+18%)'}
+                  placeholder={'{\"version\": 1, \"title\": \"…\", \"blocks\": [ … ]}\n\nor\n\n# Notes\n\n## Signals\n- ARR: $4.2M (+18%)'}
                   value={sourceText}
                   onChange={(e) => onEditSource(e.target.value)}
                   spellCheck={false}
@@ -157,9 +157,9 @@ export function ImportPanel({
                 </div>
                 <p className="import-note">
                   {format === "json"
-                    ? "Detected JSON — strict, all-or-nothing."
+                    ? "Detected JSON: strict, all-or-nothing."
                     : format === "text"
-                      ? "Detected notes — recognized locally, unclear text is kept."
+                      ? "Detected notes: recognized locally, unclear text is kept."
                       : "Paste JSON, Markdown or plain text."}
                 </p>
               </div>
@@ -167,7 +167,7 @@ export function ImportPanel({
 
             <div className="samples" role="group" aria-labelledby="samples-h">
               <p className="samples-h" id="samples-h">
-                Or start from a sample — the same fictional company, written two ways
+                Or start from a sample: the same fictional company, written two ways
                 {sourceOk ? ". This replaces what is loaded now." : "."}
               </p>
               {EXAMPLES.map((example) => (
@@ -210,7 +210,7 @@ export function ImportPanel({
               ))}
             </ul>
             {errors.length > 6 && <p className="kept">…and {errors.length - 6} more. Fix the source and try again.</p>}
-            <p className="kept">Your last good memories are still on the right — untouched.</p>
+            <p className="kept">Your last good memories are still on the right, untouched.</p>
           </div>
         )}
 

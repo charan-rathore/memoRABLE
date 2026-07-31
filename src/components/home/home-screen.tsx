@@ -8,6 +8,10 @@ import { BrandMark } from "../ui/brand-mark";
 import { StaggerTitle } from "../ui/stagger-title";
 import { formatBytes, readTextFileWithProgress } from "../import/read-file";
 import { readStats, summarize } from "@/stats/local-stats";
+import {
+  IMPORT_STAGE_LABEL,
+  type ImportStage,
+} from "../import/import-stages";
 
 const ACCEPTED = /\.(json|md|markdown|txt)$/i;
 const MAX_BYTES = 2 * 1024 * 1024;
@@ -15,7 +19,7 @@ const MAX_BYTES = 2 * 1024 * 1024;
 /**
  * The first screen. One decision only: bring a file, or paste text.
  *
- * Everything the workbench can do — memories, arrangement, the three outputs —
+ * Everything the workbench can do (memories, arrangement, the three outputs)
  * is withheld until there is something to do it to. The journey opens up as
  * the visitor advances rather than arriving all at once.
  */
@@ -23,10 +27,14 @@ export function HomeScreen({
   errors,
   onImport,
   onUseExample,
+  onReplayBrand,
+  understanding,
 }: {
   errors: Diagnostic[];
-  onImport: (text: string, label: string) => void;
+  onImport: (text: string, label: string) => void | Promise<void>;
   onUseExample: (id: "atlas-json" | "atlas-notes") => void;
+  onReplayBrand?: () => void;
+  understanding?: { stage: ImportStage; percent: number } | null;
 }) {
   const [mode, setMode] = useState<"choose" | "paste">("choose");
   const [drag, setDrag] = useState<"none" | "over" | "reject">("none");
@@ -50,7 +58,7 @@ export function HomeScreen({
       return;
     }
     if (file.size > MAX_BYTES) {
-      setReadError(`“${file.name}” is ${formatBytes(file.size)} — the limit is ${formatBytes(MAX_BYTES)}.`);
+      setReadError(`“${file.name}” is ${formatBytes(file.size)}. The limit is ${formatBytes(MAX_BYTES)}.`);
       return;
     }
     try {
@@ -60,8 +68,9 @@ export function HomeScreen({
           current ? { ...current, percent } : { name: file.name, size: file.size, percent },
         );
       });
+      setReading({ name: file.name, size: file.size, percent: 100 });
+      await onImport(text, file.name);
       setReading(null);
-      onImport(text, file.name);
     } catch (error) {
       setReading(null);
       setReadError(error instanceof Error ? error.message : "The file could not be read.");
@@ -78,20 +87,27 @@ export function HomeScreen({
   return (
     <main className="home" data-testid="home-screen">
       <div className="home-inner">
-        <div className="home-brand">
+        <button type="button" className="home-brand" onClick={onReplayBrand} aria-label="memoRABLE: play the brand moment again">
           <BrandMark size={34} />
           <span className="home-word">
             memo<b>RABLE</b>
           </span>
-        </div>
+        </button>
 
         <StaggerTitle text="Turn information into memory." className="home-title sweep" />
         <p className="home-sub rise-in">
-          One document in. A web page, an email and a print-ready document out — every line
+          One document in. A web page, an email and a print-ready document out. Every line
           traceable to where it came from, and nothing understood anywhere but this browser.
         </p>
 
-        {reading ? (
+        {understanding ? (
+          <ReadingCard
+            name="Remembering"
+            size={0}
+            percent={understanding.percent}
+            label={IMPORT_STAGE_LABEL[understanding.stage]}
+          />
+        ) : reading ? (
           <ReadingCard name={reading.name} size={reading.size} percent={reading.percent} />
         ) : mode === "paste" ? (
           <div className="home-card paste">
@@ -99,7 +115,7 @@ export function HomeScreen({
               className="home-paste"
               aria-label="Paste JSON, Markdown or plain text"
               autoFocus
-              placeholder={"# Quarterly brief\n\n## Signals\n- ARR: $4.2M (+18%)\n\n## Risks\n- Lead times — high — dual-sourcing underway"}
+              placeholder={"# Quarterly brief\n\n## Signals\n- ARR: $4.2M (+18%)\n\n## Risks\n- Lead times (high): dual-sourcing underway"}
               value={pasted}
               onChange={(e) => setPasted(e.target.value)}
               spellCheck={false}
@@ -107,9 +123,9 @@ export function HomeScreen({
             <div className="home-paste-foot">
               <span className="home-fmt">
                 {format === "json"
-                  ? "Detected JSON — strict, all-or-nothing."
+                  ? "Detected JSON: strict, all-or-nothing."
                   : format === "text"
-                    ? "Detected notes — recognized locally, unclear text is kept."
+                    ? "Detected notes: recognized locally, unclear text is kept."
                     : "JSON, Markdown or plain text."}
               </span>
               <div className="home-paste-actions">
@@ -140,7 +156,7 @@ export function HomeScreen({
                 const item = e.dataTransfer.items?.[0];
                 const named = item?.kind === "file" ? item.type : "";
                 // Filenames are withheld during a drag, so the MIME type is all
-                // there is to judge on — and an unknown type is not yet a wrong
+                // there is to judge on. and an unknown type is not yet a wrong
                 // one, so only a positively wrong one is refused.
                 const wrong = Boolean(named) && !/^(text\/|application\/json)/.test(named);
                 setDrag(wrong ? "reject" : "over");
@@ -225,7 +241,7 @@ export function HomeScreen({
 
         {tally && (
           <p className="home-tally" data-testid="local-tally">
-            {tally} — counted in this browser, and nowhere else.
+            {tally}, counted in this browser and nowhere else.
           </p>
         )}
       </div>
@@ -233,8 +249,22 @@ export function HomeScreen({
   );
 }
 
-function ReadingCard({ name, size, percent }: { name: string; size: number; percent: number }) {
+function ReadingCard({
+  name,
+  size,
+  percent,
+  label,
+}: {
+  name: string;
+  size: number;
+  percent: number;
+  label?: string;
+}) {
   const rounded = Math.round(percent);
+  const foot =
+    label ??
+    (rounded < 100 ? "Reading locally" : "Understanding") +
+      (size > 0 ? ` · ${formatBytes(size)}` : "");
   return (
     <div className="home-card reading" data-testid="read-progress">
       <div className="rd-top">
@@ -249,13 +279,11 @@ function ReadingCard({ name, size, percent }: { name: string; size: number; perc
         aria-valuenow={rounded}
         aria-valuemin={0}
         aria-valuemax={100}
-        aria-label={`Reading ${name}`}
+        aria-label={label ?? `Reading ${name}`}
       >
         <span className="rd-fill" style={{ width: `${percent}%` }} />
       </div>
-      <div className="rd-foot">
-        {rounded < 100 ? "Reading locally" : "Understanding"} · {formatBytes(size)}
-      </div>
+      <div className="rd-foot">{foot}</div>
     </div>
   );
 }

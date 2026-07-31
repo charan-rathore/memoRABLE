@@ -15,7 +15,7 @@ const MEMORY_NAMES = [
   "Actions",
 ];
 
-// Entrance animations — the brand splash above all — settle immediately, so
+// Entrance animations. the brand splash above all. settle immediately, so
 // tests wait on state rather than on choreography.
 test.beforeEach(async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
@@ -79,7 +79,7 @@ test.describe("home screen", () => {
     await dismissOverlays(page);
     await expect(page.getByTestId("home-screen")).toBeVisible();
 
-    // A full reload must play the splash again — it is not a once-per-session toll.
+    // A full reload must play the splash again. it is not a once-per-session toll.
     await page.reload();
     await expect(page.getByTestId("brand-splash")).toBeVisible();
     await page.getByTestId("brand-splash").waitFor({ state: "detached" });
@@ -102,7 +102,7 @@ test.describe("home screen", () => {
 
   test("the wordmark returns to the start", async ({ page }) => {
     await enterWorkbench(page);
-    await page.getByRole("button", { name: "memoRABLE — back to the start" }).click();
+    await page.getByRole("button", { name: "memoRABLE: back to the start" }).click();
     await page.getByTestId("brand-splash").waitFor({ state: "detached" });
     await expect(page.getByTestId("home-screen")).toBeVisible();
     await expect(page.locator(".shell")).toHaveCount(0);
@@ -117,7 +117,7 @@ test.describe("home screen", () => {
 
     await page.getByRole("button", { name: "Open a sample brief" }).click();
     await page.locator(".shell").waitFor();
-    await page.getByRole("button", { name: "memoRABLE — back to the start" }).click();
+    await page.getByRole("button", { name: "memoRABLE: back to the start" }).click();
     await page.getByTestId("brand-splash").waitFor({ state: "detached" });
 
     const tally = page.getByTestId("local-tally");
@@ -219,7 +219,7 @@ test.describe("remember + arrange", () => {
     await enterWorkbench(page);
     await openMobileTab(page, "Memories", isMobile);
 
-    await page.getByRole("button", { name: "Signals — show details" }).click();
+    await page.getByRole("button", { name: "Signals: show details" }).click();
 
     const inspector = page.getByTestId("inspector");
     await expect(inspector.getByText("Remembered from")).toBeVisible();
@@ -231,7 +231,7 @@ test.describe("remember + arrange", () => {
     test.skip(isMobile === true, "arrange is covered on desktop");
     await enterWorkbench(page);
 
-    await page.getByRole("button", { name: "Signals — show details" }).click();
+    await page.getByRole("button", { name: "Signals: show details" }).click();
     await page.getByRole("button", { name: "Move Signals down" }).click();
 
     await expect(memNames(page)).toHaveText([
@@ -244,9 +244,9 @@ test.describe("remember + arrange", () => {
     ]);
 
     // Edge controls: the first memory cannot move up, the last cannot move down.
-    await page.getByRole("button", { name: "Snapshot — show details" }).click();
+    await page.getByRole("button", { name: "Snapshot: show details" }).click();
     await expect(page.getByRole("button", { name: "Move Snapshot up" })).toBeDisabled();
-    await page.getByRole("button", { name: "Actions — show details" }).click();
+    await page.getByRole("button", { name: "Actions: show details" }).click();
     await expect(page.getByRole("button", { name: "Move Actions down" })).toBeDisabled();
   });
 });
@@ -303,7 +303,7 @@ test.describe("replay", () => {
 
     await page.getByRole("button", { name: "Replay the 20-second story" }).click();
     // Reduced motion collapses the choreography to its end state, so the
-    // banner's wording depends on the setting — that it narrates at all does not.
+    // banner's wording depends on the setting. that it narrates at all does not.
     const banner = page.locator(".replay-banner");
     await expect(banner).toBeVisible();
     await expect(banner.locator(".rb-msg")).not.toBeEmpty();
@@ -325,7 +325,7 @@ test.describe("mobile shell", () => {
     const tabs = page.getByRole("navigation", { name: "Workbench sections" });
     await expect(tabs).toBeVisible();
 
-    // Default tab is Publish — the preview is front and center.
+    // Default tab is Publish. the preview is front and center.
     await expect(page.locator("iframe[title='Document output preview']")).toBeAttached();
 
     await tabs.getByRole("button", { name: "Memories" }).click();

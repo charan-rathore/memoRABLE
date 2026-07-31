@@ -296,7 +296,7 @@ interface BuildContext {
 }
 
 function buildBlock(kind: BlockKind, matched: Section[], ctx: BuildContext): BlockInput {
-  const { title, label, warnings } = ctx;
+  const { label, warnings } = ctx;
   const contentLines = matched.flatMap((s) => s.lines).filter((l) => l.text.trim() !== "");
   const assigned = matched.some((s) => s.assigned);
   const notes: string[] = [];

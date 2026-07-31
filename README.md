@@ -6,7 +6,7 @@ Bring notes, Markdown or JSON. Understand it once. Publish it everywhere.
 
 ![memoRABLE replays the whole journey: a board brief arrives, six memories are found, and the document assembles itself](public/media/replay.gif)
 
-<!-- LIVE_DEMO -->
+**[Live demo →](https://memo-rable.vercel.app)** — no install, Atlas already remembered.
 
 ## Why memoRABLE exists
 

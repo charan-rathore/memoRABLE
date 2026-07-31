@@ -7,17 +7,32 @@ import {
   type BlockKind,
   type ImportWarning,
   type MemoryDocument,
+  type TimelineEntry,
 } from "@/domain/memory/schema";
 import { LIMITS } from "@/domain/memory/limits";
 import { capExcerpt } from "../json/import-json";
-import { classifyHeading, isStructuralLine, matchHeading } from "./sections";
 import {
+  classifyHeading,
+  inferKindFromLines,
+  isStructuralLine,
+  matchHeading,
+  matchOrdinalHeading,
+} from "./sections";
+import {
+  isDecorativeLine,
+  isListLike,
   isTableSeparator,
   parseActionLine,
+  parseActionLineLenient,
   parseDecisionLine,
+  parseDecisionLineLenient,
   parseRiskLine,
+  parseRiskLineLenient,
   parseSignalLine,
+  parseSignalLineLenient,
   parseTimelineLine,
+  parseTimelineLineLenient,
+  plainContentOf,
   splitListItem,
   splitTableRow,
   stripListMarker,
@@ -26,10 +41,15 @@ import {
 /**
  * Lossless local Text/Markdown parser (reliability layer 2).
  *
- * Recognizes the six memory sections conservatively. Anything unclear is
- * preserved verbatim as plain-text notes on the nearest memory, with an
- * honest warning. The parser never invents owners, dates, metrics,
- * severities or statuses, and never calls the network or AI.
+ * A section is assigned to a memory by its heading when the heading names one
+ * ("Risks", "Implementation Rules"), and otherwise by the shape of its lines.
+ * Within an assigned section the strict patterns run first; only if they
+ * recognize nothing does a lenient pass record the remaining list items,
+ * leaving every unstated field undefined.
+ *
+ * Anything still unassigned is preserved verbatim as notes. The parser never
+ * invents owners, dates, metrics, severities or statuses, and never calls the
+ * network or AI.
  */
 
 export interface TextImportInput {
@@ -46,7 +66,9 @@ interface SourceLine {
 }
 
 interface Section {
-  kind: BlockKind;
+  kind: BlockKind | null;
+  /** The heading named a memory, or its content clearly read as one. */
+  assigned: boolean;
   headingText: string | null;
   headingLine: number | null;
   lines: SourceLine[];
@@ -70,38 +92,76 @@ export function parseText(input: TextImportInput): Result<MemoryDocument> {
     break; // only the first meaningful line may be the title
   }
 
-  // Split content into sections by recognized headings.
   const sections: Section[] = [];
-  const preamble: SourceLine[] = [];
+  const ordinals: OrdinalMark[] = [];
   let current: Section | null = null;
+  let pendingOrdinal: OrdinalMark | null = null;
+
+  const startSection = (
+    kind: BlockKind | null,
+    headingText: string | null,
+    headingLine: number | null,
+  ): Section => {
+    const section: Section = { kind, assigned: kind !== null, headingText, headingLine, lines: [] };
+    sections.push(section);
+    return section;
+  };
 
   for (let i = 0; i < rawLines.length; i++) {
     if (i === titleConsumedLine) continue;
     const line = rawLines[i]!;
     if (isStructuralLine(line)) continue;
     const heading = matchHeading(line, rawLines[i + 1]);
+
     if (heading) {
-      const kind = classifyHeading(heading.text);
-      if (kind) {
-        current = findOrCreateSection(sections, kind, heading.text, i + 1);
+      // "Phase 2" / "Task D" carry delivery order even without a calendar date.
+      const ordinal = matchOrdinalHeading(heading.text);
+      if (ordinal) {
+        pendingOrdinal = { marker: ordinal.marker, title: ordinal.rest || null, line: i + 1 };
+        ordinals.push(pendingOrdinal);
+        current = startSection(null, heading.text, i + 1);
         continue;
       }
-      // Unrecognized heading: preserved as content so nothing disappears.
+      if (pendingOrdinal && !pendingOrdinal.title) pendingOrdinal.title = heading.text;
+      current = startSection(classifyHeading(heading.text), heading.text, i + 1);
+      continue;
     }
+
+    if (line.trim() !== "" && pendingOrdinal && !pendingOrdinal.title) {
+      pendingOrdinal.title = plainContentOf(line).slice(0, 120) || null;
+    }
+
     const sourceLine: SourceLine = { text: line, lineNo: i + 1 };
-    if (current) current.lines.push(sourceLine);
-    else preamble.push(sourceLine);
+    if (!current) current = startSection("snapshot", null, null);
+    current.lines.push(sourceLine);
   }
 
-  // The snapshot owns the preamble (first paragraph → summary).
-  const snapshotSection = findOrCreateSection(sections, "snapshot", null, null);
-  snapshotSection.lines = [...preamble, ...snapshotSection.lines];
+  // Unknown headings get a second chance from the shape of their content.
+  for (const section of sections) {
+    if (section.kind !== null) continue;
+    const inferred = inferKindFromLines(section.lines.map((l) => l.text));
+    if (inferred) {
+      section.kind = inferred;
+      section.assigned = true;
+    }
+  }
 
   const warnings: ImportWarning[] = [];
-  const blocks: BlockInput[] = BLOCK_KINDS.map((kind) => {
-    const section = sections.find((s) => s.kind === kind);
-    return buildBlock(kind, section ?? null, title, label, warnings);
-  });
+  const leftovers = sections.filter((s) => s.kind === null);
+  const timelineExtras = ordinals
+    .filter((o) => o.title)
+    .slice(0, LIMITS.maxEntriesPerBlock)
+    .map<TimelineEntry>((o) => ({ date: o.marker, title: o.title!, state: "planned" }));
+
+  const blocks: BlockInput[] = BLOCK_KINDS.map((kind) =>
+    buildBlock(kind, sections.filter((s) => s.kind === kind), {
+      title,
+      label,
+      warnings,
+      leftovers: kind === "snapshot" ? leftovers : [],
+      extraTimeline: kind === "timeline" ? timelineExtras : [],
+    }),
+  );
 
   const document = finalizeDocument({
     title,
@@ -116,44 +176,35 @@ export function parseText(input: TextImportInput): Result<MemoryDocument> {
   );
 }
 
-function findOrCreateSection(
-  sections: Section[],
-  kind: BlockKind,
-  headingText: string | null,
-  headingLine: number | null,
-): Section {
-  const existing = sections.find((s) => s.kind === kind);
-  if (existing) {
-    // Merge repeated sections into the first, preserving order.
-    if (headingText && !existing.headingText) {
-      existing.headingText = headingText;
-      existing.headingLine = headingLine;
-    }
-    return existing;
-  }
-  const section: Section = { kind, headingText, headingLine, lines: [] };
-  sections.push(section);
-  return section;
+interface OrdinalMark {
+  marker: string;
+  title: string | null;
+  line: number;
 }
 
 /* ------------------------------- per-kind build ------------------------------ */
 
-function buildBlock(
-  kind: BlockKind,
-  section: Section | null,
-  title: string,
-  label: string,
-  warnings: ImportWarning[],
-): BlockInput {
-  const contentLines = (section?.lines ?? []).filter((l) => l.text.trim() !== "");
+interface BuildContext {
+  title: string;
+  label: string;
+  warnings: ImportWarning[];
+  /** Sections that matched no memory; preserved on the snapshot. */
+  leftovers: Section[];
+  extraTimeline: TimelineEntry[];
+}
+
+function buildBlock(kind: BlockKind, matched: Section[], ctx: BuildContext): BlockInput {
+  const { title, label, warnings } = ctx;
+  const contentLines = matched.flatMap((s) => s.lines).filter((l) => l.text.trim() !== "");
+  const assigned = matched.some((s) => s.assigned);
   const notes: string[] = [];
   const kindLabel = BLOCK_KIND_LABELS[kind];
 
   let payload: BlockInput["payload"];
   if (kind === "snapshot") {
-    payload = buildSnapshotPayload(contentLines, title, notes);
+    payload = buildSnapshotPayload(contentLines, title, notes, ctx.leftovers);
   } else {
-    payload = buildEntriesPayload(kind, contentLines, notes);
+    payload = buildEntriesPayload(kind, contentLines, notes, assigned, ctx.extraTimeline);
   }
 
   const entryCount = (payload as { entries?: unknown[] }).entries?.length ?? 0;
@@ -174,13 +225,14 @@ function buildBlock(
   const method =
     kind !== "snapshot" && entryCount === 0 && hasNotes ? ("recovered" as const) : ("local-parser" as const);
 
+  const primary = matched[0] ?? null;
   return {
     kind,
     payload,
     provenance: {
       method,
       label,
-      locator: locatorOf(section, contentLines, entryCount > 0 || kind === "snapshot"),
+      locator: locatorOf(primary, contentLines, entryCount > 0 || kind === "snapshot"),
       excerpt: capExcerpt(contentLines.slice(0, 3).map((l) => l.text).join(" ")),
     },
   };
@@ -196,37 +248,65 @@ function locatorOf(section: Section | null, contentLines: SourceLine[], found: b
   return section.headingText ? `heading “${section.headingText}” · ${range}` : range;
 }
 
+type LineParser<T> = (line: string) => T | null;
+
 function buildEntriesPayload(
   kind: Exclude<BlockKind, "snapshot">,
   contentLines: SourceLine[],
   notes: string[],
+  assigned: boolean,
+  extraTimeline: TimelineEntry[],
 ): BlockInput["payload"] {
-  const collect = <T,>(parse: (line: string) => T | null): { entries: T[]; notes?: string[] } => {
+  const collect = <T,>(strict: LineParser<T>, lenient: LineParser<T>): { entries: T[]; notes?: string[] } => {
     const entries: T[] = [];
+    const unmatched: SourceLine[] = [];
+
     for (let i = 0; i < contentLines.length; i++) {
       const line = contentLines[i]!;
+      if (isDecorativeLine(line.text)) continue;
       // Markdown table chrome is structural: separators are skipped, and a
       // row directly followed by a separator is the table's header.
       if (isTableSeparator(line.text)) continue;
       const next = contentLines[i + 1];
       if (splitTableRow(line.text) && next && isTableSeparator(next.text)) continue;
-      const entry = parse(line.text);
+      const entry = strict(line.text);
       if (entry) entries.push(entry);
-      else if (notes.length < LIMITS.maxNotesPerBlock) notes.push(stripListMarker(line.text));
+      else unmatched.push(line);
+    }
+
+    // Only when the section is clearly this memory AND the strict patterns
+    // found nothing does the lenient pass run — and only over marked items.
+    const useLenient = assigned && entries.length === 0;
+    for (const line of unmatched) {
+      if (useLenient && isListLike(line.text) && entries.length < LIMITS.maxEntriesPerBlock) {
+        const entry = lenient(line.text);
+        if (entry) {
+          entries.push(entry);
+          continue;
+        }
+      }
+      if (notes.length < LIMITS.maxNotesPerBlock) notes.push(stripListMarker(line.text));
     }
     return notes.length > 0 ? { entries, notes } : { entries };
   };
+
   switch (kind) {
     case "signals":
-      return collect(parseSignalLine);
+      return collect(parseSignalLine, parseSignalLineLenient);
     case "decisions":
-      return collect(parseDecisionLine);
-    case "timeline":
-      return collect(parseTimelineLine);
+      return collect(parseDecisionLine, parseDecisionLineLenient);
+    case "timeline": {
+      const built = collect(parseTimelineLine, parseTimelineLineLenient);
+      if (extraTimeline.length > 0) {
+        const room = LIMITS.maxEntriesPerBlock - built.entries.length;
+        built.entries.push(...extraTimeline.slice(0, Math.max(0, room)));
+      }
+      return built;
+    }
     case "risks":
-      return collect(parseRiskLine);
+      return collect(parseRiskLine, parseRiskLineLenient);
     case "actions":
-      return collect(parseActionLine);
+      return collect(parseActionLine, parseActionLineLenient);
   }
 }
 
@@ -238,6 +318,7 @@ function buildSnapshotPayload(
   contentLines: SourceLine[],
   title: string,
   notes: string[],
+  leftovers: Section[],
 ): BlockInput["payload"] {
   const paragraphs: string[] = [];
   let byline: string | undefined;
@@ -252,7 +333,7 @@ function buildSnapshotPayload(
 
   for (const line of contentLines) {
     const text = line.text.trim();
-    if (isTableSeparator(text)) continue;
+    if (isTableSeparator(text) || isDecorativeLine(text)) continue;
     if (BYLINE.test(text) && byline === undefined && paragraphs.length <= 1) {
       flush();
       byline = text;
@@ -272,6 +353,18 @@ function buildSnapshotPayload(
   for (const extra of paragraphs) {
     if (notes.length < LIMITS.maxNotesPerBlock) notes.push(extra);
   }
+
+  // Sections that matched no memory are preserved here, heading included, so
+  // that nothing in the source disappears.
+  for (const section of leftovers) {
+    if (section.headingText && notes.length < LIMITS.maxNotesPerBlock) notes.push(section.headingText);
+    for (const line of section.lines) {
+      const text = line.text.trim();
+      if (text === "" || isDecorativeLine(text) || isTableSeparator(text)) continue;
+      if (notes.length < LIMITS.maxNotesPerBlock) notes.push(stripListMarker(text));
+    }
+  }
+
   // Snapshot always has a heading; the summary may be honestly empty.
   return {
     heading: title,

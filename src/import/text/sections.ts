@@ -1,11 +1,21 @@
 import type { BlockKind } from "@/domain/memory/schema";
+import { splitListItem } from "./patterns";
 
 /**
- * Section recognition for the local text/Markdown parser: markdown headings,
- * setext underlines and plain keyword headings ("Risks:", "Action items").
+ * Section recognition for the local text/Markdown parser.
+ *
+ * Two layers, tried in order:
+ *  1. The heading names one of the six memories, directly or by synonym
+ *     ("Implementation Rules" → decisions, "Success Criteria" → signals).
+ *  2. The heading is unknown, so the *shape* of its lines decides
+ *     ("Phase 3 / Task D" reads as a timeline, "Never do X" as decisions).
+ *
+ * Inference only ever chooses which memory a line belongs to. It never
+ * fabricates a field the source did not state.
  */
 
 const HEADING_KEYWORDS: Record<string, BlockKind> = {
+  // snapshot — what this document is
   snapshot: "snapshot",
   summary: "snapshot",
   overview: "snapshot",
@@ -13,6 +23,20 @@ const HEADING_KEYWORDS: Record<string, BlockKind> = {
   about: "snapshot",
   introduction: "snapshot",
   intro: "snapshot",
+  abstract: "snapshot",
+  objective: "snapshot",
+  objectives: "snapshot",
+  goal: "snapshot",
+  goals: "snapshot",
+  purpose: "snapshot",
+  scope: "snapshot",
+  context: "snapshot",
+  background: "snapshot",
+  mission: "snapshot",
+  vision: "snapshot",
+  premise: "snapshot",
+
+  // signals — indicators, measured or qualitative
   signals: "signals",
   metrics: "signals",
   "key metrics": "signals",
@@ -23,18 +47,65 @@ const HEADING_KEYWORDS: Record<string, BlockKind> = {
   stats: "signals",
   statistics: "signals",
   results: "signals",
+  outcomes: "signals",
+  targets: "signals",
+  benchmarks: "signals",
+  performance: "signals",
+  criteria: "signals",
+  "success criteria": "signals",
+  "acceptance criteria": "signals",
+  "definition of done": "signals",
+  measurements: "signals",
+
+  // decisions — rules, positions, things settled
   decisions: "decisions",
   decided: "decisions",
   "decision log": "decisions",
+  "design decisions": "decisions",
+  rules: "decisions",
+  "implementation rules": "decisions",
+  "ground rules": "decisions",
+  principles: "decisions",
+  guidelines: "decisions",
+  conventions: "decisions",
+  standards: "decisions",
+  policy: "decisions",
+  policies: "decisions",
+  constraints: "decisions",
+  requirements: "decisions",
+  philosophy: "decisions",
+  tradeoffs: "decisions",
+  "trade-offs": "decisions",
+  "non-goals": "decisions",
+
+  // timeline — ordered delivery
   timeline: "timeline",
   roadmap: "timeline",
   milestones: "timeline",
   schedule: "timeline",
   dates: "timeline",
+  phases: "timeline",
+  plan: "timeline",
+  releases: "timeline",
+  sprints: "timeline",
+  iterations: "timeline",
+  stages: "timeline",
+
+  // risks — what could go wrong
   risks: "risks",
   "risk register": "risks",
   concerns: "risks",
   threats: "risks",
+  blockers: "risks",
+  issues: "risks",
+  challenges: "risks",
+  pitfalls: "risks",
+  caveats: "risks",
+  limitations: "risks",
+  "known issues": "risks",
+  "failure modes": "risks",
+
+  // actions — work to do
   actions: "actions",
   "action items": "actions",
   tasks: "actions",
@@ -44,6 +115,12 @@ const HEADING_KEYWORDS: Record<string, BlockKind> = {
   "next steps": "actions",
   "follow-ups": "actions",
   "follow ups": "actions",
+  workflow: "actions",
+  "implementation workflow": "actions",
+  steps: "actions",
+  deliverables: "actions",
+  backlog: "actions",
+  checklist: "actions",
 };
 
 const MAX_KEYWORD_WORDS = 3;
@@ -77,17 +154,94 @@ export function classifyHeading(text: string): BlockKind | null {
   const normalized = text
     .toLowerCase()
     .replace(/^\d{1,2}\s*[-.).:]\s*/, "") // "3. Risks" → "risks"
+    .replace(/\s*\(.*\)\s*$/, "") // "Workflow (IMPORTANT)" → "workflow"
     .replace(/:$/, "")
     .trim();
   const direct = HEADING_KEYWORDS[normalized];
   if (direct) return direct;
-  // "Q3 Risks & Mitigations" → starts-with match on a keyword phrase.
-  for (const [keyword, kind] of Object.entries(HEADING_KEYWORDS)) {
-    if (normalized === keyword) return kind;
-  }
+  // "Q3 Risks & Mitigations" → starts-with / ends-with match on a keyword phrase.
   for (const [keyword, kind] of Object.entries(HEADING_KEYWORDS)) {
     if (normalized.startsWith(keyword + " ") || normalized.endsWith(" " + keyword)) return kind;
   }
+  return null;
+}
+
+/**
+ * "Phase 2", "Task D", "Step 3", "Milestone 4" — an ordinal work marker. These
+ * carry the delivery order of a plan even when no calendar date is present.
+ */
+const ORDINAL_HEADING =
+  /^(phase|task|step|stage|milestone|sprint|iteration|week|day|part|chapter)\s+([0-9]{1,3}|[a-z]|[ivxlc]+)\b/i;
+
+export function matchOrdinalHeading(text: string): { marker: string; rest: string } | null {
+  const match = ORDINAL_HEADING.exec(text.trim());
+  if (!match) return null;
+  const marker = `${capitalize(match[1]!)} ${match[2]!.toUpperCase()}`;
+  const rest = text.trim().slice(match[0].length).replace(/^\s*[:—–-]\s*/, "").trim();
+  return { marker, rest };
+}
+
+function capitalize(word: string): string {
+  return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+}
+
+/* ----------------------------- content inference ---------------------------- */
+
+/** An imperative rule: "Never introduce X", "Do NOT persist Y", "Prefer Z". */
+const RULE_LINE =
+  /^(never|always|do not|don't|dont|avoid|prefer|must|should|only|keep|use|ensure|require|no\b)/i;
+
+/** A line that reads like something going wrong. */
+const RISK_LINE = /\b(risk|risky|fail|failure|danger|threat|blocker|breaks?|broken|degrad|outage|vulnerab|unsafe|bottleneck)\b/i;
+
+/** A measured value: a number with a unit, percentage or currency. */
+const MEASURED = /[0-9]+\s*(%|pts?|pp\b|ms\b|s\b|x\b|k\b|m\b|bn?\b)|[$€£]\s*[0-9]|[0-9]+\s*(hours?|days?|weeks?|months?)/i;
+
+interface Shape {
+  total: number;
+  rules: number;
+  risks: number;
+  measured: number;
+  numbered: number;
+  bulleted: number;
+}
+
+function shapeOf(lines: string[]): Shape {
+  const shape: Shape = { total: 0, rules: 0, risks: 0, measured: 0, numbered: 0, bulleted: 0 };
+  for (const raw of lines) {
+    const text = raw.trim();
+    if (text === "") continue;
+    shape.total++;
+    const item = splitListItem(raw);
+    const body = item ? item.text : text;
+    if (item?.marker === "number") shape.numbered++;
+    if (item?.marker === "bullet" || item?.marker === "task") shape.bulleted++;
+    if (RULE_LINE.test(body)) shape.rules++;
+    if (RISK_LINE.test(body)) shape.risks++;
+    if (MEASURED.test(body)) shape.measured++;
+  }
+  return shape;
+}
+
+/**
+ * Choose a memory for a section whose heading we did not recognize, based on
+ * how its lines read. Returns null when nothing is clear enough, in which case
+ * the caller preserves the text rather than guessing.
+ */
+export function inferKindFromLines(lines: string[]): BlockKind | null {
+  const shape = shapeOf(lines);
+  if (shape.total < 2) return null;
+
+  const ratio = (n: number) => n / shape.total;
+
+  // Something going wrong, stated repeatedly, is a risk list.
+  if (ratio(shape.risks) >= 0.4) return "risks";
+  // Mostly measured values is a signal list.
+  if (ratio(shape.measured) >= 0.5) return "signals";
+  // Imperative rules are positions the author has settled.
+  if (ratio(shape.rules) >= 0.5) return "decisions";
+  // An ordered procedure is work to carry out.
+  if (ratio(shape.numbered) >= 0.6) return "actions";
   return null;
 }
 

@@ -18,6 +18,16 @@ export function renderRisksRows(block: MemoryBlock, ctx: BlockRenderContext): Re
     return rows;
   }
 
+  // Columns the source never filled are dropped rather than shown as blanks,
+  // so an ungraded risk list reads as a clean list instead of a gappy table.
+  const hasSeverity = entries.some((e) => e.severity !== undefined);
+  const hasMitigation = entries.some((e) => e.mitigation !== undefined);
+  const headers = [
+    "Risk",
+    ...(hasSeverity ? ["Severity"] : []),
+    ...(hasMitigation ? ["Mitigation"] : []),
+  ];
+
   rows.push(
     <Row
       key={`${block.id}-table`}
@@ -27,8 +37,12 @@ export function renderRisksRows(block: MemoryBlock, ctx: BlockRenderContext): Re
     >
       <Column padding="6px 0px">
         <Table
-          headers={["Risk", "Severity", "Mitigation"]}
-          data={entries.map((e) => [escapeHtml(e.risk), escapeHtml(e.severity), escapeHtml(e.mitigation)])}
+          headers={headers}
+          data={entries.map((e) => [
+            escapeHtml(e.risk),
+            ...(hasSeverity ? [escapeHtml(e.severity ?? "—")] : []),
+            ...(hasMitigation ? [escapeHtml(e.mitigation ?? "—")] : []),
+          ])}
           border={{
             borderTopWidth: "1px",
             borderTopStyle: "solid",

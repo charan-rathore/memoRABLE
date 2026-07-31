@@ -141,7 +141,7 @@ describe("parseText — lossless recovery", () => {
     expect(actionsBlock.provenance.method).toBe("recovered");
   });
 
-  it("never invents owners, dates, metrics, severities or risks", () => {
+  it("records what a line states and leaves unstated fields undefined", () => {
     const text = [
       "## Risks",
       "",
@@ -154,12 +154,30 @@ describe("parseText — lossless recovery", () => {
     const result = parseText({ text, label: "notes.md" });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
+
+    // The item is kept, because the author clearly listed it under Risks…
     const risks = payloadOf<RisksPayload>(result.value, "risks");
-    expect(risks.entries).toHaveLength(0);
-    expect(risks.notes?.join(" ")).toContain("something might go wrong");
+    expect(risks.entries).toHaveLength(1);
+    expect(risks.entries[0]!.risk).toContain("something might go wrong");
+    // …but a severity and a mitigation the source never gave are not conjured.
+    expect(risks.entries[0]!.severity).toBeUndefined();
+    expect(risks.entries[0]!.mitigation).toBeUndefined();
+
+    const actions = payloadOf<ActionsPayload>(result.value, "actions");
+    expect(actions.entries).toHaveLength(1);
+    expect(actions.entries[0]!.task).toContain("call the client sometime");
+    expect(actions.entries[0]!.owner).toBeUndefined();
+    expect(actions.entries[0]!.due).toBeUndefined();
+  });
+
+  it("does not promote ordinary prose to an entry", () => {
+    const text = ["## Actions", "", "nothing parseable here either"].join("\n");
+    const result = parseText({ text, label: "notes.md" });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
     const actions = payloadOf<ActionsPayload>(result.value, "actions");
     expect(actions.entries).toHaveLength(0);
-    expect(actions.notes?.join(" ")).toContain("call the client sometime");
+    expect(actions.notes?.join(" ")).toContain("nothing parseable here either");
   });
 
   it("warns when a section is entirely missing and keeps the block empty", () => {

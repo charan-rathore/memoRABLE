@@ -38,10 +38,15 @@ const textField = (max: number) => z.string().min(1).max(max);
 
 /* ---------------------------------- payloads --------------------------------- */
 
+/**
+ * `value` is optional so a qualitative indicator ("Explainable AI") is still a
+ * signal. Renderers show a measured tile when a value exists and a plain
+ * criterion chip when it does not.
+ */
 export const signalEntrySchema = z
   .object({
     label: textField(120),
-    value: z.union([z.string().min(1).max(120), z.number().finite()]),
+    value: z.union([z.string().min(1).max(120), z.number().finite()]).optional(),
     delta: z.union([z.string().max(120), z.number().finite()]).optional(),
     trend: z.enum(["up", "flat", "down"]).optional(),
   })
@@ -63,19 +68,25 @@ export const timelineEntrySchema = z
   })
   .strict();
 
+/**
+ * `severity` and `mitigation` are optional because most real documents state a
+ * risk without grading it. Omitting a field the source never gave is honest;
+ * inventing one would not be.
+ */
 export const riskEntrySchema = z
   .object({
     risk: textField(LIMITS.maxFieldLength),
-    severity: z.enum(["high", "medium", "low"]),
-    mitigation: textField(LIMITS.maxFieldLength),
+    severity: z.enum(["high", "medium", "low"]).optional(),
+    mitigation: textField(LIMITS.maxFieldLength).optional(),
   })
   .strict();
 
+/** `owner` and `due` are optional for the same reason as risk severity. */
 export const actionEntrySchema = z
   .object({
     task: textField(LIMITS.maxFieldLength),
-    owner: textField(120),
-    due: textField(80),
+    owner: textField(120).optional(),
+    due: textField(80).optional(),
     status: z.enum(["open", "done"]),
   })
   .strict();

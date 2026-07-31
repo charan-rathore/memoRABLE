@@ -44,16 +44,27 @@ function kpiRow(block: MemoryBlock, chunk: SignalEntry[], offset: number, isLast
     >
       {chunk.map((entry, i) => (
         <Column key={`${block.id}-kpi-${offset}-${i}`} padding="10px 16px 10px 0px">
-          <Paragraph
-            html={inlineText(entry.label.toUpperCase())}
-            fontFamily={fonts.mono}
-            fontSize="10px"
-            color={colors.ink3}
-            letterSpacing="0.1em"
-            lineHeight="150%"
-          />
-          <Heading headingType="h3" fontFamily={fonts.sans} fontSize="22px" fontWeight={700} color={colors.ink} lineHeight="125%">
-            {escapeHtml(String(entry.value))}
+          {/* A measured signal leads with its value; a qualitative one is the
+              label itself, set as the heading so the grid stays even. */}
+          {entry.value !== undefined ? (
+            <Paragraph
+              html={inlineText(entry.label.toUpperCase())}
+              fontFamily={fonts.mono}
+              fontSize="10px"
+              color={colors.ink3}
+              letterSpacing="0.1em"
+              lineHeight="150%"
+            />
+          ) : null}
+          <Heading
+            headingType="h3"
+            fontFamily={fonts.sans}
+            fontSize={entry.value !== undefined ? "22px" : "14px"}
+            fontWeight={entry.value !== undefined ? 700 : 600}
+            color={colors.ink}
+            lineHeight="125%"
+          >
+            {escapeHtml(entry.value !== undefined ? String(entry.value) : entry.label)}
           </Heading>
           {entry.delta !== undefined ? (
             <Paragraph

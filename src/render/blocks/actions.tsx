@@ -46,7 +46,7 @@ function actionRow(
       </Column>
       <Column padding="10px 0px 10px 12px" border={cellBorder}>
         <Paragraph
-          html={inlineJoin([inlineText(`${entry.owner} · ${entry.due}`), statusFragment(entry.status)])}
+          html={inlineJoin([inlineText(assignment(entry)), statusFragment(entry.status)])}
           fontFamily={fonts.sans}
           fontSize="12px"
           color={colors.ink3}
@@ -56,6 +56,11 @@ function actionRow(
       </Column>
     </Row>
   );
+}
+
+/** Owner and due date joined only when the source actually stated them. */
+function assignment(entry: ActionEntry): string {
+  return [entry.owner, entry.due].filter(Boolean).join(" · ");
 }
 
 function statusFragment(status: ActionEntry["status"]): string {

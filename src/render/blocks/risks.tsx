@@ -1,11 +1,16 @@
 import type { ReactElement } from "react";
 import { Column, ColumnLayouts, Row, Table } from "@unlayer/react-elements";
 import type { MemoryBlock, RisksPayload } from "@/domain/memory/schema";
-import { colors } from "../tokens";
+import { colors, severityColor } from "../tokens";
 import { escapeHtml } from "../safe-inline";
 import { emptyBlockRow, notesRows, sectionLabelRow, PAD, type BlockRenderContext } from "./common";
 
-/** Risks — the one genuinely tabular memory, rendered as a real Table. */
+/**
+ * Risks — the one genuinely tabular memory. The exporter silently ignores the
+ * convenient `headerBackgroundColor` / `contentColor` props, so the designed
+ * table is built through per-cell `values.table` — the only route that actually
+ * emits background, colour and padding today.
+ */
 export function renderRisksRows(block: MemoryBlock, ctx: BlockRenderContext): ReactElement[] {
   const payload = block.payload as RisksPayload;
   const entries = payload.entries;
@@ -28,6 +33,15 @@ export function renderRisksRows(block: MemoryBlock, ctx: BlockRenderContext): Re
     ...(hasMitigation ? ["Mitigation"] : []),
   ];
 
+  const cell = (text: string, opts: { color?: string; backgroundColor?: string; align?: "left" | "center" } = {}) => ({
+    width: 0,
+    text,
+    color: opts.color ?? colors.ink,
+    backgroundColor: opts.backgroundColor,
+    padding: "9px 11px",
+    textAlign: opts.align ?? ("left" as const),
+  });
+
   rows.push(
     <Row
       key={`${block.id}-table`}
@@ -37,16 +51,46 @@ export function renderRisksRows(block: MemoryBlock, ctx: BlockRenderContext): Re
     >
       <Column padding="6px 0px">
         <Table
-          headers={headers}
-          data={entries.map((e) => [
-            escapeHtml(e.risk),
-            ...(hasSeverity ? [escapeHtml(e.severity ?? "—")] : []),
-            ...(hasMitigation ? [escapeHtml(e.mitigation ?? "—")] : []),
-          ])}
+          enableHeader
+          stripedRows
+          stripedRowsBackgroundColor={colors.surface2}
+          values={
+            {
+              enableHeader: true,
+              table: {
+                headers: [
+                  {
+                    height: 0,
+                    cells: headers.map((h) =>
+                      cell(h, { color: colors.paper, backgroundColor: colors.ink }),
+                    ),
+                  },
+                ],
+                rows: entries.map((e) => ({
+                  height: 0,
+                  cells: [
+                    cell(escapeHtml(e.risk)),
+                    ...(hasSeverity
+                      ? [
+                          cell(escapeHtml(e.severity ?? "—"), {
+                            color: e.severity ? severityColor(e.severity) : colors.ink3,
+                            align: "center",
+                          }),
+                        ]
+                      : []),
+                    ...(hasMitigation
+                      ? [cell(escapeHtml(e.mitigation ?? "—"), { color: colors.ink2 })]
+                      : []),
+                  ],
+                })),
+                footers: [],
+              },
+            } as never
+          }
           border={{
-            borderTopWidth: "1px",
-            borderTopStyle: "solid",
-            borderTopColor: colors.line,
+            borderTopWidth: "0px",
+            borderLeftWidth: "0px",
+            borderRightWidth: "0px",
             borderBottomWidth: "1px",
             borderBottomStyle: "solid",
             borderBottomColor: colors.line,

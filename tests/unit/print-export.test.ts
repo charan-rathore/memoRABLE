@@ -61,6 +61,13 @@ describe("buildPrintDocument", () => {
     expect(printable).toContain("<h1>Finsight</h1>");
   });
 
+  it("keeps in-document jumps visibly accented in print", () => {
+    // An invisible clickable TOC entry is a worse affordance than a blue one.
+    const printable = buildPrintDocument(SAMPLE);
+    expect(printable).toContain('a[href^="#"]');
+    expect(printable).toContain("#1E3BD6");
+  });
+
   it("prepends the stylesheet when there is no head", () => {
     const printable = buildPrintDocument("<p>fragment</p>");
     expect(printable.startsWith("<style>")).toBe(true);

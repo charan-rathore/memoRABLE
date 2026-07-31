@@ -114,7 +114,7 @@ export function PublishPanel({
             <span className="tick" aria-hidden="true">
               ✓
             </span>
-            <h2>Published.</h2>
+            <h2 className="sweep">Published.</h2>
           </div>
           <button ref={closeRef} type="button" className="x" aria-label="Close publish panel" onClick={onClose}>
             ✕

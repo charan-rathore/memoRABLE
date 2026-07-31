@@ -39,3 +39,12 @@ export function inlineItalic(value: string): string {
 export function inlineJoin(parts: readonly string[], separator = " · "): string {
   return parts.filter((p) => p.length > 0).join(escapeHtml(separator));
 }
+
+/**
+ * App-generated link around escaped text. `href` must be app-authored
+ * (e.g. `#section-signals`) — never sourced from imported content.
+ */
+export function inlineLink(href: string, label: string, color?: string): string {
+  const style = color ? ` style="color:${escapeHtml(color)};text-decoration:none"` : "";
+  return `<a href="${escapeHtml(href)}"${style}>${escapeHtml(label)}</a>`;
+}

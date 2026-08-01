@@ -296,6 +296,17 @@ const TIMELINE_STATE: Array<[RegExp, TimelineEntry["state"]]> = [
 
 const TRAILING_STATE = /\b(shipped|released|launched|live|done|complete|completed|closed|on[\s-]?track|in\s+progress|underway|planned|upcoming|scheduled)\b/i;
 
+/** Phase / Step / Stage markers — delivery order without a calendar date. */
+const ORDINAL_DATE =
+  /^(phase|step|stage|milestone|sprint|task|iteration)\s+([0-9]{1,3}|[a-z]|[ivxlc]+)\b/i;
+
+/** Invoice / policy obligation date labels. */
+const OBLIGATION_DATE_LABEL =
+  /^(due(?:\s+date)?|dated|date|effective(?:\s+date)?|invoice\s+date|payment\s+due|as\s+of)\s*[:—–-]?\s*(.+)$/i;
+
+/** Ticket / itinerary leg labels. */
+const LEG_LABEL = /^(departure|arrival|depart(?:s|ing)?|arriv(?:e|es|al|ing)?)\s*[:—–-]?\s*(.+)$/i;
+
 export function parseTimelineLine(raw: string): TimelineEntry | null {
   const item = splitListItem(raw);
   const cells = splitTableRow(raw);
@@ -310,6 +321,31 @@ export function parseTimelineLine(raw: string): TimelineEntry | null {
     return { date: cells[0]!, title: cells[1]!, state };
   }
   const text = (item ? item.text : raw).trim();
+
+  // "Due date: 2026-08-14" / "Dated: 2026-07-15" / "Effective date: 2026-04-01"
+  const obligation = parseObligationDateLine(text);
+  if (obligation) return obligation;
+
+  // "Departure: Copenhagen (CPH) · 2026-08-12 09:40 · Gate B12"
+  const leg = parseLegTimelineLine(text);
+  if (leg) return leg;
+
+  // "Phase 1: Capture edit history schema — planned"
+  const ordinal = ORDINAL_DATE.exec(text);
+  if (ordinal) {
+    const marker = `${capitalizeWord(ordinal[1]!)} ${ordinal[2]!.toUpperCase()}`;
+    let rest = text.slice(ordinal[0].length).replace(/^\s*[:—–-]\s*/, "").trim();
+    let state: TimelineEntry["state"] | undefined;
+    const trailing = splitTrailingKeyword(rest, TRAILING_STATE);
+    if (trailing && trailing.keyword.length <= 24) {
+      state = stateFromText(trailing.keyword);
+      if (state) rest = trailing.body;
+    }
+    if (!state) state = stateFromText(rest) ?? "planned";
+    if (rest.length < 2) rest = marker;
+    return { date: marker, title: rest, state, ...inferArtifact(rest) };
+  }
+
   const dateMatch = DATE_TOKEN.exec(text);
   let date: string;
   let rest: string;
@@ -343,6 +379,43 @@ export function parseTimelineLine(raw: string): TimelineEntry | null {
   }
   if (!state) state = "planned";
   return rest.length >= 2 ? { date, title: rest, state, ...inferArtifact(rest) } : null;
+}
+
+/** Parse "Due date: 2026-08-14" style obligation lines into Timeline entries. */
+export function parseObligationDateLine(text: string): TimelineEntry | null {
+  const match = OBLIGATION_DATE_LABEL.exec(text.trim());
+  if (!match) return null;
+  const label = match[1]!.trim();
+  const remainder = match[2]!.trim();
+  const found = findDateToken(remainder) ?? (looksLikeDate(remainder) ? { date: remainder, index: 0, length: remainder.length } : null);
+  if (!found) return null;
+  const title =
+    `${label.replace(/\b\w/g, (c) => c.toUpperCase())}: ${remainder}`.slice(0, 200) || remainder;
+  return {
+    date: found.date,
+    title,
+    state: /due|payment/i.test(label) ? "planned" : "done",
+  };
+}
+
+/** Parse departure/arrival itinerary legs with an embedded calendar date. */
+export function parseLegTimelineLine(text: string): TimelineEntry | null {
+  const match = LEG_LABEL.exec(text.trim());
+  if (!match) return null;
+  const kind = /arriv/i.test(match[1]!) ? "Arrival" : "Departure";
+  const remainder = match[2]!.trim();
+  const found = findDateToken(remainder);
+  if (!found) return null;
+  // Prefer "2026-08-12 09:40" when a time follows the date.
+  const after = remainder.slice(found.index + found.length);
+  const time = /^\s*[·,]?\s*(\d{1,2}:\d{2})\b/.exec(after);
+  const date = time ? `${found.date} ${time[1]}` : found.date;
+  const title = `${kind}: ${remainder}`.replace(/\s+/g, " ").trim();
+  return { date, title, state: "planned" };
+}
+
+function capitalizeWord(word: string): string {
+  return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
 }
 
 function stateFromText(text: string): TimelineEntry["state"] | undefined {

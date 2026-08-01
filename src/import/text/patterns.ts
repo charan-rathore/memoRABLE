@@ -92,14 +92,68 @@ export function isListLike(line: string): boolean {
   return GLYPH_PREFIX.test(line);
 }
 
-const MONTH = "(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)";
-const DATE_TOKEN = new RegExp(
-  `^(${MONTH}\\.?\\s+\\d{1,2}(?:,\\s*\\d{4})?|${MONTH}\\.?|Q[1-4](?:[ /]?\\d{4})?|\\d{4}-\\d{2}-\\d{2}|\\d{1,2}\\/\\d{1,2}(?:\\/\\d{2,4})?|Week\\s+\\d{1,2}|Sprint\\s+\\d{1,2})\\b`,
-  "i",
-);
+const MONTH =
+  "(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)";
+const YEAR = "(?:19|20)\\d{2}";
+/** Human time language: today, next week, Jan–Jun, 2034, H1, FY26, … */
+const DATE_ATOM = [
+  // Relative words people actually write
+  "(?:today|tomorrow|yesterday|tonight)",
+  "(?:this|next|last)\\s+(?:week|month|quarter|year)",
+  "end\\s+of\\s+(?:the\\s+)?(?:week|month|quarter|year)",
+  "in\\s+\\d{1,3}\\s+(?:days?|weeks?|months?|years?)",
+  // Month ranges: Jan-Jun, January – June 2026
+  `${MONTH}\\.?\\s*[-–—]\\s*${MONTH}\\.?(?:\\s+${YEAR})?`,
+  // Half-years / fiscal years
+  `H[12](?:[ /]?${YEAR})?`,
+  `FY\\s*'?\\d{2,4}`,
+  // Calendar forms already supported
+  `${MONTH}\\.?\\s+\\d{1,2}(?:,\\s*${YEAR})?`,
+  `${MONTH}\\.?\\s+${YEAR}`,
+  `${MONTH}\\.?`,
+  `Q[1-4](?:[ /]?${YEAR})?`,
+  `${YEAR}-\\d{2}-\\d{2}`,
+  `\\d{1,2}\\/\\d{1,2}(?:\\/\\d{2,4})?`,
+  `Week\\s+\\d{1,2}`,
+  `Sprint\\s+\\d{1,2}`,
+  // Bare year: 2034
+  YEAR,
+].join("|");
+
+const DATE_TOKEN = new RegExp(`^(${DATE_ATOM})\\b`, "i");
+/** Mid-line dates omit bare month names ("May need…") to avoid false hits. */
+const DATE_EMBEDDED = [
+  "(?:today|tomorrow|yesterday|tonight)",
+  "(?:this|next|last)\\s+(?:week|month|quarter|year)",
+  "end\\s+of\\s+(?:the\\s+)?(?:week|month|quarter|year)",
+  "in\\s+\\d{1,3}\\s+(?:days?|weeks?|months?|years?)",
+  `${MONTH}\\.?\\s*[-–—]\\s*${MONTH}\\.?(?:\\s+${YEAR})?`,
+  `H[12](?:[ /]?${YEAR})?`,
+  `FY\\s*'?\\d{2,4}`,
+  `${MONTH}\\.?\\s+\\d{1,2}(?:,\\s*${YEAR})?`,
+  `${MONTH}\\.?\\s+${YEAR}`,
+  `Q[1-4](?:[ /]?${YEAR})?`,
+  `${YEAR}-\\d{2}-\\d{2}`,
+  `\\d{1,2}\\/\\d{1,2}(?:\\/\\d{2,4})?`,
+  `Week\\s+\\d{1,2}`,
+  `Sprint\\s+\\d{1,2}`,
+  YEAR,
+].join("|");
+const DATE_ANYWHERE = new RegExp(`\\b(${DATE_EMBEDDED})\\b`, "i");
 
 export function looksLikeDate(text: string): boolean {
   return DATE_TOKEN.test(text.trim());
+}
+
+/** Find a date/time phrase anywhere in text; returns the matched span. */
+export function findDateToken(text: string): { date: string; index: number; length: number } | null {
+  const match = DATE_ANYWHERE.exec(text);
+  if (!match || match.index === undefined) return null;
+  return {
+    date: match[1]!.replace(/\.$/, "").replace(/\s+/g, " ").trim(),
+    index: match.index,
+    length: match[0].length,
+  };
 }
 
 const SEPARATOR = /\s*[:—–]\s+|\s+-\s+/;
@@ -257,9 +311,21 @@ export function parseTimelineLine(raw: string): TimelineEntry | null {
   }
   const text = (item ? item.text : raw).trim();
   const dateMatch = DATE_TOKEN.exec(text);
-  if (!dateMatch) return null;
-  const date = dateMatch[1]!.replace(/\.$/, "");
-  let rest = text.slice(dateMatch[0].length).replace(/^\s*[:—–-]\s*/, "").trim();
+  let date: string;
+  let rest: string;
+  if (dateMatch) {
+    date = dateMatch[1]!.replace(/\.$/, "").replace(/\s+/g, " ").trim();
+    rest = text.slice(dateMatch[0].length).replace(/^\s*[:—–-]\s*/, "").trim();
+  } else {
+    // "Ship the beta next week" — the time phrase sits in the sentence.
+    const found = findDateToken(text);
+    if (!found) return null;
+    date = found.date;
+    rest = `${text.slice(0, found.index)} ${text.slice(found.index + found.length)}`
+      .replace(/\s+/g, " ")
+      .replace(/^\s*[:—–-]\s*|\s*[:—–-]\s*$/g, "")
+      .trim();
+  }
   if (rest.length < 2) return null;
   let state: TimelineEntry["state"] | undefined;
   const { body, suffix } = extractParenSuffix(rest);
@@ -445,9 +511,20 @@ export function parseTimelineLineLenient(raw: string): TimelineEntry | null {
   if (!text) return null;
   const strict = parseTimelineLine(raw);
   if (strict) return strict;
-  // Without a date the entry has no place on a timeline; the caller keeps it
-  // as a note rather than inventing one.
-  return null;
+  // "Ship the beta tomorrow" / "Pilot runs Jan–Jun" — date need not lead the line.
+  const found = findDateToken(text);
+  if (!found) return null;
+  const title = `${text.slice(0, found.index)} ${text.slice(found.index + found.length)}`
+    .replace(/\s+/g, " ")
+    .replace(/^\s*[:—–-]\s*|\s*[:—–-]\s*$/g, "")
+    .trim();
+  if (title.length < 2) return null;
+  return {
+    date: found.date,
+    title,
+    state: stateFromText(text) ?? "planned",
+    ...inferArtifact(title),
+  };
 }
 
 export function parseRiskLineLenient(raw: string): RiskEntry | null {

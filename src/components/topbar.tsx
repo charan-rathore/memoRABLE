@@ -55,19 +55,18 @@ export function Topbar({
 
   return (
     <header className="topbar">
-      <div className="topbar-nav">
+      <div className="topbar-left">
+        <button type="button" className="brand" onClick={onHome} aria-label="memoRABLE home">
+          <BrandMark size={28} />
+          <span className="wordmark">
+            memo<b>RABLE</b>
+          </span>
+        </button>
         <button type="button" className="nav-back" onClick={onHome} aria-label="Back to start">
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
             <path d="M10 3L5 8l5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
           <span>Back</span>
-        </button>
-        <span className="vr" aria-hidden="true" />
-        <button type="button" className="brand" onClick={onHome} aria-label="memoRABLE home">
-          <BrandMark />
-          <span className="wordmark">
-            memo<b>RABLE</b>
-          </span>
         </button>
         <span className="vr" aria-hidden="true" />
         <div className="doc-title">
@@ -76,8 +75,52 @@ export function Topbar({
         </div>
       </div>
 
-      <div className="topbar-actions">
-        <button type="button" className="btn ghost small action-new" onClick={onNewDoc}>
+      <div className="topbar-mid">
+        <div className="doc-search" data-testid="doc-search">
+          <label className="visually-hidden" htmlFor="doc-search-input">
+            Search recent documents
+          </label>
+          <input
+            id="doc-search-input"
+            type="search"
+            placeholder="Recent docs…"
+            value={query}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setSearchOpen(true);
+            }}
+            onFocus={() => setSearchOpen(true)}
+            onBlur={() => setTimeout(() => setSearchOpen(false), 180)}
+            autoComplete="off"
+          />
+          {searchOpen && (
+            <div className="doc-search-pop" role="listbox" aria-label="Recent documents (kept 7 days)">
+              {results.length === 0 ? (
+                <p className="doc-search-empty">No recent documents yet. Brought files stay here for 7 days.</p>
+              ) : (
+                results.slice(0, 8).map((doc) => (
+                  <button
+                    key={doc.id}
+                    type="button"
+                    role="option"
+                    aria-selected={false}
+                    className="doc-search-item"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => {
+                      onOpenRecent(doc.sourceText, doc.label);
+                      setSearchOpen(false);
+                      setQuery("");
+                    }}
+                  >
+                    <span className="dsi-title">{doc.title}</span>
+                    <span className="dsi-meta">{doc.label}</span>
+                  </button>
+                ))
+              )}
+            </div>
+          )}
+        </div>
+        <button type="button" className="btn ghost small" onClick={onNewDoc}>
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
             <path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
           </svg>
@@ -85,10 +128,10 @@ export function Topbar({
         </button>
         <button
           type="button"
-          className="btn ghost small action-regen"
+          className="btn ghost small"
           onClick={onRegenerate}
           disabled={!canPublish || regenerateBusy}
-          title="Re-process the current document"
+          title="Read the document again — catch dates, timelines and anything we missed"
         >
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
             <path
@@ -99,56 +142,11 @@ export function Topbar({
             />
             <path d="M8 1v3.5L10.5 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
-          {regenerateBusy ? "Processing…" : "Regenerate"}
+          {regenerateBusy ? "Reading…" : "Regenerate"}
         </button>
       </div>
 
-      <div className="doc-search" data-testid="doc-search">
-        <label className="visually-hidden" htmlFor="doc-search-input">
-          Search recent documents
-        </label>
-        <input
-          id="doc-search-input"
-          type="search"
-          placeholder="Recent docs…"
-          value={query}
-          onChange={(e) => {
-            setQuery(e.target.value);
-            setSearchOpen(true);
-          }}
-          onFocus={() => setSearchOpen(true)}
-          onBlur={() => setTimeout(() => setSearchOpen(false), 180)}
-          autoComplete="off"
-        />
-        {searchOpen && (
-          <div className="doc-search-pop" role="listbox" aria-label="Recent documents (kept 7 days)">
-            {results.length === 0 ? (
-              <p className="doc-search-empty">No recent documents yet. Brought files stay here for 7 days.</p>
-            ) : (
-              results.slice(0, 8).map((doc) => (
-                <button
-                  key={doc.id}
-                  type="button"
-                  role="option"
-                  aria-selected={false}
-                  className="doc-search-item"
-                  onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => {
-                    onOpenRecent(doc.sourceText, doc.label);
-                    setSearchOpen(false);
-                    setQuery("");
-                  }}
-                >
-                  <span className="dsi-title">{doc.title}</span>
-                  <span className="dsi-meta">{doc.label}</span>
-                </button>
-              ))
-            )}
-          </div>
-        )}
-      </div>
-
-      <div className="topbar-controls">
+      <div className="topbar-right">
         <span className="ai-wrap">
           <button
             type="button"
@@ -242,14 +240,14 @@ export function Topbar({
                 <rect x="4" y="3" width="3" height="10" rx="0.5" fill="currentColor" />
                 <rect x="9" y="3" width="3" height="10" rx="0.5" fill="currentColor" />
               </svg>
-              Stop replay
+              Stop
             </>
           ) : (
             <>
               <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
                 <path d="M4 3.5v9l9-4.5-9-4.5z" fill="currentColor" />
               </svg>
-              Replay story
+              Replay
             </>
           )}
         </button>

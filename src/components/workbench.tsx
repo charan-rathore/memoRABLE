@@ -458,6 +458,8 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
               onMove={moveBlock}
               revealCount={replay.view?.revealCount ?? null}
               enterKey={state.importedAt}
+              archetypeId={state.document?.archetype?.id}
+              archetypeLabel={state.document?.archetype?.label}
             />
           </div>
         </div>
@@ -486,8 +488,8 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
               <p className="ec-num">01. 06</p>
               <h2>Nothing here yet</h2>
               <p>
-                Bring your information and all six memories arrive together, in reading order: snapshot,
-                signals, decisions, timeline, risks, actions. Nothing is placed by hand.
+                Bring your information — the system understands the document type, then projects the
+                memories that fit. Nothing is placed by hand.
               </p>
               <button type="button" className="btn pri" onClick={() => loadExample("atlas-json")}>
                 Use the Atlas example

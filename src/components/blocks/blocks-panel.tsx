@@ -1,11 +1,11 @@
 "use client";
 
 import type { MemoryBlock } from "@/domain/memory/schema";
-import { BLOCK_KIND_LABELS, BLOCK_KIND_SUBTITLES } from "@/domain/memory/schema";
+import { bucketSubtitle, isNotApplicableBlock } from "@/understanding/projection-profiles";
 
 /**
- * The six memories: selection for the inspector, and explicit up/down
- * arrangement. No drag dependency. works for keyboard and touch.
+ * Memories rail: selection for the inspector, and explicit up/down arrangement.
+ * Titles and set are archetype-projected; universal kinds stay under the hood.
  */
 export function BlocksPanel({
   blocks,
@@ -15,6 +15,8 @@ export function BlocksPanel({
   onHover,
   revealCount,
   enterKey,
+  archetypeId,
+  archetypeLabel,
 }: {
   blocks: MemoryBlock[];
   selectedBlockId: string | null;
@@ -26,14 +28,20 @@ export function BlocksPanel({
   revealCount?: number | null;
   /** Changes when a new document arrives, so the list can enter as a group. */
   enterKey?: string | null;
+  /** Detected document archetype — shapes subtitles. */
+  archetypeId?: string | null;
+  archetypeLabel?: string | null;
 }) {
   const visible = revealCount === null || revealCount === undefined ? blocks : blocks.slice(0, revealCount);
   const staggered = revealCount != null || Boolean(enterKey);
+  const foot = archetypeLabel
+    ? `adaptive projection · ${archetypeLabel}`
+    : "universal observations → adaptive memories";
   return (
     <section className="card mem-card" aria-labelledby="mem-h">
       <div className="card-h" id="mem-h">
         <h3>Memories</h3>
-        <span className="ct">{blocks.length} types</span>
+        <span className="ct">{blocks.length} {blocks.length === 1 ? "type" : "types"}</span>
       </div>
       <div className="card-b">
         <ul className="mem-list" aria-label="Memory Blocks in order" key={enterKey ?? "static"}>
@@ -62,9 +70,15 @@ export function BlocksPanel({
                   <span className="idx">{String(index + 1).padStart(2, "0")}</span>
                   <span className="mem-copy">
                     <span className="name">{block.title}</span>
-                    <span className="sub">{BLOCK_KIND_SUBTITLES[block.kind]}</span>
+                    <span className="sub">
+                      {isNotApplicableBlock(block)
+                        ? "Not applicable"
+                        : bucketSubtitle(archetypeId, block.kind)}
+                    </span>
                   </span>
-                  <span className="kind">{BLOCK_KIND_LABELS[block.kind].toLowerCase()}</span>
+                  <span className="kind">
+                    {isNotApplicableBlock(block) ? "n/a" : block.title.toLowerCase()}
+                  </span>
                 </button>
                 <span className="mv" role="group" aria-label={`Move ${block.title}`}>
                   <button
@@ -90,7 +104,7 @@ export function BlocksPanel({
             </li>
           ))}
         </ul>
-        <p className="memfoot">six types cover the anatomy of a document</p>
+        <p className="memfoot">{foot}</p>
       </div>
     </section>
   );

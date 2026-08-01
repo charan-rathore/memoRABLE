@@ -37,6 +37,8 @@ export interface DocumentInput {
    * finished blocks, so every document has a graph however it arrived.
    */
   relations?: readonly MemoryRelation[];
+  /** Detected archetype — selects UI bucket labels, not extraction. */
+  archetype?: MemoryDocument["archetype"];
 }
 
 export function buildBlockId(kind: BlockKind, title: string, payload: unknown, locator: string): string {
@@ -66,6 +68,7 @@ export function finalizeDocument(input: DocumentInput): MemoryDocument {
     blocks,
     relations: input.relations ? [...input.relations] : buildRelations(blocks),
     warnings: input.warnings,
+    ...(input.archetype ? { archetype: input.archetype } : {}),
   };
 
   const hash = contentHashOf(draft);
@@ -96,6 +99,7 @@ export function normalizeSource(
     blocks,
     warnings: [],
     ...(source.relations ? { relations: source.relations } : {}),
+    ...(source.archetype ? { archetype: source.archetype } : {}),
   });
 }
 

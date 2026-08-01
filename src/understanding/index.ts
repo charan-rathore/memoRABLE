@@ -37,6 +37,23 @@ export type { Recall } from "./recall";
 export type { ArchetypeResult, DocumentArchetype } from "./archetype";
 export type { AnchorDate } from "./temporal";
 export { classifyArchetype } from "./archetype";
+export {
+  applyProjectionTitles,
+  bucketLabel,
+  bucketSubtitle,
+  isEmptyMemoryPayload,
+  isKindApplicable,
+  isKindRequired,
+  isNotApplicableBlock,
+  memoryProjectionFor,
+  NOT_APPLICABLE_NOTE,
+  projectAdaptiveMemories,
+  projectionProfileFor,
+  type AdaptiveMemoryProjection,
+  type BucketView,
+  type EmptyApplicablePolicy,
+  type ProjectionProfile,
+} from "./projection-profiles";
 export { findAnchorDate, gateTimelineEntries } from "./temporal";
 export {
   allowSlideDecision,

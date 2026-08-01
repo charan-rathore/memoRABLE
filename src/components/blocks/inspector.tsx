@@ -49,7 +49,7 @@ export function Inspector({
       <div className="card-b">
         <div className="insp-head">
           <h3>{block.title}</h3>
-          <span className="insp-kind">{BLOCK_KIND_LABELS[block.kind].toLowerCase()}</span>
+          <span className="insp-kind">{block.title.toLowerCase()}</span>
         </div>
       </div>
       <div className="insp-sec">

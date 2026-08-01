@@ -54,6 +54,11 @@ function payloadOf<T>(doc: MemoryDocument, kind: BlockKind): T {
   return block.payload as T;
 }
 
+function optionalPayloadOf<T>(doc: MemoryDocument, kind: BlockKind): T | null {
+  const block = doc.blocks.find((b) => b.kind === kind);
+  return block ? (block.payload as T) : null;
+}
+
 function toMemorySource(doc: MemoryDocument): MemorySource {
   return {
     version: 1,
@@ -83,10 +88,12 @@ describe("memory layer archetype benchmark", () => {
       expect(archetype.archetype).toBe(spec.expectArchetype);
       expect(archetype.timelineMode).toBe(spec.expectTimelineMode);
 
-      const timeline = payloadOf<TimelinePayload>(doc, "timeline");
+      // Adaptive projection may omit Timeline when it has no semantic meaning
+      // (menu/job/glossary) or when empty under omit policy.
+      const timeline = optionalPayloadOf<TimelinePayload>(doc, "timeline");
       if (spec.expectEmptyTimeline) {
-        expect(timeline.entries.length).toBe(0);
-      } else {
+        expect(timeline == null || timeline.entries.length === 0).toBe(true);
+      } else if (timeline) {
         // Honest non-empty: either dated entries or phase/ticket markers, not relative junk alone.
         const weakOnly =
           timeline.entries.length > 0 &&

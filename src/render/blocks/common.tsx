@@ -2,6 +2,7 @@ import type { ReactElement } from "react";
 import { Column, ColumnLayouts, Divider, Heading, Paragraph, Row } from "@unlayer/react-elements";
 import type { MemoryBlock } from "@/domain/memory/schema";
 import type { OutputMode } from "@/domain/memory/types";
+import { isNotApplicableBlock, NOT_APPLICABLE_NOTE } from "@/understanding/projection-profiles";
 import type { PublishTheme } from "../themes";
 import { resolveTheme } from "../themes";
 import { escapeHtml, inlineText } from "../safe-inline";
@@ -166,6 +167,12 @@ export function asideParagraph(text: string, key: string, theme: PublishTheme = 
   );
 }
 
+/** Honest empty state — N/A when archetype omits meaning; otherwise absent/unclear. */
+export function emptyBlockMessage(block: MemoryBlock, fallback: string): string {
+  if (isNotApplicableBlock(block)) return NOT_APPLICABLE_NOTE;
+  return fallback;
+}
+
 /** Honest empty state for a block whose section was absent/unclear. */
 export function emptyBlockRow(
   block: MemoryBlock,
@@ -176,6 +183,7 @@ export function emptyBlockRow(
   const c = theme.colors;
   const pad = padFor(theme);
   const tinted = theme.calloutStyle === "tint";
+  const copy = emptyBlockMessage(block, message);
   return (
     <Row key={`${block.id}-empty`} layout={ColumnLayouts.OneColumn} backgroundColor={surface} padding={pad.last}>
       <Column
@@ -196,7 +204,7 @@ export function emptyBlockRow(
         }
       >
         <Paragraph
-          html={inlineText(message)}
+          html={inlineText(copy)}
           fontFamily={theme.fonts.sans}
           fontSize={scaledPx(13, theme.fontScale)}
           color={c.ink3}
@@ -217,7 +225,9 @@ export function notesRows(
   surface: string = resolveTheme("editorial").colors.surface,
   theme: PublishTheme = resolveTheme("editorial"),
 ): ReactElement[] {
-  if (notes.length === 0) return [];
+  // N/A is rendered via emptyBlockRow — don't duplicate it under Notes.
+  const visible = notes.filter((n) => n !== NOT_APPLICABLE_NOTE);
+  if (visible.length === 0) return [];
   const c = theme.colors;
   const f = theme.fonts;
   const pad = padFor(theme);
@@ -251,7 +261,7 @@ export function notesRows(
     </Row>,
     <Row key={`${block.id}-notes`} layout={ColumnLayouts.OneColumn} backgroundColor={surface} padding={pad.last}>
       <Column>
-        {notes.map((note, i) => (
+        {visible.map((note, i) => (
           <Paragraph
             key={`${block.id}-note-${i}`}
             html={inlineText(note)}

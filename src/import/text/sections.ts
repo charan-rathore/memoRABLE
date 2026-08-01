@@ -57,10 +57,11 @@ const HEADING_KEYWORDS: Record<string, BlockKind> = {
   benchmarks: "signals",
   criteria: "signals",
   "success criteria": "signals",
-  "acceptance criteria": "signals",
   "definition of done": "signals",
   measurements: "signals",
   "frequency of issues": "signals",
+  // Acceptance criteria are procedural requirements → Decisions, not prose notes.
+  "acceptance criteria": "decisions",
 
   // decisions — rules, positions, things settled
   decisions: "decisions",

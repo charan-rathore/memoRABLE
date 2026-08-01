@@ -45,6 +45,7 @@ import {
   parseRiskLineLenient,
   parseSignalLine,
   parseSignalLineLenient,
+  parseSignalSalvage,
   parseTimelineLine,
   parseTimelineLineLenient,
   plainContentOf,
@@ -567,7 +568,16 @@ function buildEntriesPayload(
   ctx: BuildContext,
   matched: readonly Section[] = [],
 ): BlockInput["payload"] {
-  const collect = <T,>(strict: LineParser<T>, lenient: LineParser<T>): Collected<T> => {
+  const collect = <T,>(
+    strict: LineParser<T>,
+    lenient: LineParser<T>,
+    options: {
+      salvageLists?: boolean;
+      salvageProse?: boolean;
+      /** Used when the section already has entries — high-confidence only. */
+      salvage?: LineParser<T>;
+    } = {},
+  ): Collected<T> => {
     const entries: T[] = [];
     const lineOf: Array<number | null> = [];
     const unmatched: SourceLine[] = [];
@@ -589,12 +599,21 @@ function buildEntriesPayload(
       }
     }
 
-    // Only when the section is clearly this memory AND the strict patterns
-    // found nothing does the lenient pass run, and only over marked items.
-    const useLenient = assigned && entries.length === 0;
+    // Lenient when the section matched nothing strictly, or salvage leftovers
+    // in assigned sections (Cases / metrics / questions must not die as notes).
+    const strictCount = entries.length;
+    const useLenient = assigned && (strictCount === 0 || options.salvageLists === true);
     for (const line of unmatched) {
-      if (useLenient && isListLike(line.text) && entries.length < LIMITS.maxEntriesPerBlock) {
-        const entry = lenient(line.text);
+      const tryLenient =
+        useLenient &&
+        entries.length < LIMITS.maxEntriesPerBlock &&
+        (isListLike(line.text) ||
+          (options.salvageProse === true && plainContentOf(line.text).length >= 24));
+      if (tryLenient) {
+        // No strict hits → full lenient for every leftover.
+        // Some strict hits → high-confidence salvage only (never bare prose KPIs).
+        const entry =
+          strictCount === 0 ? lenient(line.text) : (options.salvage?.(line.text) ?? null);
         if (entry) {
           entries.push(entry);
           lineOf.push(line.lineNo);
@@ -611,14 +630,21 @@ function buildEntriesPayload(
 
   switch (kind) {
     case "signals": {
-      const built = collect(parseSignalLine, parseSignalLineLenient);
+      const built = collect(parseSignalLine, parseSignalLineLenient, {
+        salvageLists: true,
+        salvage: parseSignalSalvage,
+      });
       mergeSignals(built, ctx, notes);
       // Compress inside the bucket after projection — never before routing.
       built.entries = dedupeByMeaning(built.entries, (e) => `${e.label} ${e.implication ?? ""}`);
       return finish(built);
     }
     case "decisions": {
-      const built = collect(parseDecisionLine, parseDecisionLineLenient);
+      const built = collect(parseDecisionLine, parseDecisionLineLenient, {
+        salvageLists: true,
+        salvageProse: true,
+        salvage: parseDecisionLineLenient,
+      });
       mergeDecisions(built, ctx, notes);
       built.entries = dedupeByMeaning(built.entries, (e) => e.text);
       return finish(built);
@@ -647,7 +673,7 @@ function buildEntriesPayload(
         const task = `Persona: ${heading}`.slice(0, LIMITS.maxFieldLength);
         if (built.entries.some((e) => saysTheSame(e.task, task))) continue;
         if (built.entries.length >= LIMITS.maxEntriesPerBlock) break;
-        built.entries.unshift({ task, status: "suggested" });
+        built.entries.unshift({ task, status: "pending" });
       }
       built.entries = dedupeByMeaning(built.entries, (e) => e.task);
       return finish(built);
@@ -843,6 +869,9 @@ function buildSnapshotPayload(
     heading: understanding.heading,
     summary: summary || "Nothing here reads as a summary yet. The source text is kept below, exactly as it arrived.",
     ...(recall?.hook ? { hook: recall.hook } : {}),
+    ...(recall?.goal ? { goal: recall.goal } : {}),
+    ...(recall?.problem ? { problem: recall.problem } : {}),
+    ...(recall?.outcome ? { outcome: recall.outcome } : {}),
     ...(byline ? { byline } : {}),
     ...(notes.length > 0 ? { notes } : {}),
   };

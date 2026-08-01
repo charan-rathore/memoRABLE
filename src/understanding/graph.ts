@@ -52,13 +52,42 @@ export function buildRelations(blocks: readonly MemoryBlock[]): MemoryRelation[]
     }
   }
 
-  // A signal that shaped a decision.
+  const openQuestions = signals.filter((s) => /^open questions?$/i.test(s.entry.label));
+  const measured = signals.filter(
+    (s) => s.entry.value !== undefined && !/^open questions?$/i.test(s.entry.label),
+  );
+  const otherSignals = signals.filter(
+    (s) => s.entry.value === undefined && !/^open questions?$/i.test(s.entry.label),
+  );
+
+  // Open questions block settling related decisions (depends_on the other way).
   relations.push(
-    ...link(signals, decisions, "informs", signalText, (d) => d.text, "shaped by"),
+    ...link(openQuestions, decisions, "blocks", signalText, (d) => d.text, "unresolved before deciding"),
+  );
+  relations.push(
+    ...link(decisions, openQuestions, "depends_on", (d) => d.text, signalText, "waits on this question"),
+  );
+
+  // Measured KPIs support requirements; qualitative signals motivate them.
+  relations.push(
+    ...link(measured, decisions, "supports", signalText, (d) => d.text, "backs this requirement"),
+  );
+  relations.push(
+    ...link(otherSignals, decisions, "motivates", signalText, (d) => d.text, "drives this choice"),
   );
 
   // A signal that exposes a risk.
   relations.push(...link(signals, risks, "threatens", signalText, (r) => riskText(r), "shows up as"));
+
+  // Risks that share vocabulary with a decision cause / motivate it.
+  relations.push(
+    ...link(risks, decisions, "motivates", (r) => riskText(r), (d) => d.text, "creates the need"),
+  );
+
+  // Settled decisions that address a risk mitigate it.
+  relations.push(
+    ...link(decisions, risks, "mitigates", (d) => d.text, (r) => riskText(r), "addresses this risk"),
+  );
 
   // An action that carries out a decision. An explicit `from` beats any guess.
   relations.push(...linkActionsToDecisions(actions, decisions));

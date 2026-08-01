@@ -207,9 +207,44 @@ export function parseOpenQuestionLine(raw: string): SignalEntry | null {
   };
 }
 
+/** KPI / success-metric lines with an explicit target become measured Signals. */
+export function parseMetricTargetLine(raw: string): SignalEntry | null {
+  const item = splitListItem(raw);
+  const text = stripEmphasis((item ? item.text : raw).trim());
+  if (text.length < 12) return null;
+
+  const targetParen = /\(target:\s*([^)]+)\)/i.exec(text);
+  if (targetParen) {
+    const body = text.replace(/\s*\(target:\s*[^)]+\)/i, "").trim();
+    const parts = splitOnFirstSeparator(body);
+    const label = (parts ? parts[0] : body).replace(/:$/, "").trim().slice(0, 120);
+    const detail = parts ? parts[1] : "";
+    if (label.length < 2) return null;
+    return {
+      label,
+      value: targetParen[1]!.trim().slice(0, 120),
+      ...(detail ? { implication: detail.slice(0, 240) } : { implication: "Target" }),
+    };
+  }
+
+  // "Audit readiness: Time to produce edit audit trail — target <5 minutes"
+  const targetDash = /^(.{4,80}?)\s*[—–:-]\s*(.+?)\s*(?:target|goal)\s*[: ]\s*(.+)$/i.exec(text);
+  if (targetDash) {
+    return {
+      label: targetDash[1]!.trim().slice(0, 120),
+      value: targetDash[3]!.trim().slice(0, 120),
+      implication: targetDash[2]!.trim().slice(0, 240),
+    };
+  }
+
+  return null;
+}
+
 export function parseSignalLine(raw: string): SignalEntry | null {
   const question = parseOpenQuestionLine(raw);
   if (question) return question;
+  const metric = parseMetricTargetLine(raw);
+  if (metric) return metric;
   const cells = splitTableRow(raw);
   if (cells && cells.length >= 2 && cells[0] && cells[1]) {
     const entry: SignalEntry = { label: cells[0], value: cells[1] };
@@ -226,7 +261,7 @@ export function parseSignalLine(raw: string): SignalEntry | null {
   const [label, value] = parts;
   if (label.length < 1 || label.length > 60 || value.length < 1) return null;
   // A signal value should contain a number or unit — otherwise it is prose.
-  if (!/[0-9%$€£#]/.test(value)) return null;
+  if (!/[0-9%$€£#<>]/.test(value)) return null;
   const entry: SignalEntry = { label, value };
   if (suffix && /[0-9%$€£]|up|down|flat|pts?|pp\b/i.test(suffix)) entry.delta = suffix;
   const trend = trendOf(`${value} ${suffix ?? ""}`);
@@ -248,6 +283,9 @@ const CASES_RULE =
 export function parseDecisionLine(raw: string): DecisionEntry | null {
   const priority = parsePriorityMatrixRow(raw);
   if (priority) return priority;
+
+  const casesMatrix = parseCasesMatrixRow(raw);
+  if (casesMatrix) return casesMatrix;
 
   const casesRule = parseCasesRuleLine(raw);
   if (casesRule) return casesRule;
@@ -306,21 +344,106 @@ export function parseDecisionLine(raw: string): DecisionEntry | null {
 }
 
 /**
+ * Acceptance-criteria bullets are procedural requirements, not free text.
+ * "Revision number auto-increments…" → Decision (requirement).
+ */
+export function parseAcceptanceCriterionLine(raw: string): DecisionEntry | null {
+  const item = splitListItem(raw);
+  if (!item) return null;
+  const text = stripEmphasis(item.text.trim());
+  if (text.length < 12 || text.length > 320) return null;
+  if (/\?/.test(text)) return null;
+  if (/^(should|what|who|when|where|why|how)\b/i.test(text)) return null;
+  if (parseMetricTargetLine(raw)) return null;
+  if (parseCasesRuleLine(raw)) return null;
+  // Checklist / procedural shape — verbs of system behavior.
+  const procedural =
+    /\b(display|displays|visible|auto-?increment|include|includes|available|editable|intact|trigger|triggers|preserve|amend|can amend|export|workflow|columns?|indicator|revision|pdf|permission|traceable)\b/i.test(
+      text,
+    ) || /^(edit|revision|pdf|vendor|linked|can |display|visual|preserve|amend)/i.test(text);
+  if (!procedural && text.split(/\s+/).length < 5) return null;
+  if (!procedural && !/^[A-Z]/.test(text)) return null;
+  return {
+    text: text.slice(0, 500),
+    status: "proposed",
+    commitment: "committed",
+    because: "Acceptance criterion",
+  };
+}
+
+/**
+ * Cases–Sheet matrix rows: field + Y/N flags (+ optional rule remarks).
+ * Structured table knowledge — not a blob of OCR text.
+ */
+export function parseCasesMatrixRow(raw: string): DecisionEntry | null {
+  const cells = splitTableRow(raw);
+  if (cells && cells.length >= 4) {
+    const field = cells[0]!.trim();
+    const a = cells[1]!.trim();
+    const b = cells[2]!.trim();
+    const c = cells[3]!.trim();
+    if (!field || /^(module|field|contract)/i.test(field)) return null;
+    if (!/^[YNyN\-–.|]+$/i.test(a) || !/^[YNyN\-–.|]+$/i.test(b)) return null;
+    const remarks = cells.slice(4).join(" ").trim();
+    if (remarks && CASES_RULE.test(remarks)) {
+      return {
+        text: `${field}: ${remarks}`.slice(0, 500),
+        status: "approved",
+        commitment: "committed",
+      };
+    }
+    const flags = `${a}/${b}/${c}`.replace(/\|/g, "");
+    if (/^[\-–./]+$/i.test(flags) && !remarks) return null;
+    return {
+      text: (remarks
+        ? `${field} [${flags}] — ${remarks}`
+        : `${field}: editability ${flags}`
+      ).slice(0, 500),
+      status: "approved",
+      commitment: "committed",
+    };
+  }
+
+  const item = splitListItem(raw);
+  const text = stripEmphasis((item ? item.text : raw).trim());
+  // "Vendor Details Y Y N Vendor name cannot be edited…"
+  const prose = /^(.{3,80}?)\s+([YNyN])\s+([YNyN\-–])\s+([YNyN\-–])\s+(.+)$/.exec(text);
+  if (prose) {
+    const field = prose[1]!.trim();
+    const remarks = prose[5]!.trim();
+    if (/^(module|project|indent number)/i.test(field) && remarks.length < 8) return null;
+    if (CASES_RULE.test(remarks) || remarks.length >= 12) {
+      return {
+        text: `${field}: ${remarks}`.slice(0, 500),
+        status: "approved",
+        commitment: "committed",
+      };
+    }
+    return {
+      text: `${field}: editability ${prose[2]}/${prose[3]}/${prose[4]}`.slice(0, 500),
+      status: "approved",
+      commitment: "committed",
+    };
+  }
+  return null;
+}
+
+/**
  * Reason over Cases-sheet editability rules.
  * "Indent quantity cannot be reduced below…" is a committed product constraint.
  */
 export function parseCasesRuleLine(raw: string): DecisionEntry | null {
   const item = splitListItem(raw);
   const text = stripEmphasis((item ? item.text : raw).trim());
-  if (text.length < 24) return null;
+  if (text.length < 20) return null;
   if (/^note:/i.test(text)) {
     // "Note: No changes are allowed once the contract is closed."
     if (!CASES_RULE.test(text)) return null;
   } else if (!CASES_RULE.test(text)) {
     return null;
   }
-  // Drop noisy matrix chrome that still mentions "impacts delay" without a rule.
-  if (/^[A-Za-z ]+\s+[NYv|]{1,8}\b/i.test(text) && !/\bcannot\b|\ballowed\b|\bno changes\b/i.test(text)) {
+  // Drop pure flag chrome with no rule body (matrix rows handled separately).
+  if (/^[A-Za-z /&]+\s+[YNyN\-–](?:\s+[YNyN\-–]){1,3}\s*$/i.test(text)) {
     return null;
   }
   return {
@@ -566,7 +689,8 @@ export function parseUserStoryLine(raw: string): ActionEntry | null {
   if (story) {
     return {
       task: `User story: ${story[1]!.trim()}`.slice(0, 500),
-      status: "suggested",
+      // Source facts from the PRD — not suggested work.
+      status: "pending",
     };
   }
 
@@ -574,7 +698,7 @@ export function parseUserStoryLine(raw: string): ActionEntry | null {
   if (persona && !/\bi want\b/i.test(text)) {
     return {
       task: `Persona: ${persona[1]!.trim()}`.slice(0, 240),
-      status: "suggested",
+      status: "pending",
     };
   }
 
@@ -582,7 +706,7 @@ export function parseUserStoryLine(raw: string): ActionEntry | null {
   if (/^i want\b/i.test(text) && text.length >= 20) {
     return {
       task: `User story: ${text}`.slice(0, 500),
-      status: "suggested",
+      status: "pending",
     };
   }
 
@@ -660,6 +784,8 @@ function entryText(raw: string): string | null {
 export function parseSignalLineLenient(raw: string): SignalEntry | null {
   const question = parseOpenQuestionLine(raw);
   if (question) return question;
+  const metric = parseMetricTargetLine(raw);
+  if (metric) return metric;
   const text = entryText(raw);
   if (!text) return null;
   const parts = splitOnFirstSeparator(text);
@@ -672,17 +798,26 @@ export function parseSignalLineLenient(raw: string): SignalEntry | null {
       return entry;
     }
   }
-  // A criterion with no measured value is still an indicator.
+  // Empty-section recovery only: a qualitative criterion with no measured value.
   return { label: text.slice(0, 120) };
 }
 
+/** High-confidence signal salvage when the section already has entries. */
+export function parseSignalSalvage(raw: string): SignalEntry | null {
+  return parseOpenQuestionLine(raw) ?? parseMetricTargetLine(raw) ?? parseSignalLine(raw);
+}
+
 export function parseDecisionLineLenient(raw: string): DecisionEntry | null {
-  const cases = parseCasesRuleLine(raw);
+  const cases = parseCasesRuleLine(raw) ?? parseCasesMatrixRow(raw);
   if (cases) return cases;
-  const text = entryText(raw);
-  if (!text) return null;
+  const requirement = parseAcceptanceCriterionLine(raw);
+  if (requirement) return requirement;
   const strict = parseDecisionLine(raw);
   if (strict) return strict;
+  const text = entryText(raw);
+  if (!text) return null;
+  // Bare prose without a list marker is not a decision — Cases/OCR rules above.
+  if (!splitListItem(raw)) return null;
   // A bare noun ("Redis") is an item in a list, not a position someone took.
   if (text.split(/\s+/).length < 2) return null;
   // Preserve commitment metadata; never invent approved/rejected.

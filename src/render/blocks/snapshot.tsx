@@ -1,5 +1,13 @@
 import type { ReactElement } from "react";
-import { Column, ColumnLayouts, Divider, Heading, Paragraph, Row } from "@unlayer/react-elements";
+import {
+  Column,
+  ColumnLayouts,
+  Divider,
+  Heading,
+  Paragraph,
+  Row,
+  type FontFamilyInput,
+} from "@unlayer/react-elements";
 import type { MemoryBlock, SnapshotPayload } from "@/domain/memory/schema";
 import { escapeHtml, inlineText } from "../safe-inline";
 import { notesRows, sectionLabelRow, padFor, scaledPx, type BlockRenderContext } from "./common";
@@ -66,7 +74,15 @@ function webHero(block: MemoryBlock, ctx: BlockRenderContext, payload: SnapshotP
         >
           {escapeHtml(payload.heading)}
         </Heading>
-        {payload.hook ? (
+        {primaryFrame(payload, {
+          labelColor: c.heroMuted,
+          bodyColor: c.paper,
+          fontLabel: f.mono,
+          fontBody: f.serif,
+          scale,
+          size: 17,
+        })}
+        {!payload.goal && !payload.problem && !payload.outcome && payload.hook ? (
           <Paragraph
             html={inlineText(payload.hook)}
             fontFamily={f.serif}
@@ -149,7 +165,15 @@ function documentCover(block: MemoryBlock, ctx: BlockRenderContext, payload: Sna
         >
           {escapeHtml(payload.heading)}
         </Heading>
-        {payload.hook ? (
+        {primaryFrame(payload, {
+          labelColor: c.ink3,
+          bodyColor: c.ink,
+          fontLabel: f.mono,
+          fontBody: f.serif,
+          scale,
+          size: 15,
+        })}
+        {!payload.goal && !payload.problem && !payload.outcome && payload.hook ? (
           <Paragraph
             html={inlineText(payload.hook)}
             fontFamily={f.serif}
@@ -221,7 +245,15 @@ function emailMasthead(block: MemoryBlock, ctx: BlockRenderContext, payload: Sna
         >
           {escapeHtml(payload.heading)}
         </Heading>
-        {payload.hook ? (
+        {primaryFrame(payload, {
+          labelColor: c.ink3,
+          bodyColor: c.ink,
+          fontLabel: f.mono,
+          fontBody: f.serif,
+          scale,
+          size: 14,
+        })}
+        {!payload.goal && !payload.problem && !payload.outcome && payload.hook ? (
           <Paragraph
             html={inlineText(payload.hook)}
             fontFamily={f.serif}
@@ -272,7 +304,15 @@ function plainSnapshotRow(block: MemoryBlock, ctx: BlockRenderContext, payload: 
         >
           {escapeHtml(payload.heading)}
         </Heading>
-        {payload.hook ? (
+        {primaryFrame(payload, {
+          labelColor: c.ink3,
+          bodyColor: c.ink,
+          fontLabel: f.mono,
+          fontBody: f.serif,
+          scale,
+          size: 14,
+        })}
+        {!payload.goal && !payload.problem && !payload.outcome && payload.hook ? (
           <Paragraph
             html={inlineText(payload.hook)}
             fontFamily={f.serif}
@@ -300,4 +340,35 @@ function plainSnapshotRow(block: MemoryBlock, ctx: BlockRenderContext, payload: 
       </Column>
     </Row>
   );
+}
+
+/** Primary Goal / Problem / Outcome — the memories a snapshot should frame. */
+function primaryFrame(
+  payload: SnapshotPayload,
+  style: {
+    labelColor: string;
+    bodyColor: string;
+    fontLabel: FontFamilyInput;
+    fontBody: FontFamilyInput;
+    scale: number;
+    size: number;
+  },
+): ReactElement[] {
+  const rows: Array<[string, string | undefined]> = [
+    ["Primary goal", payload.goal],
+    ["Primary problem", payload.problem],
+    ["Primary business outcome", payload.outcome],
+  ];
+  return rows
+    .filter(([, value]) => Boolean(value))
+    .map(([label, value], i) => (
+      <Paragraph
+        key={`frame-${i}`}
+        html={inlineText(`${label.toUpperCase()} — ${value}`)}
+        fontFamily={style.fontBody}
+        fontSize={scaledPx(style.size, style.scale)}
+        color={style.bodyColor}
+        lineHeight="145%"
+      />
+    ));
 }

@@ -77,15 +77,17 @@ function actionRow(
         {entry.from ? asideParagraph(`Carries out ${entry.from}`, `${block.id}-from-${index}`, ctx.theme) : null}
       </Column>
       <Column padding="12px 0px 12px 12px" border={cellBorder}>
-        <Paragraph
-          html={inlineText(statusLabel(entry.status).toUpperCase())}
-          fontFamily={f.mono}
-          fontSize={scaledPx(10.5, scale)}
-          color={themedStatusColor(entry.status, c.accent)}
-          letterSpacing="0.1em"
-          textAlign="right"
-          lineHeight="150%"
-        />
+        {actionStanceLabel(entry) ? (
+          <Paragraph
+            html={inlineText(actionStanceLabel(entry)!)}
+            fontFamily={f.mono}
+            fontSize={scaledPx(10.5, scale)}
+            color={themedStatusColor(entry.status, c.accent)}
+            letterSpacing="0.1em"
+            textAlign="right"
+            lineHeight="150%"
+          />
+        ) : null}
       </Column>
     </Row>
   );
@@ -94,4 +96,13 @@ function actionRow(
 /** Owner and due date joined only when the source actually stated them. */
 function assignment(entry: ActionEntry): string {
   return [entry.owner, entry.due].filter(Boolean).join(" · ");
+}
+
+/**
+ * Personas and user stories are extracted facts from the source — not suggested work.
+ * Hide the readiness chip for those; show SOURCE when we want a factual tag.
+ */
+function actionStanceLabel(entry: ActionEntry): string | null {
+  if (/^(persona|user story)\s*:/i.test(entry.task)) return "SOURCE";
+  return statusLabel(entry.status).toUpperCase();
 }

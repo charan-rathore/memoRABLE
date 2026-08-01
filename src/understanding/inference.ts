@@ -224,7 +224,11 @@ function directionOf(text: string): { trend?: "up" | "flat" | "down" } {
 
 /** The author has settled this. First person, or a stated rule. */
 const COMMITTED =
-  /^(?:we|i|the team)\s+(?:will|won't|will not|are going to|'re going to|am going to|have decided|decided|chose|choose|are using|use|are adopting|adopt|are standardi[sz]ing|standardi[sz]e)\b|^decision\s*[:—-]|^(?:always|never|do not|don't|dont)\b|\b(?:must|shall|is required to|are required to)\b|\bwe(?:'|’)?re going with\b|\bthe rule is\b|\bnon-negotiable\b/i;
+  /^(?:we|i|the team)\s+(?:will|won't|will not|are going to|'re going to|am going to|have decided|decided|chose|choose|are using|use|are adopting|adopt|are standardi[sz]ing|standardi[sz]e)\b|^decision\s*[:—-]|^(?:always|never|do not|don't|dont)\b|\b(?:must|shall|is required to|are required to|required|cannot|can't|need to|needs to)\b|\bwe(?:'|’)?re going with\b|\bthe rule is\b|\bnon-negotiable\b/i;
+
+/** PRD-style requirements / editability rules stated as product commitments. */
+const REQUIREMENT_RULE =
+  /\b(edit history|audit trail|revision number|approval workflow|amend|editable|traceable|auto-increment|edited on|edited by)\b/i;
 
 /** The author floated this. It is a suggestion, and must not read as settled. */
 const CONSIDERED =
@@ -267,8 +271,13 @@ export function inferDecisions(
     const considered = CONSIDERED.test(text);
     const committed = COMMITTED.test(text);
     const imperative = prescriptive && statement.listItem && IMPERATIVE.test(text);
+    const requirement =
+      statement.listItem &&
+      REQUIREMENT_RULE.test(text) &&
+      (prescriptive ||
+        /\b(requirement|criteria|scope|audit|amend|history)\b/i.test(statement.sectionTitle ?? ""));
 
-    if (!committed && !considered && !imperative) continue;
+    if (!committed && !considered && !imperative && !requirement) continue;
     // An explicit hedge always wins: "we could use Python" is not a decision
     // to use Python, however imperative the rest of the sentence sounds.
     const commitment: InferredDecision["commitment"] = considered ? "considered" : "committed";

@@ -34,3 +34,6 @@ yarn-error.log*
 
 # typescript
 *.tsbuildinfo
+
+# tesseract language packs downloaded at runtime
+*.traineddata

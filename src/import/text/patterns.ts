@@ -167,6 +167,9 @@ const DECISION_STATUS = /\b(approved|requested|proposed|rejected)\b/i;
 const REF_TOKEN = /^([A-Z]{1,5}-\d{1,4})\s+/;
 
 export function parseDecisionLine(raw: string): DecisionEntry | null {
+  const priority = parsePriorityMatrixRow(raw);
+  if (priority) return priority;
+
   const item = splitListItem(raw);
   const text = (item ? item.text : raw).trim();
   if (text.length < 3) return null;
@@ -207,6 +210,27 @@ export function parseDecisionLine(raw: string): DecisionEntry | null {
   return entry;
 }
 
+/** Priority matrix / impact rows are explicit product decisions. */
+function parsePriorityMatrixRow(raw: string): DecisionEntry | null {
+  const cells = splitTableRow(raw);
+  if (!cells || cells.length < 2) return null;
+  const priority = cells[0]!.trim();
+  if (!/^P\d\b/i.test(priority) && !/^(critical|high|medium|low)\b/i.test(priority)) return null;
+  if (/^priority$/i.test(priority)) return null; // header
+  const feature = cells[1]!.trim();
+  if (feature.length < 3 || /^feature$/i.test(feature)) return null;
+  const impact = cells[2]?.trim();
+  const text = impact
+    ? `${priority}: ${feature} (${impact})`
+    : `${priority}: ${feature}`;
+  return {
+    text,
+    status: /^P0\b/i.test(priority) ? "approved" : "proposed",
+    commitment: "committed",
+    ref: /^P\d\b/i.exec(priority)?.[0]?.toUpperCase(),
+  };
+}
+
 /* --------------------------------- timeline --------------------------------- */
 
 const TIMELINE_STATE: Array<[RegExp, TimelineEntry["state"]]> = [
@@ -224,6 +248,12 @@ export function parseTimelineLine(raw: string): TimelineEntry | null {
   if (cells && cells.length >= 2 && cells[0] && looksLikeDate(cells[0])) {
     const state = stateFromText(cells[2] ?? "") ?? "planned";
     return { date: cells[0], title: cells[1]!, state, ...inferArtifact(cells.slice(1).join(". ")) };
+  }
+  // Ticket tables: PSTD-5922 | PO edit history… | Prioritised
+  if (cells && cells.length >= 2 && /^[A-Z]{2,}-\d+/i.test(cells[0]!)) {
+    if (/^ticket$/i.test(cells[0]!)) return null;
+    const state = /priorit/i.test(cells[2] ?? "") ? "planned" : stateFromText(cells[2] ?? "") ?? "planned";
+    return { date: cells[0]!, title: cells[1]!, state };
   }
   const text = (item ? item.text : raw).trim();
   const dateMatch = DATE_TOKEN.exec(text);

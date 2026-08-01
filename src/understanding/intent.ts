@@ -38,7 +38,7 @@ export interface Intent {
 
 const TITLE_MARKERS: Array<[RegExp, DocumentIntent]> = [
   [/\b(guide|playbook|handbook|tutorial|how\s?to|walkthrough|workflow|method|framework|approach|cookbook|primer)\b/i, "guide"],
-  [/\b(spec|specification|rfc|design\s+doc|architecture|requirements?|contract|standard)\b/i, "spec"],
+  [/\b(spec|specification|rfc|design\s+doc|architecture|requirements?|prd|product requirements?|contract|standard)\b/i, "spec"],
   [/\b(plan|roadmap|schedule|phases?|milestones?|timeline|rollout|launch)\b/i, "plan"],
   [/\b(review|retro|retrospective|post\s?-?mortem|learnings?|results|report|recap|wrap\s?-?up)\b/i, "review"],
   [/\b(analysis|assessment|audit|study|research|teardown|deep\s?dive|investigation|diagnosis)\b/i, "analysis"],

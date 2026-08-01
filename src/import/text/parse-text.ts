@@ -14,6 +14,7 @@ import {
   type TimelineEntry,
 } from "@/domain/memory/schema";
 import { recallFrom, understand, type Recall, type Understanding } from "@/understanding";
+import { buildDocumentGraph, hybridSegment } from "@/understanding/segment";
 import { saysTheSame } from "@/understanding/language";
 import { LIMITS } from "@/domain/memory/limits";
 import { capExcerpt } from "../json/import-json";
@@ -95,7 +96,12 @@ interface Section {
 }
 
 export function parseText(input: TextImportInput): Result<MemoryDocument> {
-  const { text, label } = input;
+  const { label } = input;
+  // Hybrid semantic segmentation first (RFC Stage 3): structural anchors +
+  // topic-shift prose, never fixed-length token windows.
+  const segmented = hybridSegment(input.text);
+  const graph = buildDocumentGraph(segmented.segments);
+  const text = segmented.markdown || input.text;
   const rawLines = text.split("\n");
 
   // Document title: first level-1 heading, else the source label.
@@ -144,6 +150,10 @@ export function parseText(input: TextImportInput): Result<MemoryDocument> {
       }
       if (pendingOrdinal && !pendingOrdinal.title) pendingOrdinal.title = heading.text;
       current = startSection(classifyHeading(heading.text), heading.text, i + 1);
+      // Persona headings are evidence — keep them inside the section body too.
+      if (/^as an?\s+/i.test(heading.text)) {
+        current.lines.push({ text: `- Persona: ${heading.text}`, lineNo: i + 1 });
+      }
       continue;
     }
 
@@ -212,6 +222,7 @@ export function parseText(input: TextImportInput): Result<MemoryDocument> {
   const blocks: BlockInput[] = BLOCK_KINDS.map((kind) => built.get(kind)!);
   linkActionsToDecisions(blocks);
   warnings.push(...understandingWarnings(understanding));
+  warnings.push(...graphWarnings(graph, segmented.segments.length));
 
   const document = finalizeDocument({
     title,
@@ -224,6 +235,22 @@ export function parseText(input: TextImportInput): Result<MemoryDocument> {
     document,
     warnings.map((w) => ({ code: w.code as Diagnostic["code"], message: w.message })),
   );
+}
+
+function graphWarnings(
+  graph: ReturnType<typeof buildDocumentGraph>,
+  segmentCount: number,
+): ImportWarning[] {
+  if (segmentCount === 0) return [];
+  const types = new Set(graph.nodes.map((n) => n.type));
+  const parts = [
+    `Segmented into ${segmentCount} semantic chunks`,
+    `graph ${graph.nodes.length} nodes / ${graph.edges.length} links`,
+  ];
+  if (types.has("table")) parts.push("tables preserved");
+  if (types.has("image")) parts.push("embedded visuals linked");
+  if (types.has("requirement") || types.has("decision")) parts.push("requirements grounded");
+  return [{ code: "text.understood", message: `${parts.join("; ")}.` }];
 }
 
 function entriesOf<T>(built: ReadonlyMap<BlockKind, BlockInput>, kind: BlockKind): T[] {

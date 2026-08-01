@@ -1,0 +1,49 @@
+Status of Contracts:
+Note: No changes are allowed once the contract is closed. Indent: Fulfiled & Delivery Status
+PO: Delivery & Payable Status
+GRN: Payable Status
+Module Contract Fields ee NDT Statue ae In pasts! er Remarks/Rules
+Project N - - -
+Indent Number/ ID N - - -
+Indent Type N - - -
+Material Remarks/Photo Y Y N
+1. After PO/GRN/Payable creation, indent quantity cannot be reduced below the highest recorded quantity.
+Material removal & Quantity Y Y Y Example: Indent = 10, PO = 8, GRN = 5 — Indent cannot go below 8.
+Indent 2. Material can be removed only when status = Not Fulfilled.
+Material Addition Y Y Y
+Expected Delivery By Y Y Y Impacts delay calculation
+Assigned User Y Y N
+Remarks Y Y N
+Attachements Y Y N
+Project N o B =
+PO Number/ ID N - Bs - |
+PO type N = - =
+Vendor Details Y Y N Vendor name cannot be edited after GRN or Payable creation. Other vendor details allowed.
+Delivery and Billing Address Y Y N Impacts delay calculation when Expected Delivery By changes.
+Material Details 1. PO quantity cannot be reduced below GRN or Payable quantity (whichever is higher).
+incl. material level details like photo, remarks,  Y v v 2. If advance is paid, total contract value cannot be reduced below advance amount.
+3. Material removal allowed only when Not Delivered and No Payable recorded.
+quant etc 4. Changes maintain backward compatibility with Indent statuses.
+PO Material Addition Y Y Y
+Material UoM N - - -
+Invoice UoM Y Y N
+Charge Addition/ Deletion Y Y Y
+Deduction Addition/ Deletion Y Y Y
+Terms and Conditions Y Y N
+Checklist Y Y N
+Vendor & Team Remarks Y Y N
+Attachments Y Y N
+Signature N Y N
+Project N - - -
+GRN Number/ ID N - - -
+GRN Type N B - =
+Vendor Details N Y N Cannot be edited if GRN is linked to PO or Payable.
+Received on Y Y N Impacts Indent/PO delay calculation
+Received By Y Y N
+GRN Tags Y Y N
+1. GRN quantity cannot be reduced below Payable quantity.
+Material Details only edit/removal Y Y Y 2. Material removal allowed only when No Payable recorded.
+3. Changes maintain backward compatibility with Indent/PO delivery statuses.
+Invoice Details Y Y N
+Custom Field Y Y N
+Remarks & Attachments Y Y N

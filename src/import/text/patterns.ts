@@ -293,6 +293,10 @@ export function parseDecisionLine(raw: string): DecisionEntry | null {
   const item = splitListItem(raw);
   const text = (item ? item.text : raw).trim();
   if (text.length < 3) return null;
+  // Column headers / section labels are not decisions.
+  if (/^(business impact|priority|feature|status|summary|overview)$/i.test(text.replace(/['"`]/g, "").trim())) {
+    return null;
+  }
   let rest = text;
   let ref: string | undefined;
   const refMatch = REF_TOKEN.exec(rest);
@@ -816,6 +820,7 @@ export function parseDecisionLineLenient(raw: string): DecisionEntry | null {
   if (strict) return strict;
   const text = entryText(raw);
   if (!text) return null;
+  if (/^(business impact|priority|feature|status|summary|overview)$/i.test(text)) return null;
   // Bare prose without a list marker is not a decision — Cases/OCR rules above.
   if (!splitListItem(raw)) return null;
   // A bare noun ("Redis") is an item in a list, not a position someone took.

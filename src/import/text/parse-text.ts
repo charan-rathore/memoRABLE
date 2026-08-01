@@ -22,7 +22,12 @@ import {
   shouldProjectInvoiceDueToTimeline,
 } from "@/understanding/projection";
 import { buildDocumentGraph, hybridSegment } from "@/understanding/segment";
-import { dedupeByMeaning, saysTheSame } from "@/understanding/language";
+import {
+  dedupeByMeaning,
+  isDecisionChrome,
+  sameDecision,
+  saysTheSame,
+} from "@/understanding/language";
 import { LIMITS } from "@/domain/memory/limits";
 import { capExcerpt } from "../json/import-json";
 import {
@@ -646,7 +651,8 @@ function buildEntriesPayload(
         salvage: parseDecisionLineLenient,
       });
       mergeDecisions(built, ctx, notes);
-      built.entries = dedupeByMeaning(built.entries, (e) => e.text);
+      // Compress inside Decisions: Key Requirements ≈ Acceptance Criteria.
+      built.entries = compressDecisions(built.entries);
       return finish(built);
     }
     case "timeline": {
@@ -742,7 +748,8 @@ function mergeDecisions(built: Collected<DecisionEntry>, ctx: BuildContext, note
     if (added >= INFERRED_BUDGET) continue;
     if (built.entries.length >= LIMITS.maxEntriesPerBlock) break;
     if (alreadyUsed(evidence.lineNo, built.lineOf)) continue;
-    if (built.entries.some((e) => saysTheSame(e.text, value.text))) continue;
+    if (isDecisionChrome(value.text)) continue;
+    if (built.entries.some((e) => sameDecision(e.text, value.text))) continue;
     // Preserve commitment as metadata; status stays honest to the source.
     built.entries.push({
       text: value.text,
@@ -786,6 +793,45 @@ function mergeRisks(built: Collected<RiskEntry>, ctx: BuildContext, notes: strin
 function dropNote(notes: string[], text: string): void {
   const index = notes.findIndex((note) => saysTheSame(note, text));
   if (index >= 0) notes.splice(index, 1);
+}
+
+/**
+ * Merge restated requirements into one Decision, preferring the stronger stance
+ * and the richer phrasing. Drops section chrome ("Business Impact").
+ */
+function compressDecisions(entries: readonly DecisionEntry[]): DecisionEntry[] {
+  const kept: DecisionEntry[] = [];
+  for (const entry of entries) {
+    if (isDecisionChrome(entry.text)) continue;
+    const existing = kept.findIndex((k) => sameDecision(k.text, entry.text));
+    if (existing < 0) {
+      kept.push({ ...entry });
+      continue;
+    }
+    kept[existing] = mergeDecisionPair(kept[existing]!, entry);
+  }
+  return kept;
+}
+
+function mergeDecisionPair(a: DecisionEntry, b: DecisionEntry): DecisionEntry {
+  const statusRank = { rejected: 0, proposed: 1, requested: 2, approved: 3 } as const;
+  const commitmentRank = { considered: 0, committed: 1 } as const;
+  const status =
+    statusRank[a.status] >= statusRank[b.status] ? a.status : b.status;
+  const aCommit = a.commitment ?? "considered";
+  const bCommit = b.commitment ?? "considered";
+  const commitment =
+    commitmentRank[aCommit] >= commitmentRank[bCommit] ? a.commitment : b.commitment;
+  // Prefer the longer, more specific phrasing as the canonical text.
+  const text = a.text.length >= b.text.length ? a.text : b.text;
+  return {
+    ...a,
+    text,
+    status,
+    ...(commitment ? { commitment } : {}),
+    ...(a.because || b.because ? { because: a.because ?? b.because } : {}),
+    ...(a.ref || b.ref ? { ref: a.ref ?? b.ref } : {}),
+  };
 }
 
 /* --------------------------------- snapshot --------------------------------- */

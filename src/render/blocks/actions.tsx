@@ -100,9 +100,9 @@ function assignment(entry: ActionEntry): string {
 
 /**
  * Personas and user stories are extracted facts from the source — not suggested work.
- * Hide the readiness chip for those; show SOURCE when we want a factual tag.
  */
 function actionStanceLabel(entry: ActionEntry): string | null {
-  if (/^(persona|user story)\s*:/i.test(entry.task)) return "SOURCE";
+  if (/^persona\s*:/i.test(entry.task)) return "Source: Persona";
+  if (/^user story\s*:/i.test(entry.task)) return "Source: User Story";
   return statusLabel(entry.status).toUpperCase();
 }

@@ -116,7 +116,7 @@ export function journeyOf(
               reasons.length > 0
                 ? `Reason: ${reasons.map((r) => `✓ ${r}`).join(" ")}`
                 : "Reason: fallback (no specialized winner)",
-              `Sections recognized: ${sections || "structure inferred"}`,
+              `Sections recognized: ${sections || "structure inferred"} · tables ${tables} · images ${images}`,
               `Parsing summary: ${hasErrors ? "errors kept source unchanged" : "local, deterministic"}`,
             ];
           })()

@@ -19,7 +19,7 @@ import {
   type InferredSignal,
   type Statement,
 } from "./inference";
-import { dedupeByMeaning, splitSentences, wordCount } from "./language";
+import { dedupeByMeaning, normalizeKey, splitSentences, wordCount } from "./language";
 import { composeRecall, recallHeading, type Recall } from "./recall";
 import { findAnchorDate, type AnchorDate } from "./temporal";
 
@@ -172,12 +172,12 @@ const MIN_STATEMENT_WORDS = 3;
 const MAX_STATEMENT_WORDS = 60;
 
 /**
- * Turn source lines into clean, non-repeating statements.
+ * Turn source lines into statements for projection.
  *
- * Markdown chrome goes first, then each line is split into sentences, then
- * restatements are dropped. Documents restate themselves constantly, in
- * summaries, recaps and closing sections, and a memory system that keeps every
- * copy has recorded the document rather than understood it.
+ * Order matters: extract ALL observations first (exact duplicates only), then
+ * project into buckets, then compress *inside* each bucket. Meaning-dedupe
+ * before routing merges a User Story with a Decision that share vocabulary —
+ * different cognitive categories that must stay distinct.
  */
 function distill(sections: readonly UnderstandingSection[]): {
   statements: Statement[];
@@ -207,8 +207,21 @@ function distill(sections: readonly UnderstandingSection[]): {
     }
   }
 
-  const statements = dedupeByMeaning(raw, (s) => s.text);
+  const statements = dedupeExact(raw, (s) => s.text);
   return { statements, redundant: raw.length - statements.length };
+}
+
+/** Exact-key dedupe only — never merge near-paraphrases across categories. */
+function dedupeExact<T>(items: readonly T[], textOf: (item: T) => string): T[] {
+  const seen = new Set<string>();
+  const kept: T[] = [];
+  for (const item of items) {
+    const key = normalizeKey(textOf(item));
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    kept.push(item);
+  }
+  return kept;
 }
 
 /** The document's own first real paragraph, used only when composition fails. */

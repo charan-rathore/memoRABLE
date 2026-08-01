@@ -97,6 +97,15 @@ describe("Indent_PO_GRN PRD — semantic understanding regression", () => {
     expect(decisions.entries.length).toBeGreaterThanOrEqual(3);
     const decisionText = decisions.entries.map((e) => e.text).join(" ").toLowerCase();
     expect(decisionText).toMatch(/edit history|audit|revision|amend|p0|p1/);
+    // Cases – Sheet rules must project into Decisions (not Snapshot notes).
+    expect(decisionText).toMatch(/cannot be reduced|no changes are allowed|backward compatibility/);
+    // Decision status / commitment metadata must survive compression.
+    expect(decisions.entries.some((e) => e.status === "approved" || e.status === "proposed")).toBe(
+      true,
+    );
+    expect(decisions.entries.some((e) => e.commitment === "committed" || e.commitment === "considered")).toBe(
+      true,
+    );
 
     // The exact failure the RFC forbids.
     const emptyDecisionWarning = (doc.warnings ?? []).some((w) =>
@@ -112,13 +121,27 @@ describe("Indent_PO_GRN PRD — semantic understanding regression", () => {
     ]
       .join(" ")
       .toLowerCase();
-    expect(riskText).toMatch(/audit|compliance|accountab|dispute|question|amend/);
+    expect(riskText).toMatch(/audit|compliance|accountab|dispute|amend/);
+    // Open questions must NOT land in Risks.
+    expect(riskText).not.toMatch(/should we limit the number of times/);
 
     const signals = payloadOf<SignalsPayload>(doc, "signals");
     expect(signals.entries.length + (signals.notes?.length ?? 0)).toBeGreaterThanOrEqual(3);
+    const signalText = [
+      ...signals.entries.map((e) => `${e.label} ${e.implication ?? ""} ${e.value ?? ""}`),
+      ...(signals.notes ?? []),
+    ]
+      .join(" ")
+      .toLowerCase();
+    // Open Questions → Signals (own cognitive surface).
+    expect(signalText).toMatch(/should we limit|default approval workflow|time limit|permissions/);
 
     const actions = payloadOf<ActionsPayload>(doc, "actions");
     expect(actions.entries.length + (actions.notes?.length ?? 0)).toBeGreaterThanOrEqual(2);
+    // User stories / personas stay first-class Action entries — not only notes.
+    const actionEntries = actions.entries.map((e) => e.task).join(" ").toLowerCase();
+    expect(actionEntries).toMatch(/user story:\s*i want/);
+    expect(actionEntries).toMatch(/persona:\s*as a (purchase manager|project manager|site engineer|accountant)/);
 
     const timeline = payloadOf<TimelinePayload>(doc, "timeline");
     const timelineText = [

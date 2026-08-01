@@ -49,7 +49,9 @@ export function renderSignalsRows(block: MemoryBlock, ctx: BlockRenderContext): 
     rows.push(kpiRow(block, ctx, chunk, i, isLast));
   }
 
-  const withMeaning = entries.filter((e) => e.implication);
+  // Implications already shown in-card for qualitative signals (e.g. open questions).
+  // Keep the aside only for measured tiles that also carry a stated meaning.
+  const withMeaning = entries.filter((e) => e.implication && e.value !== undefined);
   if (withMeaning.length > 0) {
     rows.push(
       <Row
@@ -134,7 +136,7 @@ function kpiRow(
                 }
           }
         >
-          {entry.value !== undefined ? (
+          {entry.value !== undefined || entry.implication ? (
             <Paragraph
               html={inlineText(entry.label.toUpperCase())}
               fontFamily={f.mono}
@@ -152,7 +154,7 @@ function kpiRow(
             color={c.ink}
             lineHeight="122%"
           >
-            {escapeHtml(entry.value !== undefined ? String(entry.value) : entry.label)}
+            {escapeHtml(signalCardBody(entry))}
           </Heading>
           {entry.delta !== undefined ? (
             <Paragraph
@@ -167,6 +169,13 @@ function kpiRow(
       ))}
     </Row>
   );
+}
+
+/** Card body: measured value, else the implication (open questions), else the label. */
+function signalCardBody(entry: SignalEntry): string {
+  if (entry.value !== undefined) return String(entry.value);
+  if (entry.implication) return entry.implication;
+  return entry.label;
 }
 
 function formatDelta(delta: string | number, trend: SignalEntry["trend"]): string {

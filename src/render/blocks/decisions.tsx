@@ -49,10 +49,6 @@ function decisionRow(
   const pad = padFor(ctx.theme);
   const scale = ctx.theme.fontScale;
   const cellBorder = showHairline ? hairline(c.line) : undefined;
-  const statusBits = [
-    statusLabel(entry.status),
-    entry.commitment === "committed" ? "committed" : entry.commitment === "considered" ? "considered" : null,
-  ].filter(Boolean);
   return (
     <Row
       key={`${block.id}-decision-${index}`}
@@ -83,15 +79,28 @@ function decisionRow(
       </Column>
       <Column padding="13px 0px 13px 12px" border={cellBorder}>
         <Paragraph
-          html={inlineText(statusBits.join(" · ").toUpperCase())}
+          html={inlineText(formatDecisionStance(entry))}
           fontFamily={f.mono}
           fontSize={scaledPx(10.5, scale)}
           color={themedStatusColor(entry.status, c.accent)}
-          letterSpacing="0.1em"
+          letterSpacing="0.04em"
           textAlign="right"
-          lineHeight="150%"
+          lineHeight="140%"
         />
       </Column>
     </Row>
   );
+}
+
+/**
+ * Status = workflow (proposed / approved / …).
+ * Commitment = whether the author settled it or only floated it.
+ * Show both only when they add information; never "PROPOSED ." over "COMMITTED".
+ */
+function formatDecisionStance(entry: DecisionEntry): string {
+  const status = statusLabel(entry.status);
+  if (entry.status === "approved" || entry.status === "rejected" || !entry.commitment) {
+    return status;
+  }
+  return `${status} / ${entry.commitment}`;
 }

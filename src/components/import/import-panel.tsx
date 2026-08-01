@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Diagnostic } from "@/reliability/diagnostics";
 import { formatDiagnostic } from "@/reliability/diagnostics";
 import type { ImportWarning } from "@/domain/memory/schema";
@@ -34,6 +34,7 @@ export function ImportPanel({
   onUseVerified,
   onImproveWithAi,
   aiBusy,
+  openBringRequest,
 }: {
   sourceLabel: string;
   sourceOk: boolean;
@@ -48,6 +49,7 @@ export function ImportPanel({
   onUseVerified: () => void;
   onImproveWithAi: () => void;
   aiBusy: boolean;
+  openBringRequest?: number;
 }) {
   const [pasteOpen, setPasteOpen] = useState(false);
   const [dragOver, setDragOver] = useState(false);
@@ -56,6 +58,10 @@ export function ImportPanel({
   const [bringOpen, setBringOpen] = useState(!sourceOk);
   const fileInput = useRef<HTMLInputElement>(null);
   const format = detectFormat(sourceText);
+
+  useEffect(() => {
+    if (openBringRequest) setBringOpen(true);
+  }, [openBringRequest]);
 
   const openFile = async (file: File) => {
     try {

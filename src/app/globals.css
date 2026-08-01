@@ -77,22 +77,32 @@ a { color: var(--accent); }
 
 /* ---------------- top bar ---------------- */
 .topbar {
-  min-height: 64px; background: var(--surface); border-bottom: 1px solid var(--line);
-  display: flex; align-items: center; gap: 12px; padding: 8px 16px;
+  min-height: 48px; background: var(--surface); border-bottom: 1px solid var(--line);
+  display: flex; align-items: center; gap: 10px; padding: 6px 14px;
   position: sticky; top: 0; z-index: 50; flex-wrap: wrap;
 }
+.topbar-nav { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 0 1 auto; }
+.topbar-actions { display: flex; align-items: center; gap: 6px; flex: none; }
+.topbar-controls { margin-left: auto; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.nav-back {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 5px 8px; border-radius: 7px; font-size: 12.5px; font-weight: 600;
+  color: var(--ink-2); white-space: nowrap;
+  transition: background var(--dur-hover) var(--ease), color var(--dur-hover) var(--ease);
+}
+.nav-back:hover { background: var(--surface-2); color: var(--ink); }
 .brand {
   display: flex; align-items: center; gap: 9px; border-radius: 8px; padding: 4px 6px; margin-left: -6px;
   transition: background var(--dur-hover) var(--ease);
 }
 .brand:hover { background: var(--surface-2); }
-.wordmark { font-size: 15px; letter-spacing: -0.01em; color: var(--ink-2); white-space: nowrap; }
+.wordmark { font-size: 14px; letter-spacing: -0.01em; color: var(--ink-2); white-space: nowrap; }
 .wordmark b { color: var(--ink); font-weight: 700; transition: color var(--dur-hover) var(--ease); }
 .brand:hover .wordmark b { color: var(--accent); }
-.vr { width: 1px; height: 22px; background: var(--line); flex: none; }
-.doc-title { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
-.doc-title .t { font-weight: 600; font-size: 13.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.doc-title .n { font: 11px var(--mono); color: var(--ink-3); white-space: nowrap; }
+.vr { width: 1px; height: 20px; background: var(--line); flex: none; }
+.doc-title { display: flex; align-items: baseline; gap: 6px; min-width: 0; max-width: 220px; }
+.doc-title .t { font-weight: 600; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.doc-title .n { font: 10.5px var(--mono); color: var(--ink-3); white-space: nowrap; }
 .topright { margin-left: auto; display: flex; align-items: center; gap: 10px; }
 
 .ai-wrap { position: relative; display: inline-flex; }
@@ -104,6 +114,25 @@ a { color: var(--accent); }
 }
 .ai-chip:hover { border-color: var(--line-2); color: var(--ink-2); }
 .ai-chip[aria-expanded="true"] { border-color: var(--accent-line); color: var(--accent); background: var(--accent-soft); }
+
+.preset-btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  border: 1px solid var(--line-2); background: var(--surface);
+  border-radius: 8px; padding: 5px 10px; white-space: nowrap;
+  font-size: 12.5px; color: var(--ink);
+  box-shadow: 0 1px 0 rgba(20, 19, 15, 0.04);
+  transition: border-color var(--dur-hover) var(--ease), background var(--dur-hover) var(--ease), box-shadow var(--dur-hover) var(--ease);
+}
+.preset-btn:hover { border-color: var(--ink-3); background: var(--surface-2); }
+.preset-btn[aria-expanded="true"] {
+  border-color: var(--accent); background: var(--accent-soft);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.preset-label { font: 600 10px var(--mono); letter-spacing: 0.05em; text-transform: uppercase; color: var(--ink-3); }
+.preset-value { font-weight: 600; color: var(--ink); }
+.preset-chev { color: var(--ink-3); flex: none; transition: transform var(--dur-hover) var(--ease); }
+.preset-btn[aria-expanded="true"] .preset-chev { transform: rotate(180deg); color: var(--accent); }
+
 .ai-pop {
   position: absolute; top: calc(100% + 8px); right: 0; z-index: 60; width: 320px;
   background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-m);
@@ -127,17 +156,17 @@ a { color: var(--accent); }
 .seg-hero {
   border: 1.5px solid var(--ink);
   background: var(--paper);
-  border-radius: 12px;
-  padding: 3px;
-  box-shadow: 0 0 0 3px var(--accent-soft);
-  min-width: min(420px, 46vw);
+  border-radius: 10px;
+  padding: 2px;
+  box-shadow: 0 0 0 2px var(--accent-soft);
+  min-width: min(360px, 38vw);
 }
 .seg-hero button {
   flex: 1;
   justify-content: center;
-  padding: 9px 18px;
-  font-size: 13.5px;
-  border-radius: 9px;
+  padding: 7px 14px;
+  font-size: 13px;
+  border-radius: 8px;
 }
 .seg-hero button.on {
   background: var(--accent);
@@ -199,6 +228,13 @@ a { color: var(--accent); }
 .btn.pri, .btn-primary { background: var(--accent); color: #fff; }
 .btn.pri:hover:not(:disabled), .btn-primary:hover:not(:disabled) { background: var(--accent-hover); }
 .btn.small { font-size: 12px; padding: 5px 10px; }
+.btn.small svg { flex: none; }
+
+.replay-btn { gap: 5px; }
+.replay-btn.active {
+  border-color: var(--accent); color: var(--accent); background: var(--accent-soft);
+}
+.replay-btn svg { flex: none; }
 
 /* Origin-inspired magnetic CTA: a radial wipe from the pointer, not a magnet
    pull. Compositor-cheap — background-position only. */
@@ -216,7 +252,27 @@ a { color: var(--accent); }
   background-color: var(--accent);
 }
 
-/* ---------------- journey strip (marquee bar + click-to-peek cards) ---------------- */
+/* ---------------- status bar (compact document readiness) ---------------- */
+.status-bar {
+  display: flex; align-items: center; gap: 8px;
+  min-height: 28px; padding: 4px 14px;
+  border-bottom: 1px solid var(--line); background: var(--paper);
+  font-size: 12px; color: var(--ink-2);
+}
+.status-dot {
+  width: 7px; height: 7px; border-radius: 50%; flex: none;
+}
+.status-dot.ready { background: var(--ok); }
+.status-dot.error { background: var(--err); }
+.status-dot.pending { background: var(--line-2); }
+.status-dot.live { background: var(--accent); animation: pipe-dot-pulse 1.6s ease-in-out infinite; }
+.status-text { font-weight: 600; color: var(--ink); }
+.status-meta {
+  margin-left: auto; font: 10.5px var(--mono); color: var(--ink-3);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+/* ---------------- journey strip (legacy — kept for reference) ---------------- */
 .pipe-wrap { border-bottom: 1px solid var(--line); background: var(--paper); }
 .pipe {
   display: flex; align-items: center; gap: 12px; min-height: 46px; padding: 6px 16px;
@@ -322,7 +378,7 @@ button.pstep:hover, .pstep.peek { background: var(--accent-soft, #EEF0FB); }
    scrolls; a nested scroller would only put the same trap one level down. */
 @media (min-width: 961px) {
   .replay-wrap { height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
-  .topbar, .pipe, .replay-banner { flex: none; position: static; }
+  .topbar, .status-bar, .replay-banner { flex: none; position: static; }
   .shell { flex: 1 1 auto; min-height: 0; align-items: stretch; }
   .rail-l, .rail-r {
     position: static; max-height: none; height: 100%;
@@ -788,12 +844,11 @@ button.field-row.talk:disabled { cursor: default; opacity: 0.7; }
     display: flex; flex-direction: column; align-items: center; gap: 3px;
   }
   .mobile-tabs button.on { color: var(--accent); }
-  .topbar { flex-wrap: wrap; height: auto; padding: 8px 12px; row-gap: 8px; }
-  /* Without wrapping, .topright's min-content (~640px) overflows the device
-     width and Chrome expands the whole layout viewport — breaking the fixed
-     bottom tabs. Wrapping keeps the page at device-width. */
-  .topright { flex-wrap: wrap; row-gap: 8px; justify-content: flex-end; }
-  .publish-grid { grid-template-columns: 1fr; }
+  .topbar { flex-wrap: wrap; height: auto; padding: 6px 10px; row-gap: 6px; }
+  .topbar-controls { flex-wrap: wrap; row-gap: 6px; justify-content: flex-end; width: 100%; }
+  .topbar-actions { order: 3; }
+  .doc-search { order: 4; flex: 1 1 100%; max-width: none; }
+  .status-meta { display: none; }
   .pmeta { display: none; }
 }
 

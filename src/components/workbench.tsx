@@ -64,6 +64,8 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
   const [importProgress, setImportProgress] = useState<{ stage: ImportStage; percent: number } | null>(null);
   const [hoveredBlockId, setHoveredBlockId] = useState<string | null>(null);
   const [sourceMeta, setSourceMeta] = useState<SourceMeta | null>(null);
+  const [bringOpenRequest, setBringOpenRequest] = useState(0);
+  const [regenerateBusy, setRegenerateBusy] = useState(false);
   const themeRef = useRef<PublishThemeId>("editorial");
   themeRef.current = state?.theme ?? "editorial";
 
@@ -308,6 +310,22 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
     announce("Back to the start. Your memories are kept.");
   }, [replay, announce]);
 
+  const openNewDoc = useCallback(() => {
+    setMobileTab("bring");
+    setBringOpenRequest((n) => n + 1);
+    announce("Choose a new document to bring.");
+  }, [announce]);
+
+  const regenerate = useCallback(async () => {
+    if (!state.document || regenerateBusy) return;
+    setRegenerateBusy(true);
+    try {
+      await runImport(state.sourceText, state.sourceLabel, sourceMeta ?? undefined);
+    } finally {
+      setRegenerateBusy(false);
+    }
+  }, [state.document, state.sourceText, state.sourceLabel, sourceMeta, regenerateBusy, runImport]);
+
   const finishSplash = useCallback(() => {
     setSplash(false);
     // First visit in this browser: offer the short demo after the brand moment.
@@ -366,6 +384,9 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
         onReplay={() => (replay.active ? replay.cancel() : replay.start())}
         onPublish={publish}
         canPublish={state.document !== null}
+        onNewDoc={openNewDoc}
+        onRegenerate={() => void regenerate()}
+        regenerateBusy={regenerateBusy}
       />
       <JourneyStrip
         state={state}
@@ -406,6 +427,7 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
               hasVerified={hasVerified}
               aiEnabled={aiEnabled && state.document?.sourceMethod === "local-parser"}
               aiBusy={aiBusy}
+              openBringRequest={bringOpenRequest}
               onEditSource={(text) => dispatch({ type: "sourceEdited", sourceText: text })}
               onImport={runImport}
               onUseExample={loadExample}

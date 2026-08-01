@@ -17,6 +17,7 @@
     "test:e2e": "playwright test",
     "media": "node scripts/capture-media.mjs",
     "demo:video": "node scripts/make-demo-video.mjs",
+    "demo:manim": "./manim/render.sh m",
     "test:all": "npm run lint && npm run typecheck && npm run test && npm run build",
     "verify": "npm run lint && npm run typecheck && npm run test && npm run build"
   },

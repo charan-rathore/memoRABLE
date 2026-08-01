@@ -31,6 +31,7 @@ const HEADING_KEYWORDS: Record<string, BlockKind> = {
   purpose: "snapshot",
   scope: "snapshot",
   context: "snapshot",
+  "business context": "snapshot",
   background: "snapshot",
   mission: "snapshot",
   vision: "snapshot",
@@ -40,6 +41,10 @@ const HEADING_KEYWORDS: Record<string, BlockKind> = {
   signals: "signals",
   metrics: "signals",
   "key metrics": "signals",
+  "success metrics": "signals",
+  "adoption metrics": "signals",
+  "efficiency metrics": "signals",
+  "quality metrics": "signals",
   kpis: "signals",
   kpi: "signals",
   numbers: "signals",
@@ -55,6 +60,7 @@ const HEADING_KEYWORDS: Record<string, BlockKind> = {
   "acceptance criteria": "signals",
   "definition of done": "signals",
   measurements: "signals",
+  "frequency of issues": "signals",
 
   // decisions — rules, positions, things settled
   decisions: "decisions",
@@ -72,6 +78,15 @@ const HEADING_KEYWORDS: Record<string, BlockKind> = {
   policies: "decisions",
   constraints: "decisions",
   requirements: "decisions",
+  "key requirements": "decisions",
+  priority: "decisions",
+  "priority matrix": "decisions",
+  "priority & impact matrix": "decisions",
+  "impact matrix": "decisions",
+  "cases - sheet": "decisions",
+  "cases – sheet": "decisions",
+  "cases – sheet (embedded spreadsheet)": "decisions",
+  "embedded spreadsheet": "decisions",
   philosophy: "decisions",
   tradeoffs: "decisions",
   "trade-offs": "decisions",
@@ -89,6 +104,11 @@ const HEADING_KEYWORDS: Record<string, BlockKind> = {
   sprints: "timeline",
   iterations: "timeline",
   stages: "timeline",
+  "ticket breakdown": "timeline",
+  "ticket breakdown by theme": "timeline",
+  "po edit history & audit trail": "timeline",
+  "po amendment after approval/grn": "timeline",
+  "other module edit capabilities": "timeline",
 
   // risks — what could go wrong
   risks: "risks",
@@ -103,6 +123,13 @@ const HEADING_KEYWORDS: Record<string, BlockKind> = {
   limitations: "risks",
   "known issues": "risks",
   "failure modes": "risks",
+  problem: "risks",
+  "problem statement": "risks",
+  "business impact": "risks",
+  "pain points": "risks",
+  "current pain points": "risks",
+  "open questions": "risks",
+  questions: "risks",
 
   // actions — work to do
   actions: "actions",
@@ -120,9 +147,11 @@ const HEADING_KEYWORDS: Record<string, BlockKind> = {
   deliverables: "actions",
   backlog: "actions",
   checklist: "actions",
+  "user stories": "actions",
+  "user stories & acceptance criteria": "actions",
 };
 
-const MAX_KEYWORD_WORDS = 3;
+const MAX_KEYWORD_WORDS = 8;
 
 export interface HeadingMatch {
   /** Visible heading text (already stripped of markdown syntax). */
@@ -152,16 +181,22 @@ export function matchHeading(line: string, nextLine?: string): HeadingMatch | nu
 export function classifyHeading(text: string): BlockKind | null {
   const normalized = text
     .toLowerCase()
-    .replace(/^\d{1,2}\s*[-.).:]\s*/, "") // "3. Risks" → "risks"
+    .replace(/^\d+(\.\d+)*\.?\s*/, "") // "3.1 Risks" / "5. Business Impact"
     .replace(/\s*\(.*\)\s*$/, "") // "Workflow (IMPORTANT)" → "workflow"
     .replace(/:$/, "")
+    .replace(/\s+/g, " ")
     .trim();
   const direct = HEADING_KEYWORDS[normalized];
   if (direct) return direct;
-  // "Q3 Risks & Mitigations" → starts-with / ends-with match on a keyword phrase.
-  for (const [keyword, kind] of Object.entries(HEADING_KEYWORDS)) {
+  // Prefer longer keyword phrases first ("key requirements" before "requirements").
+  const keywords = Object.entries(HEADING_KEYWORDS).sort((a, b) => b[0].length - a[0].length);
+  for (const [keyword, kind] of keywords) {
+    if (normalized === keyword) return kind;
     if (normalized.startsWith(keyword + " ") || normalized.endsWith(" " + keyword)) return kind;
+    if (normalized.includes(" " + keyword + " ")) return kind;
   }
+  // Persona user-story headings: "4.1 As a Purchase Manager"
+  if (/^as an?\s+/i.test(normalized)) return "actions";
   return null;
 }
 
@@ -250,5 +285,6 @@ export function isStructuralLine(line: string): boolean {
   if (trimmed === "") return false;
   if (/^(=+|-{3,}|\*{3,}|_{3,})$/.test(trimmed)) return true; // hr / setext underline
   if (/^```/.test(trimmed)) return true; // fence marker
+  if (/^<!--\s*(page|image):/i.test(trimmed)) return true; // PDF layout / OCR markers
   return false;
 }

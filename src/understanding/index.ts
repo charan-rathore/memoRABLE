@@ -35,6 +35,14 @@ export type { Recall } from "./recall";
 export { inferArtifact, inferReadiness } from "./inference";
 export { buildRelations, relationsFor, relationsFrom, relationsTo, parseRef } from "./graph";
 export { recallHeading } from "./recall";
+export {
+  hybridSegment,
+  buildDocumentGraph,
+  type SemanticSegment,
+  type SegmentDocument,
+  type DocumentGraph,
+  type GraphNode,
+} from "./segment";
 
 /**
  * The understanding layer.

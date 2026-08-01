@@ -146,6 +146,8 @@ describe("v6 cognitive pipeline", () => {
     const projected = projectV6ToMemorySource(repaired.extraction, "Atlas Launch Notes", repaired.repairs);
     expect(projected.ok).toBe(true);
     if (!projected.ok) return;
+    // Brief / PRD / Meeting / Other → Generic Knowledge projection.
+    expect(projected.source.archetype?.id).toBe("generic");
     expect(projected.source.blocks).toHaveLength(6);
     expect(projected.source.blocks.map((b) => b.kind)).toEqual([
       "snapshot",
@@ -154,6 +156,14 @@ describe("v6 cognitive pipeline", () => {
       "timeline",
       "risks",
       "actions",
+    ]);
+    expect(projected.source.blocks.map((b) => b.title)).toEqual([
+      "Snapshot",
+      "Signals",
+      "Decisions",
+      "Timeline",
+      "Risks",
+      "Actions",
     ]);
     const score = scoreMemorySource(projected.source, { timelineMode: "narrative_sequence" });
     expect(score.overall).toBeGreaterThan(0.7);

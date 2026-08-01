@@ -17,6 +17,7 @@ export function BlocksPanel({
   enterKey,
   archetypeId,
   archetypeLabel,
+  archetypeScore,
 }: {
   blocks: MemoryBlock[];
   selectedBlockId: string | null;
@@ -31,11 +32,14 @@ export function BlocksPanel({
   /** Detected document archetype — shapes subtitles. */
   archetypeId?: string | null;
   archetypeLabel?: string | null;
+  /** Winner raw score when specialized; omitted for Generic Knowledge. */
+  archetypeScore?: number | null;
 }) {
   const visible = revealCount === null || revealCount === undefined ? blocks : blocks.slice(0, revealCount);
   const staggered = revealCount != null || Boolean(enterKey);
+  const scoreFoot = typeof archetypeScore === "number" ? ` · score ${archetypeScore}` : "";
   const foot = archetypeLabel
-    ? `adaptive projection · ${archetypeLabel}`
+    ? `adaptive projection · ${archetypeLabel}${scoreFoot}`
     : "universal observations → adaptive memories";
   return (
     <section className="card mem-card" aria-labelledby="mem-h">

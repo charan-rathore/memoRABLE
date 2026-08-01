@@ -43,13 +43,17 @@ export function projectV6ToMemorySource(
   );
 
   const archetypeId = normalizeArchetype(extraction.document_meta.archetype);
+  const archetypeConfidence = normalizeArchetypeConfidence(
+    extraction.document_meta.archetype_confidence,
+  );
 
   const source: MemorySource = {
     version: 1,
     title,
     archetype: {
       id: archetypeId,
-      label: extraction.document_meta.archetype || archetypeId,
+      label: archetypeLabel(archetypeId, extraction.document_meta.archetype),
+      ...(archetypeConfidence !== undefined ? { confidence: archetypeConfidence } : {}),
     },
     blocks: projectAdaptiveMemories(
       [
@@ -194,22 +198,26 @@ function mapActionStatus(
 }
 
 function normalizeArchetype(raw: string | undefined): DocumentArchetype {
-  const key = (raw ?? "other").toLowerCase().replace(/\s+/g, "_");
-  const known: DocumentArchetype[] = [
-    "resume",
-    "prd",
-    "research",
-    "contract",
-    "invoice",
-    "ticket",
-    "job",
-    "menu",
-    "meeting",
-    "policy",
-    "glossary",
-    "slides",
-    "brief",
-    "other",
-  ];
-  return (known.includes(key as DocumentArchetype) ? key : "other") as DocumentArchetype;
+  const key = (raw ?? "generic").toLowerCase().replace(/[\s/-]+/g, "_");
+  if (key === "resume" || key === "cv" || key.includes("resume")) return "resume";
+  if (key === "invoice" || key === "receipt" || key.includes("invoice")) return "invoice";
+  if (key === "research" || key.includes("research") || key.includes("paper")) return "research";
+  // PRD, meeting, policy, RFC, design doc, unknown, "other" → Generic Knowledge.
+  return "generic";
+}
+
+function archetypeLabel(id: DocumentArchetype, raw: string | undefined): string {
+  if (id === "resume") return "Resume";
+  if (id === "invoice") return "Invoice";
+  if (id === "research") return "Research";
+  if (raw && !/^(other|generic|unknown)$/i.test(raw.trim())) {
+    // Preserve a descriptive label for debugging while projecting as Generic.
+    return raw.trim().slice(0, 80);
+  }
+  return "Generic Knowledge";
+}
+
+function normalizeArchetypeConfidence(raw: unknown): number | undefined {
+  if (typeof raw !== "number" || !Number.isFinite(raw)) return undefined;
+  return Math.min(1, Math.max(0, Math.round(raw * 100) / 100));
 }

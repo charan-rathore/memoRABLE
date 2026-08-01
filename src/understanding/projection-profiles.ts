@@ -1,28 +1,46 @@
 /**
  * Adaptive memory projection — the last hop of:
  *
- *   Document
+ *   Upload
  *        │
  *        ▼
- *   Universal Understanding
+ *   Multimodal Parsing
  *        │
  *        ▼
+ *   Deterministic Archetype Scoring
+ *        │
+ *        ├──────────────┐
+ *        │              │
+ *        ▼              ▼
+ *   Known Archetype   Generic Knowledge
+ *        │              │
+ *        └──────┬───────┘
+ *               ▼
+ *   Universal Cognitive Engine
+ *               │
+ *               ▼
  *   Universal Observations
- *        │
- *        ▼
- *   Archetype Detection
- *        │
- *        ▼
+ *               │
+ *               ▼
+ *   Semantic Compression
+ *               │
+ *               ▼
  *   Adaptive Memory Projection
- *        │
- *        ▼
- *   Rendered Memory Blocks
+ *               │
+ *               ▼
+ *   Evidence-Linked Memory Cards
  *
- * The cognitive engine always extracts the same universal observations
- * (facts, entities, metrics, relationships, requirements, questions, events,
- * procedures) into the six storage kinds. This layer then decides — per
- * archetype — which memory blocks to render, under which labels, and what to
- * do with empty or inapplicable kinds.
+ * Principle: Projection is adaptive, understanding is universal.
+ *
+ * The cognitive engine never changes its reasoning based on document type.
+ * It always extracts the same universal observations (entities, facts,
+ * relationships, metrics, events, procedures, questions, constraints,
+ * evidence). Only this final projection layer adapts how those observations
+ * are organized and presented.
+ *
+ * Specialized projections: Resume · Invoice · Research.
+ * Fallback: Generic Knowledge (Snapshot, Signals, Decisions, Timeline,
+ * Risks, Actions) — never an assumed PRD.
  *
  * Inapplicable kinds are omitted or marked "Not applicable". They are never
  * reported as extraction failures.
@@ -71,7 +89,8 @@ export interface AdaptiveMemoryProjection {
 /** Explicit N/A note stamped onto empty blocks kept for furniture honesty. */
 export const NOT_APPLICABLE_NOTE = "Not applicable for this document type.";
 
-const CLASSIC_FURNITURE: ProjectionProfile = {
+/** Generic Knowledge — classic six memories for everything that is not specialized. */
+const GENERIC_KNOWLEDGE_FURNITURE: ProjectionProfile = {
   snapshot: { label: BLOCK_KIND_LABELS.snapshot, subtitle: BLOCK_KIND_SUBTITLES.snapshot },
   signals: { label: BLOCK_KIND_LABELS.signals, subtitle: BLOCK_KIND_SUBTITLES.signals },
   decisions: { label: BLOCK_KIND_LABELS.decisions, subtitle: BLOCK_KIND_SUBTITLES.decisions },
@@ -82,19 +101,9 @@ const CLASSIC_FURNITURE: ProjectionProfile = {
 
 const ALL_KINDS = BLOCK_KINDS;
 
-/** PRD / spec / brief — original six memories, always present. */
-const PRD_FURNITURE: ProjectionProfile = {
-  snapshot: { label: "Snapshot", subtitle: "What this product requirement is about" },
-  signals: { label: "Signals", subtitle: "Metrics, criteria, and open questions" },
-  decisions: { label: "Decisions", subtitle: "Requirements and committed product rules" },
-  timeline: { label: "Timeline", subtitle: "Tickets, phases, and delivery order" },
-  risks: { label: "Risks", subtitle: "Pain points and compliance concerns" },
-  actions: { label: "Actions", subtitle: "User stories, personas, and next work" },
-};
-
 /**
- * Resume — recruiter memories. Not Risks / Decisions / Actions.
- * Experience is the chronological career memory (✓ Timeline semantics).
+ * Resume — Experience, Projects, Skills, Education, Achievements, Profile.
+ * Experience is the chronological career memory (Timeline semantics).
  */
 const RESUME_FURNITURE: ProjectionProfile = {
   snapshot: { label: "Profile", subtitle: "Who this person is" },
@@ -106,8 +115,7 @@ const RESUME_FURNITURE: ProjectionProfile = {
 };
 
 /**
- * Invoice — Vendor, Line items, Payment, Timeline, Totals.
- * No PRD Risks / Decisions / Actions branding.
+ * Invoice — Vendor, Line Items, Payments, Timeline, Totals.
  */
 const INVOICE_FURNITURE: ProjectionProfile = {
   snapshot: { label: "Invoice", subtitle: "Who is billing whom" },
@@ -118,7 +126,7 @@ const INVOICE_FURNITURE: ProjectionProfile = {
   actions: { label: "Payment", subtitle: "How and when to pay" },
 };
 
-/** Research paper — Hypothesis → Future Work. */
+/** Research — Hypothesis, Method, Results, Limitations, Future Work. */
 const RESEARCH_FURNITURE: ProjectionProfile = {
   snapshot: { label: "Paper", subtitle: "What this research is about" },
   signals: { label: "Method", subtitle: "How the study was run" },
@@ -128,61 +136,7 @@ const RESEARCH_FURNITURE: ProjectionProfile = {
   actions: { label: "Future work", subtitle: "What should be studied next" },
 };
 
-const MEETING_FURNITURE: ProjectionProfile = {
-  snapshot: { label: "Meeting", subtitle: "What this conversation was for" },
-  signals: { label: "Discussion", subtitle: "Topics raised and open questions" },
-  decisions: { label: "Decisions", subtitle: "What the room settled" },
-  timeline: { label: "Agenda", subtitle: "Order of topics and timed items" },
-  risks: { label: "Blockers", subtitle: "Concerns that still need resolving" },
-  actions: { label: "Actions", subtitle: "Owners and follow-ups" },
-};
-
-const TICKET_FURNITURE: ProjectionProfile = {
-  snapshot: { label: "Trip", subtitle: "What this booking is for" },
-  signals: { label: "Details", subtitle: "Seat, gate, PNR, and fare notes" },
-  decisions: { label: "Booking", subtitle: "Fare rules and booking choices" },
-  timeline: { label: "Itinerary", subtitle: "Departure and arrival" },
-  risks: { label: "Alerts", subtitle: "Connections, delays, and caveats" },
-  actions: { label: "Checklist", subtitle: "What to do before travel" },
-};
-
-const CONTRACT_FURNITURE: ProjectionProfile = {
-  snapshot: { label: "Agreement", subtitle: "What this contract covers" },
-  signals: { label: "Terms", subtitle: "Material conditions and definitions" },
-  decisions: { label: "Obligations", subtitle: "What each party must do" },
-  timeline: { label: "Deadlines", subtitle: "Dates that create duties" },
-  risks: { label: "Liabilities", subtitle: "Indemnity, termination, and exposure" },
-  actions: { label: "Next steps", subtitle: "Signatures, notices, and renewals" },
-};
-
-const MENU_FURNITURE: ProjectionProfile = {
-  snapshot: { label: "Menu", subtitle: "What this menu is for" },
-  signals: { label: "Dishes", subtitle: "Items, prices, and descriptions" },
-  decisions: { label: "House rules", subtitle: "Service notes and substitutions" },
-  timeline: { label: "Timeline", subtitle: "Not used for menus" },
-  risks: { label: "Allergens", subtitle: "Dietary caveats when stated" },
-  actions: { label: "Specials", subtitle: "Limited offers and chef notes" },
-};
-
-const JOB_FURNITURE: ProjectionProfile = {
-  snapshot: { label: "Role", subtitle: "What this job is" },
-  signals: { label: "Requirements", subtitle: "Qualifications and must-haves" },
-  decisions: { label: "Scope", subtitle: "Responsibilities and level" },
-  timeline: { label: "Timeline", subtitle: "Not used for job posts" },
-  risks: { label: "Caveats", subtitle: "Constraints or trade-offs" },
-  actions: { label: "Apply", subtitle: "How to apply and next steps" },
-};
-
-const GLOSSARY_FURNITURE: ProjectionProfile = {
-  snapshot: { label: "Glossary", subtitle: "What this reference covers" },
-  signals: { label: "Terms", subtitle: "Definitions and vocabulary" },
-  decisions: { label: "Conventions", subtitle: "Naming and usage rules" },
-  timeline: { label: "Timeline", subtitle: "Not used for glossaries" },
-  risks: { label: "Ambiguities", subtitle: "Overlapping or contested terms" },
-  actions: { label: "See also", subtitle: "Related entries to follow" },
-};
-
-function classicKeep(furniture: ProjectionProfile = CLASSIC_FURNITURE): AdaptiveMemoryProjection {
+function classicKeep(furniture: ProjectionProfile = GENERIC_KNOWLEDGE_FURNITURE): AdaptiveMemoryProjection {
   return {
     furniture,
     applicable: ALL_KINDS,
@@ -207,100 +161,50 @@ function selective(opts: {
   };
 }
 
-const PROJECTIONS: Partial<Record<DocumentArchetype, AdaptiveMemoryProjection>> = {
-  // Spec documents — classic six memories, always present.
-  prd: classicKeep(PRD_FURNITURE),
-  brief: classicKeep(PRD_FURNITURE),
-  // Unidentified / weak-type decks still use PRD architecture as the safe default.
-  slides: classicKeep(PRD_FURNITURE),
-
-  // Resume: Experience, Projects, Skills, Education, Achievements (+ Profile).
-  // No Risks / Decisions / Actions labels — those kinds hold Achievements / Education / Projects.
+/**
+ * Only three specialized projections. Everything else → Generic Knowledge.
+ */
+const PROJECTIONS: Record<Exclude<DocumentArchetype, "generic">, AdaptiveMemoryProjection> = {
+  // Experience → Projects → Skills → Education → Achievements → Profile.
   resume: selective({
     furniture: RESUME_FURNITURE,
-    // Order matches recruiter reading: Experience → Projects → Skills → Education → Achievements.
-    applicable: ["snapshot", "timeline", "actions", "signals", "decisions", "risks"],
+    applicable: ["timeline", "actions", "signals", "decisions", "risks", "snapshot"],
     required: ["snapshot"],
     emptyApplicable: "omit",
   }),
 
-  // Invoice: Vendor, Line items, Payment, Timeline, Totals.
+  // Vendor → Line items → Payment → Timeline → Totals (+ Invoice).
   invoice: selective({
     furniture: INVOICE_FURNITURE,
-    applicable: ["snapshot", "decisions", "signals", "actions", "timeline", "risks"],
+    applicable: ["decisions", "signals", "actions", "timeline", "risks", "snapshot"],
     required: ["snapshot"],
     emptyApplicable: "omit",
   }),
 
-  // Research: Hypothesis, Method, Results, Limitations, Future work.
+  // Hypothesis → Method → Results → Limitations → Future work (+ Paper).
   research: selective({
     furniture: RESEARCH_FURNITURE,
-    applicable: ["snapshot", "decisions", "signals", "timeline", "risks", "actions"],
-    required: ["snapshot"],
-    emptyApplicable: "omit",
-  }),
-
-  // Meeting: discussion + decisions + actions; agenda/blockers when present.
-  meeting: selective({
-    furniture: MEETING_FURNITURE,
-    applicable: ["snapshot", "signals", "decisions", "actions"],
-    required: ["snapshot"],
-    emptyApplicable: "omit",
-  }),
-
-  ticket: selective({
-    furniture: TICKET_FURNITURE,
-    applicable: ["snapshot", "signals", "timeline", "actions"],
-    required: ["snapshot", "timeline"],
-    emptyApplicable: "omit",
-  }),
-
-  contract: selective({
-    furniture: CONTRACT_FURNITURE,
-    applicable: ["snapshot", "signals", "decisions", "timeline", "risks", "actions"],
-    required: ["snapshot"],
-    emptyApplicable: "omit",
-  }),
-  policy: selective({
-    furniture: CONTRACT_FURNITURE,
-    applicable: ["snapshot", "signals", "decisions", "timeline", "risks", "actions"],
-    required: ["snapshot"],
-    emptyApplicable: "omit",
-  }),
-
-  // Timeline has no semantic meaning for these — omit, never fail extraction.
-  menu: selective({
-    furniture: MENU_FURNITURE,
-    applicable: ["snapshot", "signals", "decisions", "risks", "actions"],
-    required: ["snapshot"],
-    emptyApplicable: "omit",
-  }),
-  glossary: selective({
-    furniture: GLOSSARY_FURNITURE,
-    applicable: ["snapshot", "signals", "decisions"],
-    required: ["snapshot", "signals"],
-    emptyApplicable: "not_applicable",
-  }),
-  job: selective({
-    furniture: JOB_FURNITURE,
-    applicable: ["snapshot", "signals", "decisions", "actions"],
+    applicable: ["decisions", "signals", "timeline", "risks", "actions", "snapshot"],
     required: ["snapshot"],
     emptyApplicable: "omit",
   }),
 };
 
 /**
- * Default when archetype is unknown or unrecognized: PRD six-memory architecture.
- * Prefer this over inventing furniture for an unidentified document.
+ * Default for unknown / unrecognized / non-specialized documents:
+ * Generic Knowledge six-memory architecture — never an assumed PRD.
  */
-const DEFAULT_PRD_PROJECTION = classicKeep(PRD_FURNITURE);
+const GENERIC_KNOWLEDGE_PROJECTION = classicKeep(GENERIC_KNOWLEDGE_FURNITURE);
 
 /** Resolve the adaptive projection for an archetype. */
 export function memoryProjectionFor(
   archetype: DocumentArchetype | string | null | undefined,
 ): AdaptiveMemoryProjection {
-  if (!archetype || archetype === "other") return DEFAULT_PRD_PROJECTION;
-  return PROJECTIONS[archetype as DocumentArchetype] ?? DEFAULT_PRD_PROJECTION;
+  if (archetype === "resume" || archetype === "invoice" || archetype === "research") {
+    return PROJECTIONS[archetype];
+  }
+  // generic, other, prd, meeting, policy, null, unrecognized, …
+  return GENERIC_KNOWLEDGE_PROJECTION;
 }
 
 /** @deprecated Prefer memoryProjectionFor — kept for call sites that only need labels. */

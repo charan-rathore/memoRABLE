@@ -283,11 +283,29 @@ export const MEMORY_RELATION_LABELS: Record<MemoryRelationKind, string> = {
 /**
  * Detected document archetype — drives UI bucket projection only.
  * Universal observation kinds stay fixed; this selects the furniture.
+ * Principle: Projection is adaptive, understanding is universal.
  */
 export const documentArchetypeInfoSchema = z
   .object({
     id: z.string().min(1).max(40),
     label: z.string().min(1).max(80),
+    /**
+     * Winner raw cue score when specialized.
+     * Omitted for Generic Knowledge (fallback has no score).
+     */
+    score: z.number().min(0).max(100).optional(),
+    /** Raw specialized scores for debugging. */
+    scores: z
+      .object({
+        resume: z.number().min(0).max(100),
+        research: z.number().min(0).max(100),
+        invoice: z.number().min(0).max(100),
+      })
+      .optional(),
+    /** Cue labels that fired for the projected (or best) archetype. */
+    reasons: z.array(z.string().min(1).max(80)).max(24).optional(),
+    /** @deprecated AI-path 0–1 confidence; prefer `score` for local detector. */
+    confidence: z.number().min(0).max(1).optional(),
   })
   .strict();
 

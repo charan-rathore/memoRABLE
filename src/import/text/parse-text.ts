@@ -262,9 +262,12 @@ export function parseText(input: TextImportInput): Result<MemoryDocument> {
   linkActionsToDecisions(blocks);
   warnings.push(...understandingWarnings(understanding));
   warnings.push(...graphWarnings(graph, segmented.segments.length));
+  const { archetype: detected, label: archetypeLabel, score, scores, reasons } = understanding.archetype;
+  const reasonLine =
+    reasons.length > 0 ? ` · Reason: ${reasons.map((r) => `✓ ${r}`).join(" ")}` : "";
   warnings.push({
     code: "text.adaptive-projection",
-    message: `Adaptive memory projection for ${understanding.archetype.label}: ${blocks.map((b) => b.title).join(", ")}.`,
+    message: `Detected Archetype: ${archetypeLabel} · Raw Scores: Resume ${scores.resume}, Research ${scores.research}, Invoice ${scores.invoice} · Projection: ${archetypeLabel}${reasonLine}`,
   });
 
   const document = finalizeDocument({
@@ -274,8 +277,11 @@ export function parseText(input: TextImportInput): Result<MemoryDocument> {
     blocks,
     warnings,
     archetype: {
-      id: understanding.archetype.archetype,
-      label: understanding.archetype.label,
+      id: detected,
+      label: archetypeLabel,
+      ...(score !== undefined ? { score } : {}),
+      scores,
+      ...(reasons.length > 0 ? { reasons: [...reasons] } : {}),
     },
   });
   return ok(

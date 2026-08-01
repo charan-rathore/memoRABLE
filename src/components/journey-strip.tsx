@@ -100,20 +100,33 @@ export function journeyOf(
           : "waiting",
       status: hasErrors ? "error" : hasDoc ? "done" : "pending",
       lines: hasDoc
-        ? [
-            `Projected memories: ${kinds}`,
-            `Archetype: ${state.document!.archetype?.label ?? "Other"}`,
-            `Sections recognized: ${sections || "structure inferred"}`,
-            `Tables detected: ${tables}`,
-            `Images detected: ${images}`,
-            `Parsing summary: ${hasErrors ? "errors kept source unchanged" : "local, deterministic"}`,
-          ]
+        ? (() => {
+            const arch = state.document!.archetype;
+            const scores = arch?.scores;
+            const reasons = arch?.reasons ?? [];
+            return [
+              `Projected memories: ${kinds}`,
+              `Detected Archetype: ${arch?.label ?? "Generic Knowledge"}`,
+              scores
+                ? `Raw Scores: Resume ${scores.resume} · Research ${scores.research} · Invoice ${scores.invoice}`
+                : "Raw Scores: —",
+              `Projection: ${arch?.label ?? "Generic Knowledge"}${
+                typeof arch?.score === "number" ? ` (${arch.score})` : ""
+              }`,
+              reasons.length > 0
+                ? `Reason: ${reasons.map((r) => `✓ ${r}`).join(" ")}`
+                : "Reason: fallback (no specialized winner)",
+              `Sections recognized: ${sections || "structure inferred"}`,
+              `Parsing summary: ${hasErrors ? "errors kept source unchanged" : "local, deterministic"}`,
+            ];
+          })()
         : [
             "Projected memories: waiting",
-            "Archetype: waiting",
+            "Detected Archetype: waiting",
+            "Raw Scores: waiting",
+            "Projection: waiting",
+            "Reason: waiting",
             "Sections recognized: waiting",
-            "Tables detected: waiting",
-            "Images detected: waiting",
             "Parsing summary: waiting",
           ],
     },

@@ -29,24 +29,40 @@ You got two good but incomplete opinions. Here's the ruling on each point, and w
 
 ## 2. Final architecture (what to build, in order)
 
+**Principle: Projection is adaptive, understanding is universal.**
+
 ```
-Document (any type: PDF, DOCX, TXT, MD, JSON, scanned image)
-        ↓
-Layer 1 — Multimodal Parsing (OCR / layout / table reconstruction)
-   [out of prompt's control — garbage in, garbage out, and that's fine]
-        ↓
-Layer 2 — LLM Cognitive Engine  ← Claude Opus 4.6, this document
-   Phase A — Understand   (archetype, intent, entities, raw observations)
-   Phase B — Compress      (merge duplicates into canonical observations)
-   Phase C — Temporal Resolve (dedicated timeline subsystem, Section 4)
-   Phase D — Project        (route observations into the 6 buckets)
-   Phase E — Emit           (strict JSON, no backend verbs)
-        ↓
-Layer 3 — Graph / Bucket Builder (deterministic backend code)
-        ↓
-Layer 4 — Memory Store (your `atlas-q3-brief.json`-style artifacts)
-        ↓
-Layer 5 — UI (Snapshot / Signals / Timeline / Risks / Decisions / Actions)
+Upload
+      │
+      ▼
+Multimodal Parsing
+      │
+      ▼
+Deterministic Archetype Scoring  (Resume / Invoice / Research / Generic Knowledge)
+      │
+      ├──────────────┐
+      │              │
+      ▼              ▼
+Known Archetype   Generic Knowledge
+      │              │
+      └──────┬───────┘
+             ▼
+Universal Cognitive Engine
+   Phase A — Understand   (universal observations; archetype steers priorities only)
+   Phase B — Compress
+   Phase C — Temporal Resolve
+   Phase D — Project into universal kinds
+   Phase E — Emit
+             │
+             ▼
+Adaptive Memory Projection
+  Resume → Experience / Projects / Skills / Education / Achievements / Profile
+  Invoice → Vendor / Line items / Payment / Timeline / Totals
+  Research → Hypothesis / Method / Results / Limitations / Future work
+  else → Snapshot / Signals / Decisions / Timeline / Risks / Actions
+             │
+             ▼
+Evidence-Linked Memory Cards
 ```
 
 Everything left of the double line under Layer 2 is what the prompt in Section 5 does. Everything right of it — UPSERT logic, conflict flags, graph diagnostics, cluster IDs, retrieval ranking — **stays in your backend code, never in the prompt.**
@@ -114,28 +130,39 @@ Check, in this priority order:
    "last quarter") that depends on this anchor must inherit that same
    `"none"` confidence rather than being silently resolved to a guessed date.
 
-### A.2 Classify the document archetype — and let it steer, not just label
-Pick the closest archetype (or "other" with your own short label). This
-choice actively changes what you prioritize in Phase A.3 and how you run
-Phase C (timeline). Do not just tag it and move on.
+### A.2 Classify the document archetype — specialized or Generic Knowledge
 
-| Archetype | Prioritize extracting | timeline_mode |
-|---|---|---|
-| Resume / CV | skills, roles, employers, education, achievements, metrics | narrative_sequence |
-| PRD / Spec | requirements, constraints, user stories, architecture, dependencies, acceptance criteria | milestone_chain |
-| Research paper | hypothesis, method, dataset, experiments, results, limitations, future work | narrative_sequence |
-| Legal contract / agreement | parties, obligations, permissions, liabilities, clauses, renewal/termination terms | obligation_deadlines |
-| Invoice / receipt | line items, amounts, parties, payment terms, due date | obligation_deadlines |
-| Ticket / boarding pass / itinerary | departure, arrival, carrier, seat/class, booking reference | single_leg |
-| Job description | responsibilities, required skills, qualifications, reporting line, compensation signals | none (unless explicit start date/deadline) |
-| Menu | items, prices, categories, dietary tags | none |
-| Meeting notes | attendees, discussion points, decisions made, follow-ups | milestone_chain |
-| Policy / handbook | rules, exceptions, effective dates, applicability | obligation_deadlines |
-| Glossary / reference doc | terms, definitions, relationships between terms | none |
-| Slide deck / architecture diagram | claims per slide/node, structural relationships, labeled flows | milestone_chain or none |
-| Other | your best judgment | your best judgment |
+**Principle: Projection is adaptive, understanding is universal.**
 
-If a document has essentially no temporal content (a glossary, a menu), set
+The cognitive engine never changes its reasoning based on document type. It
+always extracts the same universal observations (entities, facts, relationships,
+metrics, events, procedures, questions, constraints, evidence). Only the final
+projection layer adapts how those observations are organized and presented.
+If no specialized archetype is confidently detected, the system falls back to
+the Generic Knowledge Projection (Snapshot, Signals, Decisions, Timeline,
+Risks, Actions) rather than assuming the document is a PRD.
+
+Pick one of: `Resume`, `Invoice`, `Research`, or `Generic Knowledge`.
+Local deterministic scoring uses integer cue weights with:
+
+```
+winner ≥ MIN_SCORE (10) AND (winner − runnerUp) ≥ MIN_MARGIN (4)
+  → specialized projection
+else
+  → Generic Knowledge   // fallback has no score
+```
+
+Meeting notes, RFCs, design docs, policies, SOPs, roadmaps, architecture
+specs, PRDs, and unknowns all map to **Generic Knowledge**.
+
+| Archetype | Prioritize extracting | timeline_mode | Projection furniture |
+|---|---|---|---|
+| Resume | skills, roles, employers, education, achievements, projects | narrative_sequence | Experience, Projects, Skills, Education, Achievements, Profile |
+| Invoice | line items, amounts, vendor, payment terms, due date, totals | obligation_deadlines | Vendor, Line items, Payment, Timeline, Totals |
+| Research | hypothesis, method, dataset, experiments, results, limitations, future work | narrative_sequence | Hypothesis, Method, Results, Limitations, Future work |
+| Generic Knowledge | snapshot facts, signals, decisions, timeline events, risks, actions | narrative_sequence (or none if no temporal content) | Snapshot, Signals, Decisions, Timeline, Risks, Actions |
+
+If a document has essentially no temporal content, set
 `timeline_mode: "none"` and it is **correct and expected** for the Timeline
 bucket to come back empty or near-empty. Do not manufacture dates to fill it.
 

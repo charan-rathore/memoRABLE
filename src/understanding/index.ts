@@ -36,7 +36,13 @@ export type {
 export type { Recall } from "./recall";
 export type { ArchetypeResult, DocumentArchetype } from "./archetype";
 export type { AnchorDate } from "./temporal";
-export { classifyArchetype } from "./archetype";
+export {
+  ARCHETYPE_CONFIDENCE_THRESHOLD,
+  MIN_MARGIN,
+  MIN_SCORE,
+  classifyArchetype,
+} from "./archetype";
+export type { ArchetypeScores } from "./archetype";
 export {
   applyProjectionTitles,
   bucketLabel,

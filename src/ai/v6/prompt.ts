@@ -40,27 +40,30 @@ Check, in this priority order:
    "last quarter") that depends on this anchor must inherit that same
    \`"none"\` confidence rather than being silently resolved to a guessed date.
 
-### A.2 Classify the document archetype — and let it steer, not just label
-Pick the closest archetype (or "other" with your own short label). This
-choice actively changes what you prioritize and how you run Phase C.
+### A.2 Classify the document archetype — specialized or Generic Knowledge
+Pick one of: \`Resume\`, \`Invoice\`, \`Research\`, or \`Generic Knowledge\`.
+Also set \`archetype_confidence\` as a number from 0 to 1.
+
+Only use a specialized archetype when evidence is clearly stronger than the
+runners-up. Meeting notes, RFCs, design docs, policies, SOPs, roadmaps,
+architecture specs, PRDs, and unknowns all map to **Generic Knowledge** —
+never assume PRD. Generic Knowledge has no score; it is the fallback.
+
 
 | Archetype | Prioritize extracting | timeline_mode |
 |---|---|---|
-| Resume / CV | skills, roles, employers, education, achievements, metrics | narrative_sequence |
-| PRD / Spec | requirements, constraints, user stories, architecture, dependencies, acceptance criteria | milestone_chain |
-| Research paper | hypothesis, method, dataset, experiments, results, limitations, future work | narrative_sequence |
-| Legal contract / agreement | parties, obligations, permissions, liabilities, clauses, renewal/termination terms | obligation_deadlines |
-| Invoice / receipt | line items, amounts, parties, payment terms, due date | obligation_deadlines |
-| Ticket / boarding pass / itinerary | departure, arrival, carrier, seat/class, booking reference | single_leg |
-| Job description | responsibilities, required skills, qualifications, reporting line, compensation signals | none (unless explicit start date/deadline) |
-| Menu | items, prices, categories, dietary tags | none |
-| Meeting notes | attendees, discussion points, decisions made, follow-ups | milestone_chain |
-| Policy / handbook | rules, exceptions, effective dates, applicability | obligation_deadlines |
-| Glossary / reference doc | terms, definitions, relationships between terms | none |
-| Slide deck / architecture diagram | claims per slide/node, structural relationships, labeled flows | milestone_chain or none |
-| Other | your best judgment | your best judgment |
+| Resume | skills, roles, employers, education, achievements, projects | narrative_sequence |
+| Invoice | line items, amounts, vendor, payment terms, due date, totals | obligation_deadlines |
+| Research | hypothesis, method, dataset, experiments, results, limitations, future work | narrative_sequence |
+| Generic Knowledge | snapshot facts, signals, decisions, timeline events, risks, actions | narrative_sequence (or none if no temporal content) |
 
-If a document has essentially no temporal content (a glossary, a menu), set
+Principle: **Projection is adaptive, understanding is universal.** You always
+extract the same universal observations. Only the final projection labels
+change (Resume → Experience/Skills/…; Invoice → Vendor/Line items/…;
+Research → Hypothesis/Method/…; else → Snapshot/Signals/Decisions/Timeline/
+Risks/Actions).
+
+If a document has essentially no temporal content, set
 \`timeline_mode: "none"\` and it is **correct and expected** for the Timeline
 bucket to come back empty or near-empty. Do not manufacture dates to fill it.
 
@@ -129,7 +132,8 @@ persistence verbs anywhere.
 
 {
   "document_meta": {
-    "archetype": "string",
+    "archetype": "Resume | Invoice | Research | Generic Knowledge",
+    "archetype_confidence": 0.0,
     "timeline_mode": "single_leg | milestone_chain | obligation_deadlines | narrative_sequence | none",
     "anchor_date": "YYYY-MM-DD | null",
     "anchor_confidence": "high | medium | low | none"

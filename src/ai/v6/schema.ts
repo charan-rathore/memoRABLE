@@ -61,6 +61,8 @@ const resolvedDateSchema = z
 export const v6DocumentMetaSchema = z
   .object({
     archetype: z.string().min(1).max(120),
+    /** 0–1 confidence for the detected archetype (specialized vs Generic Knowledge). */
+    archetype_confidence: z.number().min(0).max(1).optional(),
     timeline_mode: z.enum(TIMELINE_MODES),
     anchor_date: z.union([z.string(), z.null()]).optional().nullable(),
     anchor_confidence: confidence.optional().default("none"),
@@ -178,7 +180,10 @@ function coerceV6Shape(raw: unknown): unknown {
       : {};
   return {
     document_meta: {
-      archetype: typeof meta.archetype === "string" ? meta.archetype : "other",
+      archetype: typeof meta.archetype === "string" ? meta.archetype : "generic",
+      ...(typeof meta.archetype_confidence === "number"
+        ? { archetype_confidence: meta.archetype_confidence }
+        : {}),
       timeline_mode: TIMELINE_MODES.includes(meta.timeline_mode as V6TimelineMode)
         ? meta.timeline_mode
         : "none",

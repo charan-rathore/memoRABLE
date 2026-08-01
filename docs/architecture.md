@@ -2,12 +2,78 @@
 
 memoRABLE is a single Next.js 15 (App Router) application. Everything interesting happens in a deterministic pipeline with four stages, each a pure, unit-tested module boundary.
 
+## Frozen hackathon pipeline
+
+```
+Upload
+      │
+      ▼
+Multimodal Parsing
+      │
+      ▼
+Deterministic Archetype Scoring
+      │
+      ├──────────────┐
+      │              │
+      ▼              ▼
+Known Archetype   Generic Knowledge
+(Resume / Invoice / Research)
+      │              │
+      └──────┬───────┘
+             ▼
+Universal Cognitive Engine
+             │
+             ▼
+Universal Observations
+             │
+             ▼
+Semantic Compression
+             │
+             ▼
+Adaptive Memory Projection
+             │
+             ▼
+Evidence-Linked Memory Cards
+```
+
+**Principle: Projection is adaptive, understanding is universal.**
+
+The cognitive engine never changes its reasoning based on document type. It
+always extracts the same universal observations. Only the final projection
+layer adapts furniture:
+
+| Detected | Projection |
+|---|---|
+| Resume | Experience · Projects · Skills · Education · Achievements · Profile |
+| Invoice | Vendor · Line items · Payment · Timeline · Totals |
+| Research | Hypothesis · Method · Results · Limitations · Future work |
+| else → Generic Knowledge | Snapshot · Signals · Decisions · Timeline · Risks · Actions |
+
+Specialized win rule (deterministic integer scores):
+
+```
+winner ≥ MIN_SCORE (10) AND (winner − runnerUp) ≥ MIN_MARGIN (4)
+  → specialized projection
+else
+  → Generic Knowledge  // fallback has no score of its own
+```
+
+PRD is not a fallback archetype. Meeting notes, RFCs, design docs, policies,
+SOPs, roadmaps, and architecture specs all project as Generic Knowledge.
+
+Debug always exposes Detected Archetype, raw Resume/Research/Invoice scores,
+Projection, and matched cue reasons (e.g. `✓ Education ✓ Experience`).
+
 ```
 ┌────────────────────────────────────────────────────────────────────┐
 │ source (pasted/dropped/example: JSON, Markdown, plain text)        │
 │   ├─ src/import/preflight.ts        size/encoding/binary guards    │
 │   ├─ src/import/json/import-json.ts strict, all-or-nothing         │
 │   └─ src/import/text/parse-text.ts  conservative local parser      │
+├────────────────────────────────────────────────────────────────────┤
+│ src/understanding                                                  │
+│   archetype.ts           weighted Resume/Invoice/Research scoring  │
+│   projection-profiles.ts adaptive furniture (3 + Generic)          │
 ├────────────────────────────────────────────────────────────────────┤
 │ src/domain/memory                                                  │
 │   schema.ts        six block kinds + provenance, strict zod        │
@@ -28,7 +94,7 @@ memoRABLE is a single Next.js 15 (App Router) application. Everything interestin
 
 ## The six Memory Blocks
 
-`snapshot · signals · decisions · timeline · risks · actions` — the anatomy of a document. Every successful import produces **all six, in canonical order**, or it fails entirely. A block is:
+`snapshot · signals · decisions · timeline · risks · actions` — the universal observation kinds. Specialized archetypes relabel these for presentation; Generic Knowledge keeps the classic six labels. A block is:
 
 ```ts
 {

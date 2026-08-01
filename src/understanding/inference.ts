@@ -265,7 +265,7 @@ export function readCommitment(text: string): "committed" | "considered" {
 export function inferDecisions(
   statements: readonly Statement[],
   intent: Intent,
-  archetype?: DocumentArchetype,
+  _archetype?: DocumentArchetype,
 ): Array<Inferred<InferredDecision>> {
   const out: Array<Inferred<InferredDecision>> = [];
 
@@ -286,8 +286,8 @@ export function inferDecisions(
     // Never classify as Decision if a stronger category already matches.
     if (blocksDecisionInference(text)) continue;
 
-    // Slides / problem statements: Problem ≠ Decision; need explicit commitment verbs.
-    if (archetype === "slides" || isProblemStatement(text, statement.sectionTitle)) {
+    // Problem statements: Problem ≠ Decision; need explicit commitment verbs.
+    if (isProblemStatement(text, statement.sectionTitle)) {
       if (!allowSlideDecision(text, statement.sectionTitle)) continue;
     }
 

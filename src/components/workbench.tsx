@@ -460,6 +460,7 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
               enterKey={state.importedAt}
               archetypeId={state.document?.archetype?.id}
               archetypeLabel={state.document?.archetype?.label}
+              archetypeScore={state.document?.archetype?.score}
             />
           </div>
         </div>

@@ -1,15 +1,15 @@
 import type { ReactElement } from "react";
 import { Column, ColumnLayouts, Divider, Heading, Paragraph, Row } from "@unlayer/react-elements";
 import type { MemoryBlock, SnapshotPayload } from "@/domain/memory/schema";
-import { colors, fonts } from "../tokens";
 import { escapeHtml, inlineText } from "../safe-inline";
-import { notesRows, sectionLabelRow, type BlockRenderContext } from "./common";
+import { notesRows, sectionLabelRow, padFor, scaledPx, type BlockRenderContext } from "./common";
 
 /**
  * Snapshot — the opening. In first position it becomes the cover, and each
  * surface gets the cover it deserves: a dark hero band on the web, a compact
- * masthead in email, a ruled title page in print. Moved out of first position
- * it degrades gracefully into an ordinary section.
+ * masthead in email, a ruled title page in print. Colours and type follow the
+ * active publish preset so Editorial / Academic / Minimal / Executive read as
+ * different publications, not just different chrome.
  */
 export function renderSnapshotRows(block: MemoryBlock, ctx: BlockRenderContext): ReactElement[] {
   const payload = block.payload as SnapshotPayload;
@@ -24,34 +24,44 @@ export function renderSnapshotRows(block: MemoryBlock, ctx: BlockRenderContext):
         : emailMasthead(block, ctx, payload)
     : [...sectionLabelRow(block, ctx), plainSnapshotRow(block, ctx, payload)];
 
-  return [...cover, ...notesRows(block, notes, coverSurface(ctx, isCover))];
+  return [...cover, ...notesRows(block, notes, coverSurface(ctx, isCover), ctx.theme)];
 }
 
 function coverSurface(ctx: BlockRenderContext, isCover: boolean): string {
-  return isCover && ctx.mode === "web" ? colors.surface : ctx.surface;
+  return isCover && ctx.mode === "web" ? ctx.theme.colors.surface : ctx.surface;
 }
 
 /* --------------------------------- web ---------------------------------- */
 
 /** Ink band, full bleed: the one place the page raises its voice. */
 function webHero(block: MemoryBlock, ctx: BlockRenderContext, payload: SnapshotPayload): ReactElement[] {
+  const c = ctx.theme.colors;
+  const f = ctx.theme.fonts;
+  const scale = ctx.theme.fontScale;
+  const pad = padFor(ctx.theme);
+  const side = pad.side;
   return [
-    <Row key={`${block.id}-hero`} layout={ColumnLayouts.OneColumn} backgroundColor={colors.ink} padding="64px 44px 58px 44px">
+    <Row
+      key={`${block.id}-hero`}
+      layout={ColumnLayouts.OneColumn}
+      backgroundColor={c.ink}
+      padding={`${Math.round(64 * (ctx.theme.spacing === "tight" ? 0.75 : 1))}px ${side} ${Math.round(58 * (ctx.theme.spacing === "tight" ? 0.75 : 1))}px ${side}`}
+    >
       <Column>
         <Paragraph
           html={inlineText(ctx.documentTitle.toUpperCase())}
-          fontFamily={fonts.mono}
-          fontSize="11px"
-          color={colors.heroMuted}
+          fontFamily={f.mono}
+          fontSize={scaledPx(11, scale)}
+          color={c.heroMuted}
           letterSpacing="0.18em"
           lineHeight="150%"
         />
         <Heading
           headingType="h1"
-          fontFamily={fonts.serif}
-          fontSize="42px"
+          fontFamily={f.serif}
+          fontSize={scaledPx(42, scale)}
           fontWeight={700}
-          color={colors.paper}
+          color={c.paper}
           lineHeight="112%"
         >
           {escapeHtml(payload.heading)}
@@ -59,25 +69,25 @@ function webHero(block: MemoryBlock, ctx: BlockRenderContext, payload: SnapshotP
         {payload.hook ? (
           <Paragraph
             html={inlineText(payload.hook)}
-            fontFamily={fonts.serif}
-            fontSize="18px"
-            color={colors.paper}
+            fontFamily={f.serif}
+            fontSize={scaledPx(18, scale)}
+            color={c.paper}
             lineHeight="145%"
           />
         ) : null}
         <Paragraph
           html={inlineText(payload.summary)}
-          fontFamily={fonts.sans}
-          fontSize="16px"
-          color={colors.heroInk}
+          fontFamily={f.sans}
+          fontSize={scaledPx(16, scale)}
+          color={c.heroInk}
           lineHeight="165%"
         />
         {payload.byline ? (
           <Paragraph
             html={inlineText(payload.byline)}
-            fontFamily={fonts.mono}
-            fontSize="11.5px"
-            color={colors.heroMuted}
+            fontFamily={f.mono}
+            fontSize={scaledPx(11.5, scale)}
+            color={c.heroMuted}
             lineHeight="150%"
           />
         ) : null}
@@ -90,76 +100,174 @@ function webHero(block: MemoryBlock, ctx: BlockRenderContext, payload: SnapshotP
 
 /** A title page: heavy rule, title, byline, closing hairline. */
 function documentCover(block: MemoryBlock, ctx: BlockRenderContext, payload: SnapshotPayload): ReactElement[] {
-  return [
-    <Row key={`${block.id}-cover-rule`} layout={ColumnLayouts.OneColumn} backgroundColor={ctx.surface} padding="48px 44px 0px 44px">
-      <Column padding="0px">
-        <Divider borderTopWidth="3px" borderTopStyle="solid" borderTopColor={colors.ink} />
-      </Column>
-    </Row>,
-    <Row key={`${block.id}-cover`} layout={ColumnLayouts.OneColumn} backgroundColor={ctx.surface} padding="22px 44px 26px 44px">
+  const c = ctx.theme.colors;
+  const f = ctx.theme.fonts;
+  const scale = ctx.theme.fontScale;
+  const side = padFor(ctx.theme).side;
+  const rows: ReactElement[] = [];
+  if (ctx.theme.calloutStyle !== "plain") {
+    rows.push(
+      <Row
+        key={`${block.id}-cover-rule`}
+        layout={ColumnLayouts.OneColumn}
+        backgroundColor={ctx.surface}
+        padding={`48px ${side} 0px ${side}`}
+      >
+        <Column padding="0px">
+          <Divider
+            borderTopWidth={ctx.theme.calloutStyle === "rule" ? "1px" : "3px"}
+            borderTopStyle="solid"
+            borderTopColor={c.ink}
+          />
+        </Column>
+      </Row>,
+    );
+  }
+  rows.push(
+    <Row
+      key={`${block.id}-cover`}
+      layout={ColumnLayouts.OneColumn}
+      backgroundColor={ctx.surface}
+      padding={`22px ${side} 26px ${side}`}
+    >
       <Column>
         <Paragraph
           html={inlineText(ctx.documentTitle.toUpperCase())}
-          fontFamily={fonts.mono}
-          fontSize="10.5px"
-          color={colors.ink3}
+          fontFamily={f.mono}
+          fontSize={scaledPx(10.5, scale)}
+          color={c.ink3}
           letterSpacing="0.18em"
           lineHeight="150%"
         />
-        <Heading headingType="h1" fontFamily={fonts.serif} fontSize="34px" fontWeight={700} color={colors.ink} lineHeight="116%">
+        <Heading
+          headingType="h1"
+          fontFamily={f.serif}
+          fontSize={scaledPx(34, scale)}
+          fontWeight={700}
+          color={c.ink}
+          lineHeight="116%"
+        >
           {escapeHtml(payload.heading)}
         </Heading>
         {payload.hook ? (
-          <Paragraph html={inlineText(payload.hook)} fontFamily={fonts.serif} fontSize="16px" color={colors.ink} lineHeight="150%" />
+          <Paragraph
+            html={inlineText(payload.hook)}
+            fontFamily={f.serif}
+            fontSize={scaledPx(16, scale)}
+            color={c.ink}
+            lineHeight="150%"
+          />
         ) : null}
-        <Paragraph html={inlineText(payload.summary)} fontFamily={fonts.serif} fontSize="15px" color={colors.ink2} lineHeight="168%" />
+        <Paragraph
+          html={inlineText(payload.summary)}
+          fontFamily={f.serif}
+          fontSize={scaledPx(15, scale)}
+          color={c.ink2}
+          lineHeight="168%"
+        />
         {payload.byline ? (
-          <Paragraph html={inlineText(payload.byline)} fontFamily={fonts.sans} fontSize="12px" color={colors.ink3} lineHeight="150%" />
+          <Paragraph
+            html={inlineText(payload.byline)}
+            fontFamily={f.sans}
+            fontSize={scaledPx(12, scale)}
+            color={c.ink3}
+            lineHeight="150%"
+          />
         ) : null}
       </Column>
     </Row>,
-  ];
+  );
+  return rows;
 }
 
 /* --------------------------------- email --------------------------------- */
 
 /** Compact masthead: one accent tick, the headline, the summary. */
 function emailMasthead(block: MemoryBlock, ctx: BlockRenderContext, payload: SnapshotPayload): ReactElement[] {
-  return [
-    <Row key={`${block.id}-mast`} layout={ColumnLayouts.OneColumn} backgroundColor={ctx.surface} padding="30px 40px 6px 40px">
-      <Column padding="0px 0px 12px 0px">
-        <Divider borderTopWidth="2px" borderTopStyle="solid" borderTopColor={colors.accent} width="34px" textAlign="left" />
-      </Column>
-    </Row>,
-    <Row key={`${block.id}-mast-body`} layout={ColumnLayouts.OneColumn} backgroundColor={ctx.surface} padding="0px 40px 26px 40px">
+  const c = ctx.theme.colors;
+  const f = ctx.theme.fonts;
+  const scale = ctx.theme.fontScale;
+  const rows: ReactElement[] = [];
+  if (ctx.theme.calloutStyle !== "plain") {
+    rows.push(
+      <Row key={`${block.id}-mast`} layout={ColumnLayouts.OneColumn} backgroundColor={ctx.surface} padding="30px 40px 6px 40px">
+        <Column padding="0px 0px 12px 0px">
+          <Divider
+            borderTopWidth={ctx.theme.calloutStyle === "rule" ? "1px" : "2px"}
+            borderTopStyle="solid"
+            borderTopColor={ctx.theme.calloutStyle === "rule" ? c.ink2 : c.accent}
+            width={ctx.theme.calloutStyle === "rule" ? "100%" : "34px"}
+            textAlign="left"
+          />
+        </Column>
+      </Row>,
+    );
+  }
+  rows.push(
+    <Row
+      key={`${block.id}-mast-body`}
+      layout={ColumnLayouts.OneColumn}
+      backgroundColor={ctx.surface}
+      padding={ctx.theme.calloutStyle === "plain" ? "30px 40px 26px 40px" : "0px 40px 26px 40px"}
+    >
       <Column>
-        <Heading headingType="h1" fontFamily={fonts.serif} fontSize="27px" fontWeight={700} color={colors.ink} lineHeight="118%">
+        <Heading
+          headingType="h1"
+          fontFamily={f.serif}
+          fontSize={scaledPx(27, scale)}
+          fontWeight={700}
+          color={c.ink}
+          lineHeight="118%"
+        >
           {escapeHtml(payload.heading)}
         </Heading>
         {payload.hook ? (
-          <Paragraph html={inlineText(payload.hook)} fontFamily={fonts.serif} fontSize="15px" color={colors.ink} lineHeight="145%" />
+          <Paragraph
+            html={inlineText(payload.hook)}
+            fontFamily={f.serif}
+            fontSize={scaledPx(15, scale)}
+            color={c.ink}
+            lineHeight="145%"
+          />
         ) : null}
-        <Paragraph html={inlineText(payload.summary)} fontFamily={fonts.sans} fontSize="14.5px" color={colors.ink2} lineHeight="165%" />
+        <Paragraph
+          html={inlineText(payload.summary)}
+          fontFamily={f.sans}
+          fontSize={scaledPx(14.5, scale)}
+          color={c.ink2}
+          lineHeight="165%"
+        />
         {payload.byline ? (
-          <Paragraph html={inlineText(payload.byline)} fontFamily={fonts.sans} fontSize="12px" color={colors.ink3} lineHeight="150%" />
+          <Paragraph
+            html={inlineText(payload.byline)}
+            fontFamily={f.sans}
+            fontSize={scaledPx(12, scale)}
+            color={c.ink3}
+            lineHeight="150%"
+          />
         ) : null}
       </Column>
     </Row>,
-  ];
+  );
+  return rows;
 }
 
 /* ------------------------- snapshot out of position ----------------------- */
 
 function plainSnapshotRow(block: MemoryBlock, ctx: BlockRenderContext, payload: SnapshotPayload): ReactElement {
+  const c = ctx.theme.colors;
+  const f = ctx.theme.fonts;
+  const scale = ctx.theme.fontScale;
+  const side = padFor(ctx.theme).side;
   return (
-    <Row key={`${block.id}-main`} layout={ColumnLayouts.OneColumn} backgroundColor={ctx.surface} padding="0px 44px 30px 44px">
+    <Row key={`${block.id}-main`} layout={ColumnLayouts.OneColumn} backgroundColor={ctx.surface} padding={`0px ${side} 30px ${side}`}>
       <Column>
         <Heading
           headingType="h3"
-          fontFamily={fonts.serif}
-          fontSize={ctx.mode === "email" ? "20px" : "24px"}
+          fontFamily={f.serif}
+          fontSize={scaledPx(ctx.mode === "email" ? 20 : 24, scale)}
           fontWeight={700}
-          color={colors.ink}
+          color={c.ink}
           lineHeight="122%"
         >
           {escapeHtml(payload.heading)}
@@ -167,21 +275,27 @@ function plainSnapshotRow(block: MemoryBlock, ctx: BlockRenderContext, payload: 
         {payload.hook ? (
           <Paragraph
             html={inlineText(payload.hook)}
-            fontFamily={fonts.serif}
-            fontSize="15px"
-            color={colors.ink}
+            fontFamily={f.serif}
+            fontSize={scaledPx(15, scale)}
+            color={c.ink}
             lineHeight="150%"
           />
         ) : null}
         <Paragraph
           html={inlineText(payload.summary)}
-          fontFamily={fonts.sans}
-          fontSize={ctx.mode === "email" ? "14px" : "15px"}
-          color={colors.ink2}
+          fontFamily={f.sans}
+          fontSize={scaledPx(ctx.mode === "email" ? 14 : 15, scale)}
+          color={c.ink2}
           lineHeight="160%"
         />
         {payload.byline ? (
-          <Paragraph html={inlineText(payload.byline)} fontFamily={fonts.sans} fontSize="12px" color={colors.ink3} lineHeight="150%" />
+          <Paragraph
+            html={inlineText(payload.byline)}
+            fontFamily={f.sans}
+            fontSize={scaledPx(12, scale)}
+            color={c.ink3}
+            lineHeight="150%"
+          />
         ) : null}
       </Column>
     </Row>

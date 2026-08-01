@@ -44,6 +44,36 @@ export const HAIRLINE = {
   borderBottomColor: colors.line,
 } as const;
 
+export function hairline(lineColor: string = colors.line) {
+  return {
+    borderBottomWidth: "1px" as const,
+    borderBottomStyle: "solid" as const,
+    borderBottomColor: lineColor,
+  };
+}
+
+/** Status colour that follows the active preset's accent when relevant. */
+export function themedStatusColor(status: string, accent: string = colors.accent): string {
+  switch (status) {
+    case "approved":
+    case "shipped":
+    case "done":
+      return colors.ok;
+    case "requested":
+    case "on-track":
+    case "ready":
+      return accent;
+    case "pending":
+      return colors.warn;
+    case "suggested":
+      return colors.ink3;
+    case "rejected":
+      return colors.err;
+    default:
+      return colors.ink3;
+  }
+}
+
 export function trendColor(trend: "up" | "flat" | "down" | undefined): string {
   if (trend === "up") return colors.ok;
   if (trend === "down") return colors.err;

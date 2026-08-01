@@ -2,7 +2,6 @@ import type { ReactElement } from "react";
 import { Column, ColumnLayouts, Divider, Heading, Paragraph, Row } from "@unlayer/react-elements";
 import type { MemoryBlock } from "@/domain/memory/schema";
 import type { OutputMode } from "@/domain/memory/types";
-import { colors, fonts } from "../tokens";
 import type { PublishTheme } from "../themes";
 import { resolveTheme } from "../themes";
 import { escapeHtml, inlineText } from "../safe-inline";
@@ -48,12 +47,25 @@ export function ordinal(position: number): string {
   return String(position + 1).padStart(2, "0");
 }
 
+/** Legacy constant — prefer `padFor(theme)` so spacing presets take effect. */
 export const PAD = {
   label: "30px 44px 4px 44px",
   rule: "0px 44px 10px 44px",
   body: "0px 44px 0px 44px",
   last: "0px 44px 30px 44px",
 } as const;
+
+export function padFor(theme: PublishTheme) {
+  const m = theme.spacing === "tight" ? 0.72 : theme.spacing === "airy" ? 1.28 : 1;
+  const side = Math.round(44 * m);
+  return {
+    label: `${Math.round(30 * m)}px ${side}px ${Math.round(4 * m)}px ${side}px`,
+    rule: `0px ${side}px ${Math.round(10 * m)}px ${side}px`,
+    body: `0px ${side}px 0px ${side}px`,
+    last: `0px ${side}px ${Math.round(30 * m)}px ${side}px`,
+    side: `${side}px`,
+  };
+}
 
 /**
  * Section opening. Print gets a serif roman-numeral heading ("II. Signals")
@@ -62,38 +74,54 @@ export const PAD = {
  */
 export function sectionLabelRow(block: MemoryBlock, ctx: BlockRenderContext, suffix?: string): ReactElement[] {
   const title = suffix ? `${block.title} ${suffix}` : block.title;
+  const c = ctx.theme.colors;
+  const f = ctx.theme.fonts;
+  const pad = padFor(ctx.theme);
+  const scale = ctx.theme.fontScale;
+  const callout = ctx.theme.calloutStyle;
+
   if (ctx.mode === "document") {
-    return [
-      <Row key={`${block.id}-label`} layout={ColumnLayouts.OneColumn} backgroundColor={ctx.surface} padding={PAD.label}>
+    const rows: ReactElement[] = [
+      <Row key={`${block.id}-label`} layout={ColumnLayouts.OneColumn} backgroundColor={ctx.surface} padding={pad.label}>
         <Column>
           <Heading
             headingType="h2"
-            fontFamily={fonts.serif}
-            fontSize="20px"
+            fontFamily={f.serif}
+            fontSize={scaledPx(20, scale)}
             fontWeight={700}
-            color={colors.ink}
+            color={c.ink}
             lineHeight="130%"
           >
             {escapeHtml(`${roman(ctx.position)}. ${title}`)}
           </Heading>
         </Column>
       </Row>,
-      <Row key={`${block.id}-label-rule`} layout={ColumnLayouts.OneColumn} backgroundColor={ctx.surface} padding={PAD.rule}>
-        <Column padding="0px">
-          <Divider borderTopWidth="1px" borderTopStyle="solid" borderTopColor={colors.line2} />
-        </Column>
-      </Row>,
     ];
+    if (callout !== "plain") {
+      rows.push(
+        <Row key={`${block.id}-label-rule`} layout={ColumnLayouts.OneColumn} backgroundColor={ctx.surface} padding={pad.rule}>
+          <Column padding="0px">
+            <Divider
+              borderTopWidth="1px"
+              borderTopStyle="solid"
+              borderTopColor={callout === "rule" ? c.ink : c.line2}
+            />
+          </Column>
+        </Row>,
+      );
+    }
+    return rows;
   }
-  return [
-    <Row key={`${block.id}-label`} layout={ColumnLayouts.OneColumn} backgroundColor={ctx.surface} padding={PAD.label}>
+
+  const rows: ReactElement[] = [
+    <Row key={`${block.id}-label`} layout={ColumnLayouts.OneColumn} backgroundColor={ctx.surface} padding={pad.label}>
       <Column>
         <Heading
           headingType="h2"
-          fontFamily={fonts.mono}
-          fontSize="11px"
+          fontFamily={f.mono}
+          fontSize={scaledPx(11, scale)}
           fontWeight={700}
-          color={colors.ink2}
+          color={c.ink2}
           letterSpacing="0.14em"
           lineHeight="150%"
         >
@@ -101,12 +129,23 @@ export function sectionLabelRow(block: MemoryBlock, ctx: BlockRenderContext, suf
         </Heading>
       </Column>
     </Row>,
-    <Row key={`${block.id}-label-tick`} layout={ColumnLayouts.OneColumn} backgroundColor={ctx.surface} padding={PAD.rule}>
-      <Column padding="0px">
-        <Divider borderTopWidth="2px" borderTopStyle="solid" borderTopColor={colors.accent} width="34px" textAlign="left" />
-      </Column>
-    </Row>,
   ];
+  if (callout !== "plain") {
+    rows.push(
+      <Row key={`${block.id}-label-tick`} layout={ColumnLayouts.OneColumn} backgroundColor={ctx.surface} padding={pad.rule}>
+        <Column padding="0px">
+          <Divider
+            borderTopWidth={callout === "rule" ? "1px" : "2px"}
+            borderTopStyle="solid"
+            borderTopColor={callout === "rule" ? c.ink2 : c.accent}
+            width={callout === "rule" ? "100%" : "34px"}
+            textAlign="left"
+          />
+        </Column>
+      </Row>,
+    );
+  }
+  return rows;
 }
 
 /**
@@ -114,30 +153,55 @@ export function sectionLabelRow(block: MemoryBlock, ctx: BlockRenderContext, suf
  * remembered thought. Kept short and soft so it reads like a friend leaning
  * in, not like another column of data.
  */
-export function asideParagraph(text: string, key: string): ReactElement {
+export function asideParagraph(text: string, key: string, theme: PublishTheme = resolveTheme("editorial")): ReactElement {
   return (
     <Paragraph
       key={key}
       html={inlineText(text)}
-      fontFamily={fonts.sans}
-      fontSize="12.5px"
-      color={colors.ink3}
+      fontFamily={theme.fonts.sans}
+      fontSize={scaledPx(12.5, theme.fontScale)}
+      color={theme.colors.ink3}
       lineHeight="155%"
     />
   );
 }
 
 /** Honest empty state for a block whose section was absent/unclear. */
-export function emptyBlockRow(block: MemoryBlock, message: string, surface: string = colors.surface): ReactElement {
+export function emptyBlockRow(
+  block: MemoryBlock,
+  message: string,
+  surface: string = resolveTheme("editorial").colors.surface,
+  theme: PublishTheme = resolveTheme("editorial"),
+): ReactElement {
+  const c = theme.colors;
+  const pad = padFor(theme);
+  const tinted = theme.calloutStyle === "tint";
   return (
-    <Row key={`${block.id}-empty`} layout={ColumnLayouts.OneColumn} backgroundColor={surface} padding={PAD.last}>
+    <Row key={`${block.id}-empty`} layout={ColumnLayouts.OneColumn} backgroundColor={surface} padding={pad.last}>
       <Column
         padding="12px 14px"
-        backgroundColor={colors.surface2}
-        borderRadius="10px"
-        border={{ borderTopWidth: "1px", borderTopStyle: "solid", borderTopColor: colors.line }}
+        backgroundColor={tinted ? c.surface2 : surface}
+        borderRadius={theme.calloutStyle === "plain" ? "0px" : "10px"}
+        border={
+          theme.calloutStyle === "plain"
+            ? undefined
+            : {
+                borderTopWidth: theme.calloutStyle === "rule" ? "0px" : "1px",
+                borderTopStyle: "solid",
+                borderTopColor: c.line,
+                borderLeftWidth: theme.calloutStyle === "rule" ? "3px" : "0px",
+                borderLeftStyle: "solid",
+                borderLeftColor: c.accent,
+              }
+        }
       >
-        <Paragraph html={inlineText(message)} fontFamily={fonts.sans} fontSize="13px" color={colors.ink3} lineHeight="150%" />
+        <Paragraph
+          html={inlineText(message)}
+          fontFamily={theme.fonts.sans}
+          fontSize={scaledPx(13, theme.fontScale)}
+          color={c.ink3}
+          lineHeight="150%"
+        />
       </Column>
     </Row>
   );
@@ -150,26 +214,50 @@ export function emptyBlockRow(block: MemoryBlock, message: string, surface: stri
 export function notesRows(
   block: MemoryBlock,
   notes: readonly string[],
-  surface: string = colors.surface,
+  surface: string = resolveTheme("editorial").colors.surface,
+  theme: PublishTheme = resolveTheme("editorial"),
 ): ReactElement[] {
   if (notes.length === 0) return [];
+  const c = theme.colors;
+  const f = theme.fonts;
+  const pad = padFor(theme);
+  const side = pad.side;
   return [
-    <Row key={`${block.id}-notes-label`} layout={ColumnLayouts.OneColumn} backgroundColor={surface} padding="16px 44px 0px 44px">
-      <Column border={{ borderTopWidth: "1px", borderTopStyle: "solid", borderTopColor: colors.line }} padding="12px 0px 0px 0px">
-        <Heading headingType="h4" fontFamily={fonts.mono} fontSize="10px" fontWeight={700} color={colors.ink3} letterSpacing="0.12em">
+    <Row
+      key={`${block.id}-notes-label`}
+      layout={ColumnLayouts.OneColumn}
+      backgroundColor={surface}
+      padding={`16px ${side} 0px ${side}`}
+    >
+      <Column
+        border={
+          theme.calloutStyle === "plain"
+            ? undefined
+            : { borderTopWidth: "1px", borderTopStyle: "solid", borderTopColor: c.line }
+        }
+        padding="12px 0px 0px 0px"
+      >
+        <Heading
+          headingType="h4"
+          fontFamily={f.mono}
+          fontSize={scaledPx(10, theme.fontScale)}
+          fontWeight={700}
+          color={c.ink3}
+          letterSpacing="0.12em"
+        >
           KEPT AS TEXT
         </Heading>
       </Column>
     </Row>,
-    <Row key={`${block.id}-notes`} layout={ColumnLayouts.OneColumn} backgroundColor={surface} padding={PAD.last}>
+    <Row key={`${block.id}-notes`} layout={ColumnLayouts.OneColumn} backgroundColor={surface} padding={pad.last}>
       <Column>
         {notes.map((note, i) => (
           <Paragraph
             key={`${block.id}-note-${i}`}
             html={inlineText(note)}
-            fontFamily={fonts.sans}
-            fontSize="12.5px"
-            color={colors.ink3}
+            fontFamily={f.sans}
+            fontSize={scaledPx(12.5, theme.fontScale)}
+            color={c.ink3}
             lineHeight="150%"
           />
         ))}
@@ -179,11 +267,19 @@ export function notesRows(
 }
 
 /** Thin rule used between blocks inside a mode root. */
-export function blockSpacerRow(key: string, backgroundColor: string): ReactElement {
+export function blockSpacerRow(key: string, backgroundColor: string, theme: PublishTheme = resolveTheme("editorial")): ReactElement {
+  const side = padFor(theme).side;
+  if (theme.calloutStyle === "plain") {
+    return (
+      <Row key={key} layout={ColumnLayouts.OneColumn} backgroundColor={backgroundColor} padding={`${Math.round(12 * (theme.spacing === "tight" ? 0.7 : 1))}px ${side}`}>
+        <Column padding="0px" />
+      </Row>
+    );
+  }
   return (
-    <Row key={key} layout={ColumnLayouts.OneColumn} backgroundColor={backgroundColor} padding="0px 44px">
+    <Row key={key} layout={ColumnLayouts.OneColumn} backgroundColor={backgroundColor} padding={`0px ${side}`}>
       <Column padding="0px">
-        <Divider borderTopWidth="1px" borderTopStyle="solid" borderTopColor={colors.line} />
+        <Divider borderTopWidth="1px" borderTopStyle="solid" borderTopColor={theme.colors.line} />
       </Column>
     </Row>
   );

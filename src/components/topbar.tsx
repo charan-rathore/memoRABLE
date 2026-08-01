@@ -42,7 +42,8 @@ export function Topbar({
   regenerateBusy?: boolean;
 }) {
   const [aiOpen, setAiOpen] = useState(false);
-  const [themeOpen, setThemeOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [presetOpen, setPresetOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [library, setLibrary] = useState<LibraryDoc[]>([]);
@@ -51,22 +52,117 @@ export function Topbar({
     if (searchOpen) setLibrary(searchLibraryDocs(query));
   }, [searchOpen, query]);
 
+  useEffect(() => {
+    if (!menuOpen) setPresetOpen(false);
+  }, [menuOpen]);
+
   const results = useMemo(() => (searchOpen ? searchLibraryDocs(query) : library), [searchOpen, query, library]);
 
   return (
     <header className="topbar">
       <div className="topbar-left">
+        <span className="menu-wrap">
+          <button
+            type="button"
+            className="nav-menu"
+            aria-label="Open menu"
+            aria-expanded={menuOpen}
+            onClick={() => setMenuOpen((open) => !open)}
+          >
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+              <path d="M3 5h12M3 9h12M3 13h12" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+            </svg>
+          </button>
+          {menuOpen && (
+            <div className="menu-pop" role="menu" aria-label="Document actions">
+              <button
+                type="button"
+                role="menuitem"
+                className="menu-item"
+                onClick={() => {
+                  onHome();
+                  setMenuOpen(false);
+                }}
+              >
+                Back to start
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                className="menu-item"
+                onClick={() => {
+                  onNewDoc();
+                  setMenuOpen(false);
+                }}
+              >
+                New doc
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                className="menu-item"
+                disabled={!canPublish || regenerateBusy}
+                onClick={() => {
+                  onRegenerate();
+                  setMenuOpen(false);
+                }}
+              >
+                {regenerateBusy ? "Reading…" : "Regenerate"}
+              </button>
+              <div className="menu-sep" role="separator" />
+              <button
+                type="button"
+                role="menuitem"
+                className="menu-item menu-item-preset"
+                aria-expanded={presetOpen}
+                onClick={() => setPresetOpen((open) => !open)}
+              >
+                <span>
+                  Preset · <b>{PUBLISH_THEMES[theme].label}</b>
+                </span>
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+                  <path
+                    d={presetOpen ? "M3 7.5L6 4.5L9 7.5" : "M3 4.5L6 7.5L9 4.5"}
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </button>
+              {presetOpen && (
+                <div className="menu-presets" role="listbox" aria-label="Publication presets">
+                  <p className="menu-presets-hint">
+                    One click retunes type, spacing, colour, charts and Unlayer Elements layout.
+                  </p>
+                  {PUBLISH_THEME_IDS.map((id) => (
+                    <button
+                      key={id}
+                      type="button"
+                      role="option"
+                      aria-selected={id === theme}
+                      className={`theme-opt${id === theme ? " on" : ""}`}
+                      onClick={() => {
+                        onThemeChange(id);
+                        setPresetOpen(false);
+                        setMenuOpen(false);
+                      }}
+                    >
+                      <b>{PUBLISH_THEMES[id].label}</b>
+                      <span>{PUBLISH_THEMES[id].description}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </span>
+
         <button type="button" className="brand" onClick={onHome} aria-label="memoRABLE home">
           <BrandMark size={28} />
           <span className="wordmark">
             memo<b>RABLE</b>
           </span>
-        </button>
-        <button type="button" className="nav-back" onClick={onHome} aria-label="Back to start">
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-            <path d="M10 3L5 8l5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-          <span>Back</span>
         </button>
         <span className="vr" aria-hidden="true" />
         <div className="doc-title">
@@ -120,30 +216,6 @@ export function Topbar({
             </div>
           )}
         </div>
-        <button type="button" className="btn ghost small" onClick={onNewDoc}>
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-            <path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-          </svg>
-          New doc
-        </button>
-        <button
-          type="button"
-          className="btn ghost small"
-          onClick={onRegenerate}
-          disabled={!canPublish || regenerateBusy}
-          title="Read the document again — catch dates, timelines and anything we missed"
-        >
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-            <path
-              d="M13.5 8A5.5 5.5 0 1 1 8 2.5"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-            />
-            <path d="M8 1v3.5L10.5 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-          {regenerateBusy ? "Reading…" : "Regenerate"}
-        </button>
       </div>
 
       <div className="topbar-right">
@@ -172,43 +244,6 @@ export function Topbar({
                   public demo it stays off so nothing you paste ever leaves the machine.
                 </>
               )}
-            </span>
-          )}
-        </span>
-
-        <span className="ai-wrap">
-          <button
-            type="button"
-            className="preset-btn"
-            aria-expanded={themeOpen}
-            aria-haspopup="listbox"
-            onClick={() => setThemeOpen((open) => !open)}
-          >
-            <span className="preset-label">Preset</span>
-            <span className="preset-value">{PUBLISH_THEMES[theme].label}</span>
-            <svg className="preset-chev" width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-              <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </button>
-          {themeOpen && (
-            <span className="ai-pop theme-pop" role="listbox" aria-label="Publication presets">
-              <p style={{ margin: "0 0 6px", fontSize: 11.5, color: "var(--ink-3)" }}>
-                Academic · Minimal · Executive · Editorial. One click retunes type, spacing, colour, charts and layout.
-              </p>
-              {PUBLISH_THEME_IDS.map((id) => (
-                <button
-                  key={id}
-                  type="button"
-                  className={`theme-opt${id === theme ? " on" : ""}`}
-                  onClick={() => {
-                    onThemeChange(id);
-                    setThemeOpen(false);
-                  }}
-                >
-                  <b>{PUBLISH_THEMES[id].label}</b>
-                  <span>{PUBLISH_THEMES[id].description}</span>
-                </button>
-              ))}
             </span>
           )}
         </span>

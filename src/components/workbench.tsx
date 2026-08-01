@@ -319,12 +319,18 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
   const regenerate = useCallback(async () => {
     if (!state.document || regenerateBusy) return;
     setRegenerateBusy(true);
+    announce("Reading again — looking harder at dates and timelines…");
     try {
-      await runImport(state.sourceText, state.sourceLabel, sourceMeta ?? undefined);
+      await runImport(state.sourceText, state.sourceLabel, {
+        ...(sourceMeta ?? {}),
+        filename: sourceMeta?.filename ?? state.sourceLabel,
+        fileType: sourceMeta?.fileType,
+        parseStatus: "regenerated — dates and timelines re-read",
+      });
     } finally {
       setRegenerateBusy(false);
     }
-  }, [state.document, state.sourceText, state.sourceLabel, sourceMeta, regenerateBusy, runImport]);
+  }, [state.document, state.sourceText, state.sourceLabel, sourceMeta, regenerateBusy, runImport, announce]);
 
   const finishSplash = useCallback(() => {
     setSplash(false);

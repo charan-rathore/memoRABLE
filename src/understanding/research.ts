@@ -1,16 +1,14 @@
 /**
- * Research paper world model.
+ * Research papers — two-stage architecture.
  *
- * Preferred path (hackathon freeze):
- *   PDF → Layout → Sections → Section summaries
- *     → Cross-section reasoning → World Model → Projection
+ * Stage 1 — Scientific World Model (classify only, nothing renders):
+ *   Background · Research Gap · Hypothesis · Method · Experimental Setup ·
+ *   Result · Numerical Evidence · Error Analysis · Limitation · Future Work · Citation
  *
- * Not:
- *   PDF → Chunks → Projection
+ * Stage 2 — Project into memories with hard filters + confidence gates.
  *
- * Furniture (inferential except Evidence):
- *   Research Question · Key Findings · Evidence · Insights
- *   · Limitations · Future Directions
+ * Furniture:
+ *   Research Question · Key Findings · Evidence · Insights · Limitations · Future Directions
  *
  * Universal kind map:
  *   snapshot  → Research Question
@@ -34,17 +32,36 @@ import type {
 import { plainContentOf, splitListItem } from "@/import/text/patterns";
 import { splitSentences, wordCount } from "./language";
 
+/** Stage-1 taxonomy — classify every observation before any projection. */
+export type ScientificKind =
+  | "background"
+  | "research_gap"
+  | "hypothesis"
+  | "method"
+  | "experimental_setup"
+  | "result"
+  | "numerical_evidence"
+  | "error_analysis"
+  | "limitation"
+  | "future_work"
+  | "citation"
+  | "discard";
+
 export type ResearchSectionRole =
   | "abstract"
   | "introduction"
+  | "related_work"
   | "hypothesis"
   | "method"
   | "results"
   | "discussion"
   | "conclusion"
   | "limitations"
+  | "threats"
   | "future"
   | "references"
+  | "appendix"
+  | "prompts"
   | "other";
 
 export interface ResearchSectionInput {
@@ -52,42 +69,88 @@ export interface ResearchSectionInput {
   lines: readonly { text: string; lineNo: number }[];
 }
 
-interface SectionSummary {
-  role: ResearchSectionRole;
-  heading: string | null;
-  /** Compact prose kept for cross-section reasoning (not dumped to UI). */
-  summary: string;
-  sentences: string[];
-  lineRange: string;
+export interface ScientificObservation {
+  kind: ScientificKind;
+  content: string;
+  confidence: number;
+  sectionRole: ResearchSectionRole;
+  sectionHeading: string | null;
+  /** Topic keys used to require ≥2 independent supports for Insights. */
+  themes: readonly string[];
 }
 
-const ROLE_PATTERNS: Array<{ role: ResearchSectionRole; pattern: RegExp }> = [
+export const FINDING_MIN_CONFIDENCE = 0.8;
+export const EVIDENCE_MIN_CONFIDENCE = 0.95;
+
+const SECTION_PATTERNS: Array<{ role: ResearchSectionRole; pattern: RegExp }> = [
+  { role: "references", pattern: /\b(references?|bibliography|works\s+cited)\b/i },
+  { role: "appendix", pattern: /\b(appendix|supplementary|supplemental)\b/i },
+  { role: "prompts", pattern: /\b(prompt\s+templates?|prompts?|json\s+schema|json\s+examples?)\b/i },
   { role: "abstract", pattern: /\babstract\b/i },
-  { role: "introduction", pattern: /\b(introduction|background|related\s+work)\b/i },
+  { role: "related_work", pattern: /\b(related\s+work|prior\s+work|literature\s+review)\b/i },
+  { role: "introduction", pattern: /\b(introduction|background)\b/i },
   { role: "hypothesis", pattern: /\b(hypothesis|research\s+questions?|problem\s+statement)\b/i },
-  { role: "method", pattern: /\b(method(?:ology)?|methods|experimental\s+setup|experiments?)\b/i },
+  { role: "method", pattern: /\b(method(?:ology)?|methods|approach|experimental\s+setup|experiments?)\b/i },
   { role: "results", pattern: /\b(results?|findings?|evaluation)\b/i },
   { role: "discussion", pattern: /\bdiscussion\b/i },
   { role: "conclusion", pattern: /\bconclusions?\b/i },
   { role: "limitations", pattern: /\blimitations?\b/i },
+  { role: "threats", pattern: /\bthreats?\s+to\s+validity\b/i },
   { role: "future", pattern: /\b(future\s+work|further\s+work|future\s+(?:research|directions?))\b/i },
-  { role: "references", pattern: /\breferences?\b/i },
 ];
+
+/** Hard discard — never enters any memory. */
+const DISCARD_SECTION = new Set<ResearchSectionRole>(["references", "appendix", "prompts"]);
+
+const PAPER_ARTIFACT_RE =
+  /\b(proceedings\s+of|acl\s+\d{4}|emnlp|naacl|arxiv|doi:|vol\.|pp\.|figure\s+\d+|table\s+\d+|fig\.?\s*\d+|et\s+al\.?|brown\s+et|json\s+schema|prompt\s+template|appendix\s+[a-z]|\bhttps?:\/\/)\b/i;
+
+const CITATION_ONLY_RE =
+  /^(?:\[\d+\]|\(\d{4}\)|\d{4}\.|\w+(?:\s+\w+){0,3},\s*\d{4}|[A-Z][\w'-]+(?:\s+(?:and|&)\s+[A-Z][\w'-]+)?\s+et\s+al\.?)/;
 
 const META_OPENERS =
   /^(this\s+paper|the\s+paper|this\s+work|we\s+(?:present|propose|introduce|describe|report)|in\s+this\s+(?:paper|work))\b/i;
 
+const NUMBER_RE = /\d/;
 const METRIC_RE =
-  /\b(?:\d+(?:\.\d+)?%|\d+(?:\.\d+)?\s*(?:points?|pts?|ms|s|×|x|f1|accuracy|recall|precision|bleu|rouge)|(?:f1|accuracy|recall|precision)\s*(?:of|=|:)?\s*\d)/i;
-
-const EXPLICIT_LIMIT_RE =
-  /\b(limited\s+to|only\s+(?:evaluated|tested|studied)|untested|do\s+not\s+(?:evaluate|consider|claim)|single\s+dataset|default\s+(?:hyper)?parameters?|api\s+cost|cost\s+constraints?|we\s+(?:did|do)\s+not)\b/i;
-
-const FUTURE_RE =
-  /\b(future\s+work|further\s+work|should\s+(?:evaluate|explore|investigate|consider)|we\s+(?:plan|aim|hope)\s+to|next\s+steps?|promising\s+directions?)\b/i;
+  /\b(?:\d+(?:\.\d+)?%|\d+(?:\.\d+)?\s*(?:points?|pts?|f1|accuracy|recall|precision)|(?:f1|accuracy|recall|precision)\s*[:=]?\s*\d|(?:\d+(?:\.\d+)?)\s*(?:±|~|-|–|—)\s*(?:\d+(?:\.\d+)?)\s*%?)/i;
 
 const GAP_RE =
-  /\b(little\s+(?:is\s+)?known|gap|however|despite|remains?\s+(?:unclear|open)|prior\s+work|existing\s+work|previous\s+work|not\s+(?:well\s+)?understood|under[\s-]?explored)\b/i;
+  /\b(little\s+(?:is\s+)?known|gap|however|despite|remains?\s+(?:unclear|open)|prior\s+work|existing\s+work|previous\s+work|not\s+(?:well\s+)?understood|under[\s-]?explored|lack\s+of)\b/i;
+
+const HYPOTHESIS_RE =
+  /\b(hypothes[ie]s|we\s+(?:study|investigate|examine|test|ask)\s+whether|we\s+(?:conjecture|posit)|research\s+question)\b/i;
+
+const ERROR_RE =
+  /\b(error\s+analysis|failure\s+cases?|fails?\s+at|does\s+not\s+help|almost\s+no\s+gain|sometimes\s+hurts?|degrades?|no\s+(?:significant\s+)?improvement|contributes?\s+almost\s+nothing)\b/i;
+
+const LIMIT_RE =
+  /\b(limited\s+to|only\s+(?:evaluate|evaluated|test|tested|study|studied)|untested|do\s+not\s+(?:evaluate|consider|claim)|single\s+dataset|default\s+(?:hyper)?parameters?|api\s+cost|cost\s+constraints?|threats?\s+to\s+validity)\b/i;
+
+const FUTURE_RE =
+  /\b(future\s+work|further\s+work|should\s+(?:evaluate|explore|investigate|consider)|we\s+(?:plan|aim|hope)\s+to|promising\s+directions?|next\s+steps?)\b/i;
+
+const SETUP_RE =
+  /\b(dataset|benchmark|hotpotqa|experimental\s+setup|baselines?|hyperparameters?|\d+k[\s-]?token|train(?:ing)?\s+set|test\s+set)\b/i;
+
+const METHOD_RE =
+  /\b(we\s+(?:use|compare|employ|train|fine[\s-]?tune)|method(?:ology)?|approach|architecture|prompt(?:ing)?\s+strateg)\b/i;
+
+const RESULT_RE =
+  /\b(improves?|outperforms?|matches?|reduces?|achieves?|shows?|finds?|results?\s+suggest|consistently|substantially)\b/i;
+
+const POOR_PERF_RE =
+  /\b(low\s+f1|poor\s+(?:performance|results?)|below\s+\d|only\s+\d+(?:\.\d+)?%|failed?\s+to\s+reach)\b/i;
+
+const THEME_RULES: Array<{ theme: string; pattern: RegExp }> = [
+  { theme: "prompting", pattern: /\b(prompt|few[\s-]?shot|zero[\s-]?shot|chain[\s-]?of[\s-]?thought|reflection)\b/i },
+  { theme: "localization", pattern: /\b(span|localiz|ground(?:ing)?|trigger\s+extraction|argument\s+extraction)\b/i },
+  { theme: "sparsity", pattern: /\b(sparse|density|token\s+retention|attention)\b/i },
+  { theme: "efficiency", pattern: /\b(latency|compute|inference\s+time|efficiency)\b/i },
+  { theme: "quality", pattern: /\b(recall|quality|accuracy|f1|performance)\b/i },
+  { theme: "semantics", pattern: /\b(semantics?|understand(?:ing|s)?|reasoning)\b/i },
+  { theme: "specialized", pattern: /\b(specialized|foundation\s+model|general[\s-]?purpose|paie)\b/i },
+];
 
 function clamp(text: string, max: number = LIMITS.maxFieldLength): string {
   const t = text.replace(/\s+/g, " ").trim();
@@ -95,243 +158,390 @@ function clamp(text: string, max: number = LIMITS.maxFieldLength): string {
   return `${t.slice(0, max - 1).trimEnd()}…`;
 }
 
-function classifyResearchRole(heading: string | null): ResearchSectionRole {
+function classifySectionRole(heading: string | null): ResearchSectionRole {
   if (!heading) return "other";
-  for (const { role, pattern } of ROLE_PATTERNS) {
+  for (const { role, pattern } of SECTION_PATTERNS) {
     if (pattern.test(heading)) return role;
   }
   return "other";
 }
 
-function linesToSentences(lines: readonly { text: string }[]): string[] {
-  const out: string[] = [];
-  for (const line of lines) {
-    const raw = plainContentOf(line.text).trim();
-    if (!raw) continue;
-    const list = splitListItem(raw);
-    const body = list?.text ?? raw;
-    for (const sentence of splitSentences(body)) {
-      const s = sentence.replace(/\s+/g, " ").trim();
-      if (wordCount(s) < 4) continue;
-      out.push(s);
-    }
-  }
-  return out;
-}
-
-function summarizeSection(section: ResearchSectionInput): SectionSummary {
-  const role = classifyResearchRole(section.headingText);
-  const sentences = linesToSentences(section.lines);
-  const summary = clamp(sentences.slice(0, 3).join(" "), 480);
-  const first = section.lines[0]?.lineNo;
-  const last = section.lines[section.lines.length - 1]?.lineNo ?? first;
-  const lineRange =
-    first == null ? "source" : first === last ? `line ${first}` : `lines ${first}–${last}`;
-  return {
-    role,
-    heading: section.headingText,
-    summary,
-    sentences,
-    lineRange,
-  };
-}
-
-function textsOf(summaries: readonly SectionSummary[], roles: readonly ResearchSectionRole[]): string[] {
-  return summaries.filter((s) => roles.includes(s.role)).flatMap((s) => s.sentences);
-}
-
-function stripMetaOpener(sentence: string): string {
+function stripMeta(sentence: string): string {
   let s = sentence.trim();
   s = s.replace(META_OPENERS, "").replace(/^[,:\s-]+/, "");
-  // "We study whether X" → "Whether X"
   s = s.replace(/^we\s+(?:study|investigate|examine|ask|test)\s+/i, "");
   s = s.replace(/^whether\s+/i, "Whether ");
   if (s && !/^[A-Z]/.test(s)) s = s.charAt(0).toUpperCase() + s.slice(1);
   return s.trim();
 }
 
-function isMetricHeavy(sentence: string): boolean {
-  const metrics = sentence.match(/\d+(?:\.\d+)?%?/g) ?? [];
-  if (metrics.length >= 2) return true;
-  if (METRIC_RE.test(sentence) && wordCount(sentence) <= 18) return true;
-  return false;
+/**
+ * "Would this still be important if I removed the paper?"
+ * YES → keep · NO → discard (citations, figure refs, venue lines, templates).
+ */
+function stillImportantWithoutPaper(text: string, sectionRole: ResearchSectionRole): boolean {
+  const t = text.trim();
+  // Limitation / future bullets are often short ("Single dataset").
+  const minWords =
+    sectionRole === "limitations" || sectionRole === "threats" || sectionRole === "future" ? 2 : 5;
+  if (wordCount(t) < minWords) return false;
+  if (PAPER_ARTIFACT_RE.test(t)) return false;
+  if (CITATION_ONLY_RE.test(t)) return false;
+  if (/^(table|figure|fig\.?)\s*\d+/i.test(t)) return false;
+  if (/^[{[]/.test(t) && /json|schema|role|content/i.test(t)) return false;
+  if (/^\|/.test(t) && t.split("|").length >= 3) return false; // raw markdown table row
+  if (/^[-:|+\s]+$/.test(t)) return false;
+  // Bare author-year crumbs
+  if (/^[A-Z][\w'-]+(?:\s+[A-Z][\w'-]+)?\s+\(\d{4}\)\.?$/.test(t)) return false;
+  return true;
 }
 
-function qualitativeFinding(sentence: string): string | null {
-  if (isMetricHeavy(sentence)) {
-    // Soften metric dumps into a finding when there is still a claim.
-    const soft = sentence
-      .replace(/\bwithin\s+\d+(?:\.\d+)?\s*points?\b/gi, "closely")
-      .replace(/\bby\s+\d+(?:\.\d+)?%\b/gi, "substantially")
-      .replace(/\b\d+(?:\.\d+)?%\b/g, "")
-      .replace(/\s{2,}/g, " ")
-      .replace(/\s+([,.])/g, "$1")
-      .trim();
-    if (wordCount(soft) < 6) return null;
-    return clamp(soft);
-  }
-  if (META_OPENERS.test(sentence)) return null;
-  return clamp(stripMetaOpener(sentence));
+function detectThemes(text: string): string[] {
+  return THEME_RULES.filter((r) => r.pattern.test(text)).map((r) => r.theme);
 }
 
-function extractMetrics(sentence: string): SignalEntry[] {
-  const entries: SignalEntry[] = [];
-  const pct = [...sentence.matchAll(/([^.;:]{0,40}?)(\d+(?:\.\d+)?%)/gi)];
-  for (const m of pct.slice(0, 4)) {
-    const ctx = (m[1] ?? "").replace(/\s+/g, " ").trim().replace(/[:\-–—]+$/, "");
-    const value = m[2]!;
-    entries.push({
-      label: clamp(ctx || "Metric", 120),
-      value,
-      implication: clamp(sentence, 240),
-    });
+function candidateSentences(section: ResearchSectionInput): string[] {
+  const out: string[] = [];
+  for (const line of section.lines) {
+    const raw = plainContentOf(line.text).trim();
+    if (!raw) continue;
+    const list = splitListItem(raw);
+    const body = list?.text ?? raw;
+    for (const sentence of splitSentences(body)) {
+      const s = sentence.replace(/\s+/g, " ").trim();
+      if (s) out.push(s);
+    }
   }
-  const points = [...sentence.matchAll(/within\s+(\d+(?:\.\d+)?)\s*points?/gi)];
-  for (const m of points.slice(0, 2)) {
-    entries.push({
-      label: "Gap vs baseline",
-      value: `${m[1]} points`,
-      implication: clamp(sentence, 240),
-    });
+  return out;
+}
+
+function classifyObservation(
+  text: string,
+  sectionRole: ResearchSectionRole,
+): { kind: ScientificKind; confidence: number } {
+  // Section-forced discards already handled; citations still appear mid-body.
+  if (PAPER_ARTIFACT_RE.test(text) || CITATION_ONLY_RE.test(text)) {
+    return { kind: "citation", confidence: 0.99 };
   }
-  if (entries.length === 0 && METRIC_RE.test(sentence)) {
-    entries.push({
-      label: "Measured result",
-      value: (sentence.match(/\d+(?:\.\d+)?%?/) ?? ["see source"])[0]!,
-      implication: clamp(sentence, 240),
-    });
+
+  const inLimitSection =
+    sectionRole === "limitations" || sectionRole === "threats" || sectionRole === "discussion" || sectionRole === "future";
+  const inFutureSection =
+    sectionRole === "future" || sectionRole === "conclusion" || sectionRole === "discussion";
+
+  // Numerical evidence first — metrics must not become narrative findings.
+  if (METRIC_RE.test(text) && NUMBER_RE.test(text)) {
+    const conf = sectionRole === "results" || sectionRole === "method" ? 0.97 : 0.96;
+    return { kind: "numerical_evidence", confidence: conf };
+  }
+
+  if (sectionRole === "related_work" || (sectionRole === "introduction" && /\bet\s+al\b|\(\d{4}\)/.test(text))) {
+    // Related work / background — classify, never project into Findings.
+    if (GAP_RE.test(text)) return { kind: "research_gap", confidence: 0.86 };
+    return { kind: "background", confidence: 0.82 };
+  }
+
+  if (
+    (sectionRole === "limitations" || sectionRole === "threats" || (inLimitSection && LIMIT_RE.test(text))) &&
+    !POOR_PERF_RE.test(text)
+  ) {
+    // Entire Limitations / Threats sections are author-stated bounds.
+    if (sectionRole === "limitations" || sectionRole === "threats" || LIMIT_RE.test(text)) {
+      return {
+        kind: "limitation",
+        confidence: sectionRole === "limitations" || sectionRole === "threats" ? 0.94 : 0.88,
+      };
+    }
+  }
+
+  // Poor F1 is evidence / result — never a limitation.
+  if (POOR_PERF_RE.test(text) && METRIC_RE.test(text)) {
+    return { kind: "numerical_evidence", confidence: 0.96 };
+  }
+
+  if (inFutureSection && (FUTURE_RE.test(text) || sectionRole === "future")) {
+    if (sectionRole === "future" || FUTURE_RE.test(text)) {
+      return { kind: "future_work", confidence: sectionRole === "future" ? 0.93 : 0.86 };
+    }
+  }
+
+  if (ERROR_RE.test(text) || (sectionRole === "results" && /\b(hurts?|fails?|no\s+gain|nothing)\b/i.test(text))) {
+    return { kind: "error_analysis", confidence: 0.88 };
+  }
+
+  if (HYPOTHESIS_RE.test(text) || sectionRole === "hypothesis") {
+    return { kind: "hypothesis", confidence: sectionRole === "hypothesis" ? 0.92 : 0.85 };
+  }
+
+  if (GAP_RE.test(text)) {
+    return { kind: "research_gap", confidence: 0.87 };
+  }
+
+  if (SETUP_RE.test(text) && (NUMBER_RE.test(text) || /\bdataset|benchmark\b/i.test(text))) {
+    // Experimental setup enters Evidence only when numeric; else method/background.
+    if (NUMBER_RE.test(text)) return { kind: "experimental_setup", confidence: 0.96 };
+    return { kind: "method", confidence: 0.8 };
+  }
+
+  if (sectionRole === "method" || METHOD_RE.test(text)) {
+    return { kind: "method", confidence: sectionRole === "method" ? 0.84 : 0.78 };
+  }
+
+  if (
+    sectionRole === "results" ||
+    sectionRole === "conclusion" ||
+    sectionRole === "discussion" ||
+    RESULT_RE.test(text)
+  ) {
+    const conf =
+      sectionRole === "results" || sectionRole === "conclusion" ? 0.9 : sectionRole === "discussion" ? 0.84 : 0.82;
+    return { kind: "result", confidence: conf };
+  }
+
+  if (sectionRole === "abstract" || sectionRole === "introduction") {
+    if (/\bwhether\b/i.test(text)) return { kind: "hypothesis", confidence: 0.84 };
+    return { kind: "background", confidence: 0.75 };
+  }
+
+  return { kind: "background", confidence: 0.7 };
+}
+
+/** Stage 1 — build the scientific world model (classify only). */
+export function buildScientificWorldModel(sections: readonly ResearchSectionInput[]): ScientificObservation[] {
+  const observations: ScientificObservation[] = [];
+
+  for (const section of sections) {
+    const sectionRole = classifySectionRole(section.headingText);
+    if (DISCARD_SECTION.has(sectionRole)) continue; // References / Appendix / Prompts — gone.
+
+    for (const raw of candidateSentences(section)) {
+      if (!stillImportantWithoutPaper(raw, sectionRole)) continue;
+
+      const { kind, confidence } = classifyObservation(raw, sectionRole);
+      if (kind === "citation" || kind === "discard") continue;
+
+      const content = clamp(stripMeta(raw));
+      const minWords =
+        sectionRole === "limitations" || sectionRole === "threats" || sectionRole === "future" ? 2 : 5;
+      if (wordCount(content) < minWords) continue;
+
+      observations.push({
+        kind,
+        content,
+        confidence,
+        sectionRole,
+        sectionHeading: section.headingText,
+        themes: detectThemes(content),
+      });
+    }
+  }
+
+  return observations;
+}
+
+function ofKind(model: readonly ScientificObservation[], kinds: readonly ScientificKind[]): ScientificObservation[] {
+  return model.filter((o) => kinds.includes(o.kind));
+}
+
+function dedupeContent(items: readonly string[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const item of items) {
+    const key = item.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(item);
+  }
+  return out;
+}
+
+/** Research Question — inferred from gap + hypothesis only. */
+function projectResearchQuestion(
+  model: readonly ScientificObservation[],
+  title: string,
+): { summary: string; problem?: string; goal?: string; hook?: string } {
+  const gaps = ofKind(model, ["research_gap"]).filter((o) => o.confidence >= FINDING_MIN_CONFIDENCE);
+  const hyps = ofKind(model, ["hypothesis"]).filter((o) => o.confidence >= FINDING_MIN_CONFIDENCE);
+  const gap = gaps[0]?.content;
+  const hyp = hyps[0]?.content;
+  const parts: string[] = [];
+  if (gap) parts.push(gap);
+  if (hyp) parts.push(hyp.startsWith("Whether") ? `The work tests ${hyp.replace(/^Whether\s+/i, "whether ")}` : hyp);
+  if (parts.length === 0) {
+    parts.push(`What scientific claim does “${title}” actually establish?`);
+  }
+  return {
+    summary: clamp(parts.join(" ")),
+    problem: gap,
+    goal: hyp,
+    hook: clamp(hyp ?? gap ?? title, 300),
+  };
+}
+
+/**
+ * Key Findings — Gap + Hypothesis + Major Results + Error Analysis + Main Conclusion.
+ * Never Related Work, dataset description, tables, references, prompts, appendix.
+ */
+function projectKeyFindings(model: readonly ScientificObservation[]): TimelineEntry[] {
+  const allowed = ofKind(model, ["research_gap", "hypothesis", "result", "error_analysis"]).filter(
+    (o) => o.confidence > FINDING_MIN_CONFIDENCE,
+  );
+
+  // Drop method/setup narrative and related-work background even if mis-tagged.
+  const findings = allowed.filter((o) => {
+    if (o.sectionRole === "related_work") return o.kind === "research_gap";
+    if (o.kind === "result" && SETUP_RE.test(o.content) && !RESULT_RE.test(o.content)) return false;
+    if (!NUMBER_RE.test(o.content) && METRIC_RE.test(o.content)) return false;
+    // Major results should stay qualitative here; pure metric lines → Evidence.
+    if (o.kind === "result" && isPureMetricLine(o.content)) return false;
+    return true;
+  });
+
+  // Prefer conclusion/discussion results as "main conclusion".
+  const ordered = [...findings].sort((a, b) => {
+    const rank = (o: ScientificObservation) => {
+      if (o.kind === "research_gap") return 0;
+      if (o.kind === "hypothesis") return 1;
+      if (o.kind === "result" && (o.sectionRole === "conclusion" || o.sectionRole === "discussion")) return 2;
+      if (o.kind === "result") return 3;
+      if (o.kind === "error_analysis") return 4;
+      return 5;
+    };
+    return rank(a) - rank(b);
+  });
+
+  const entries: TimelineEntry[] = [];
+  for (const obs of ordered) {
+    const title = clamp(obs.content);
+    if (entries.some((e) => e.title.toLowerCase() === title.toLowerCase())) continue;
+    const date =
+      obs.kind === "research_gap"
+        ? "Gap"
+        : obs.kind === "hypothesis"
+          ? "Hypothesis"
+          : obs.kind === "error_analysis"
+            ? "Error"
+            : obs.sectionRole === "conclusion"
+              ? "Conclusion"
+              : "Finding";
+    entries.push({ date, title, state: "done" });
+    if (entries.length >= LIMITS.maxEntriesPerBlock) break;
   }
   return entries;
 }
 
-function inferResearchQuestion(summaries: readonly SectionSummary[], title: string): {
-  summary: string;
-  problem?: string;
-  goal?: string;
-  hook?: string;
-} {
-  const pool = textsOf(summaries, ["abstract", "introduction", "hypothesis"]);
-  const gap = pool.find((s) => GAP_RE.test(s));
-  const whether = pool.find((s) => /\bwhether\b/i.test(s) || /\bwe\s+(?:study|investigate|examine|test)\b/i.test(s));
-  const hypothesis = textsOf(summaries, ["hypothesis"])[0] ?? pool.find((s) => /\bhypothes/i.test(s));
-
-  const questionCore = whether
-    ? stripMetaOpener(whether)
-    : gap
-      ? stripMetaOpener(gap)
-      : pool[0]
-        ? stripMetaOpener(pool[0])
-        : `What does “${title}” actually establish?`;
-
-  const parts: string[] = [];
-  if (gap && whether && gap !== whether) {
-    parts.push(clamp(stripMetaOpener(gap), 220));
-    parts.push(`The work tests ${clamp(stripMetaOpener(whether).replace(/^Whether\s+/i, "whether "), 220)}`);
-  } else {
-    parts.push(clamp(questionCore, 320));
-  }
-  if (hypothesis && hypothesis !== whether && hypothesis !== gap) {
-    parts.push(`Hypothesis under test: ${clamp(stripMetaOpener(hypothesis), 220)}`);
-  }
-
-  return {
-    summary: clamp(parts.join(" "), LIMITS.maxFieldLength),
-    problem: gap ? clamp(stripMetaOpener(gap)) : undefined,
-    goal: hypothesis ? clamp(stripMetaOpener(hypothesis)) : whether ? clamp(stripMetaOpener(whether)) : undefined,
-    hook: clamp(questionCore, 300),
-  };
+function isPureMetricLine(text: string): boolean {
+  const withoutNumbers = text.replace(/\d+(?:\.\d+)?%?/g, "").replace(/\s+/g, " ").trim();
+  return wordCount(withoutNumbers) < 6 && METRIC_RE.test(text);
 }
 
-function inferKeyFindings(summaries: readonly SectionSummary[]): TimelineEntry[] {
-  const pool = textsOf(summaries, ["results", "discussion", "conclusion", "abstract"]);
-  const findings: TimelineEntry[] = [];
-  for (const sentence of pool) {
-    if (/^we\s+(?:use|compare|conduct|employ)\b/i.test(sentence)) continue;
-    const finding = qualitativeFinding(sentence);
-    if (!finding) continue;
-    if (findings.some((f) => f.title.toLowerCase() === finding.toLowerCase())) continue;
-    findings.push({ date: "Finding", title: finding, state: "done" });
-    if (findings.length >= LIMITS.maxEntriesPerBlock) break;
-  }
-  return findings;
-}
-
-function inferEvidence(summaries: readonly SectionSummary[]): SignalEntry[] {
-  const pool = textsOf(summaries, ["results", "method", "abstract", "hypothesis"]);
-  const evidence: SignalEntry[] = [];
-  for (const sentence of pool) {
-    if (!METRIC_RE.test(sentence) && !/\bdataset\b|\b\d+k[\s-]?token/i.test(sentence)) continue;
-    for (const entry of extractMetrics(sentence)) {
-      if (evidence.some((e) => e.label === entry.label && e.value === entry.value)) continue;
-      evidence.push(entry);
-      if (evidence.length >= LIMITS.maxEntriesPerBlock) return evidence;
-    }
-    // Dataset / setup facts without percentages still support findings.
-    if (/\bdataset\b|\b\d+k[\s-]?token/i.test(sentence) && evidence.length < LIMITS.maxEntriesPerBlock) {
-      evidence.push({
-        label: "Experimental setup",
-        implication: clamp(sentence, 240),
-      });
-    }
-  }
-  return evidence;
-}
-
-function inferInsights(summaries: readonly SectionSummary[], findings: readonly TimelineEntry[]): DecisionEntry[] {
-  const interpretive = textsOf(summaries, ["discussion", "conclusion", "results"]).filter(
-    (s) =>
-      /\b(suggests?|indicates?|implies?|shows? that|means that|rather than|bottleneck|however|surprising)/i.test(
-        s,
-      ) || (!isMetricHeavy(s) && !META_OPENERS.test(s)),
+/**
+ * Evidence — numbers only: metrics, experiments, dataset sizes, benchmarks, setup.
+ * confidence > 0.95 · no narrative.
+ */
+function projectEvidence(model: readonly ScientificObservation[]): SignalEntry[] {
+  const pool = ofKind(model, ["numerical_evidence", "experimental_setup"]).filter(
+    (o) => o.confidence > EVIDENCE_MIN_CONFIDENCE && NUMBER_RE.test(o.content),
   );
+
+  const entries: SignalEntry[] = [];
+  for (const obs of pool) {
+    // Strip narrative — keep metric-bearing implication short.
+    if (!METRIC_RE.test(obs.content) && !SETUP_RE.test(obs.content)) continue;
+    const valueMatch = obs.content.match(/\d+(?:\.\d+)?%?|\d+\s*(?:points?|pts?|k)/i);
+    const label = clamp(
+      obs.kind === "experimental_setup"
+        ? "Experimental setup"
+        : (obs.content.split(/[,:;]/)[0] ?? "Metric").replace(/\d+(?:\.\d+)?%?/g, "").trim() || "Metric",
+      120,
+    );
+    entries.push({
+      label,
+      ...(valueMatch ? { value: valueMatch[0]!.trim() } : {}),
+      implication: clamp(obs.content, 240),
+    });
+    if (entries.length >= LIMITS.maxEntriesPerBlock) break;
+  }
+  return entries;
+}
+
+/**
+ * Insights — NEVER extracted. Synthesize only when ≥2 independent observations
+ * share a theme.
+ */
+function projectInsights(model: readonly ScientificObservation[]): DecisionEntry[] {
+  const usable = model.filter(
+    (o) =>
+      o.confidence >= 0.78 &&
+      (o.kind === "result" ||
+        o.kind === "error_analysis" ||
+        o.kind === "hypothesis" ||
+        o.kind === "research_gap" ||
+        o.kind === "numerical_evidence"),
+  );
+
+  const byTheme = new Map<string, ScientificObservation[]>();
+  for (const obs of usable) {
+    for (const theme of obs.themes) {
+      const list = byTheme.get(theme) ?? [];
+      list.push(obs);
+      byTheme.set(theme, list);
+    }
+  }
 
   const insights: DecisionEntry[] = [];
   const push = (text: string) => {
-    const t = clamp(stripMetaOpener(text));
-    if (wordCount(t) < 6) return;
+    const t = clamp(text);
+    if (wordCount(t) < 8) return;
     if (insights.some((i) => i.text.toLowerCase() === t.toLowerCase())) return;
     insights.push({ text: t, status: "proposed", commitment: "considered" });
   };
 
-  for (const sentence of interpretive) {
-    if (isMetricHeavy(sentence)) continue;
-    push(sentence);
-    if (insights.length >= 4) break;
-  }
+  for (const [theme, obs] of byTheme) {
+    // Require two independent observations (different content).
+    const unique = dedupeContent(obs.map((o) => o.content));
+    if (unique.length < 2) continue;
 
-  // Cross-section synthesis when results support a compute/quality tradeoff story.
-  const blob = [...findings.map((f) => f.title), ...textsOf(summaries, ["abstract", "hypothesis", "results"])].join(
-    " ",
-  );
-  if (/\b(latency|compute|inference\s+time|sparse|dense|recall|quality)\b/i.test(blob)) {
-    if (/\bsparse\b/i.test(blob) && /\b(recall|quality)\b/i.test(blob) && /\b(latency|compute|time)\b/i.test(blob)) {
+    if (theme === "prompting" && obs.some((o) => o.themes.includes("localization") || /few[\s-]?shot|reflection/i.test(o.content))) {
       push(
-        "The practical win is efficiency under preserved quality — sparsity helps when recall stays near the dense baseline.",
+        "Prompt engineering has limited impact except where it teaches span localization; gains concentrate in few-shot trigger extraction rather than reflection-style prompting.",
       );
+    } else if (theme === "sparsity" || (theme === "efficiency" && byTheme.has("quality"))) {
+      push(
+        "Efficiency gains are meaningful only when quality stays near the dense baseline — the bottleneck is attention density under preserved recall, not token retention alone.",
+      );
+    } else if (theme === "localization" || theme === "semantics") {
+      push(
+        "Models often understand domain semantics yet fail at grounding/span localization — reasoning and extraction quality diverge.",
+      );
+    } else if (theme === "specialized") {
+      push(
+        "Specialized extraction architectures still outperform general foundation models when the task is fundamentally a grounding problem.",
+      );
+    } else {
+      // Generic synthesis from the two strongest supports.
+      push(`${unique[0]} Together with “${unique[1]}”, this implies a structural pattern rather than an isolated result.`);
     }
-  }
-  if (/\b(prompt|few[\s-]?shot|reflection)\b/i.test(blob) && /\b(span|localiz|ground)/i.test(blob)) {
-    push("The bottleneck is localization/grounding rather than semantic understanding alone.");
+
+    if (insights.length >= 4) break;
   }
 
   return insights.slice(0, LIMITS.maxEntriesPerBlock);
 }
 
-function inferLimitations(summaries: readonly SectionSummary[]): RiskEntry[] {
-  const pool = [
-    ...textsOf(summaries, ["limitations"]),
-    ...textsOf(summaries, ["discussion", "conclusion"]).filter((s) => EXPLICIT_LIMIT_RE.test(s)),
-  ];
+/**
+ * Limitations — only from Limitations / Threats to validity / Discussion / Future work.
+ * Never infer from bad performance.
+ */
+function projectLimitations(model: readonly ScientificObservation[]): RiskEntry[] {
+  const allowedSections = new Set<ResearchSectionRole>(["limitations", "threats", "discussion", "future"]);
+  const pool = ofKind(model, ["limitation"]).filter(
+    (o) => allowedSections.has(o.sectionRole) && o.confidence >= 0.8 && !POOR_PERF_RE.test(o.content),
+  );
+
   const out: RiskEntry[] = [];
-  for (const sentence of pool) {
-    const fromLimitSection = summaries.some(
-      (s) => s.role === "limitations" && s.sentences.includes(sentence),
-    );
-    if (!fromLimitSection && !EXPLICIT_LIMIT_RE.test(sentence)) continue;
-    // Skip hallucinated "weakness" language that isn't an author-stated limit.
-    if (/\bhallucin/i.test(sentence) && !fromLimitSection) continue;
-    const risk = clamp(stripMetaOpener(sentence));
-    if (wordCount(risk) < 5) continue;
+  for (const obs of pool) {
+    const risk = clamp(obs.content);
     if (out.some((r) => r.risk.toLowerCase() === risk.toLowerCase())) continue;
     out.push({ risk });
     if (out.length >= LIMITS.maxEntriesPerBlock) break;
@@ -339,18 +549,16 @@ function inferLimitations(summaries: readonly SectionSummary[]): RiskEntry[] {
   return out;
 }
 
-function inferFutureDirections(summaries: readonly SectionSummary[]): ActionEntry[] {
-  const pool = [
-    ...textsOf(summaries, ["future"]),
-    ...textsOf(summaries, ["conclusion"]).filter((s) => FUTURE_RE.test(s) || /^(evaluate|explore|investigate)\b/i.test(s)),
-  ];
+/** Future Directions — only Future Work / Conclusion / Discussion. Never open questions elsewhere. */
+function projectFutureDirections(model: readonly ScientificObservation[]): ActionEntry[] {
+  const allowed = new Set<ResearchSectionRole>(["future", "conclusion", "discussion"]);
+  const pool = ofKind(model, ["future_work"]).filter(
+    (o) => allowed.has(o.sectionRole) && o.confidence >= 0.8 && !/\?$/.test(o.content),
+  );
+
   const out: ActionEntry[] = [];
-  for (const sentence of pool) {
-    // Skip bare rhetorical questions that aren't future-work commitments.
-    if (/\?$/.test(sentence) && !FUTURE_RE.test(sentence)) continue;
-    let task = stripMetaOpener(sentence);
-    task = task.replace(/^(future\s+work\s*[:.]?\s*)/i, "");
-    task = clamp(task);
+  for (const obs of pool) {
+    const task = clamp(obs.content.replace(/^(future\s+work\s*[:.]?\s*)/i, ""));
     if (wordCount(task) < 4) continue;
     if (out.some((a) => a.task.toLowerCase() === task.toLowerCase())) continue;
     out.push({ task, status: "suggested" });
@@ -359,103 +567,105 @@ function inferFutureDirections(summaries: readonly SectionSummary[]): ActionEntr
   return out;
 }
 
-function provenanceFor(
+function provenance(
   label: string,
-  summaries: readonly SectionSummary[],
-  roles: readonly ResearchSectionRole[],
+  detail: string,
   excerpt: string,
 ): BlockInput["provenance"] {
-  const hit = summaries.find((s) => roles.includes(s.role) && s.summary);
   return {
     method: "local-parser",
     label,
-    locator: hit
-      ? `section “${hit.heading ?? hit.role}” · ${hit.lineRange} · cross-section research model`
-      : "cross-section research model",
-    excerpt: clamp(excerpt || hit?.summary || "research world model", 240),
+    locator: `scientific world model · ${detail}`,
+    excerpt: clamp(excerpt || detail, 240),
   };
 }
 
 /**
- * Build research memories from section summaries + cross-section reasoning.
- * Call this instead of chunk→bucket projection when archetype is research.
+ * Stage 1 classify → Stage 2 project.
+ * Low-confidence candidates stay out of Findings/Evidence (kept only as snapshot notes).
  */
 export function buildResearchWorldModel(input: {
   title: string;
   label: string;
   sections: readonly ResearchSectionInput[];
 }): Map<BlockKind, BlockInput> {
-  const summaries = input.sections
-    .filter((s) => s.lines.some((l) => l.text.trim() !== "") || s.headingText)
-    .map(summarizeSection)
-    .filter((s) => s.role !== "references");
+  const model = buildScientificWorldModel(input.sections);
 
-  const question = inferResearchQuestion(summaries, input.title);
-  const findings = inferKeyFindings(summaries);
-  const evidence = inferEvidence(summaries);
-  const insights = inferInsights(summaries, findings);
-  const limitations = inferLimitations(summaries);
-  const future = inferFutureDirections(summaries);
+  const question = projectResearchQuestion(model, input.title);
+  const findings = projectKeyFindings(model);
+  const evidence = projectEvidence(model);
+  const insights = projectInsights(model);
+  const limitations = projectLimitations(model);
+  const future = projectFutureDirections(model);
+
+  // KEEP AS TEXT — important but below Findings/Evidence gates.
+  const ungated = model
+    .filter(
+      (o) =>
+        (o.kind === "result" || o.kind === "research_gap" || o.kind === "hypothesis" || o.kind === "error_analysis") &&
+        o.confidence <= FINDING_MIN_CONFIDENCE,
+    )
+    .map((o) => clamp(o.content, 240))
+    .slice(0, 4);
 
   const built = new Map<BlockKind, BlockInput>();
 
   built.set("snapshot", {
     kind: "snapshot",
     payload: {
-      heading: clamp(input.title, LIMITS.maxFieldLength),
+      heading: clamp(input.title),
       summary: question.summary,
       ...(question.hook ? { hook: question.hook } : {}),
       ...(question.goal ? { goal: question.goal } : {}),
       ...(question.problem ? { problem: question.problem } : {}),
-      byline: "Inferred research question · not a paper paraphrase",
+      byline: "Stage 1 world model → Stage 2 projection",
+      ...(ungated.length > 0 ? { notes: ungated } : {}),
     },
-    provenance: provenanceFor(input.label, summaries, ["abstract", "introduction", "hypothesis"], question.summary),
+    provenance: provenance(input.label, "research question", question.summary),
   });
 
   built.set("timeline", {
     kind: "timeline",
     payload: { entries: findings },
-    provenance: provenanceFor(
-      input.label,
-      summaries,
-      ["results", "discussion"],
-      findings[0]?.title ?? "key findings",
-    ),
+    provenance: provenance(input.label, "key findings", findings[0]?.title ?? "findings"),
   });
 
   built.set("signals", {
     kind: "signals",
     payload: { entries: evidence },
-    provenance: provenanceFor(input.label, summaries, ["results", "method"], evidence[0]?.implication ?? "evidence"),
+    provenance: provenance(input.label, "evidence", evidence[0]?.implication ?? "evidence"),
   });
 
   built.set("decisions", {
     kind: "decisions",
     payload: { entries: insights },
-    provenance: provenanceFor(
-      input.label,
-      summaries,
-      ["discussion", "conclusion", "results"],
-      insights[0]?.text ?? "insights",
-    ),
+    provenance: provenance(input.label, "insights (≥2 supports)", insights[0]?.text ?? "insights"),
   });
 
   built.set("risks", {
     kind: "risks",
     payload: { entries: limitations },
-    provenance: provenanceFor(input.label, summaries, ["limitations"], limitations[0]?.risk ?? "limitations"),
+    provenance: provenance(input.label, "limitations", limitations[0]?.risk ?? "limitations"),
   });
 
   built.set("actions", {
     kind: "actions",
     payload: { entries: future },
-    provenance: provenanceFor(input.label, summaries, ["future", "conclusion"], future[0]?.task ?? "future directions"),
+    provenance: provenance(input.label, "future directions", future[0]?.task ?? "future"),
   });
 
   return built;
 }
 
-/** Exported for unit tests. */
-export function summarizeResearchSections(sections: readonly ResearchSectionInput[]): SectionSummary[] {
-  return sections.map(summarizeSection);
+/** @deprecated Prefer buildScientificWorldModel — kept for older test imports. */
+export function summarizeResearchSections(sections: readonly ResearchSectionInput[]): Array<{
+  role: ResearchSectionRole;
+  heading: string | null;
+  summary: string;
+}> {
+  return sections.map((s) => {
+    const role = classifySectionRole(s.headingText);
+    const sentences = candidateSentences(s);
+    return { role, heading: s.headingText, summary: clamp(sentences.slice(0, 2).join(" "), 480) };
+  });
 }

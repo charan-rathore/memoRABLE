@@ -3,7 +3,7 @@ import { Column, ColumnLayouts, Paragraph, Row, Table } from "@unlayer/react-ele
 import type { MemoryBlock, RisksPayload } from "@/domain/memory/schema";
 import { severityColor } from "../tokens";
 import { escapeHtml, inlineText } from "../safe-inline";
-import { emptyBlockRow, notesRows, sectionLabelRow, PAD, type BlockRenderContext } from "./common";
+import { emptyBlockRow, notesRows, sectionLabelRow, padFor, type BlockRenderContext } from "./common";
 
 /**
  * Risks: Table when the preset prefers tables; otherwise spare Paragraph lines
@@ -18,8 +18,8 @@ export function renderRisksRows(block: MemoryBlock, ctx: BlockRenderContext): Re
   const f = ctx.theme.fonts;
 
   if (entries.length === 0) {
-    rows.push(emptyBlockRow(block, "No risks were recognized in this source. Nothing was invented.", ctx.surface));
-    rows.push(...notesRows(block, notes, ctx.surface));
+    rows.push(emptyBlockRow(block, "No risks were recognized in this source. Nothing was invented.", ctx.surface, ctx.theme));
+    rows.push(...notesRows(block, notes, ctx.surface, ctx.theme));
     return rows;
   }
 
@@ -29,7 +29,7 @@ export function renderRisksRows(block: MemoryBlock, ctx: BlockRenderContext): Re
         key={`${block.id}-list`}
         layout={ColumnLayouts.OneColumn}
         backgroundColor={ctx.surface}
-        padding={notes.length === 0 ? PAD.last : PAD.body}
+        padding={notes.length === 0 ? padFor(ctx.theme).last : padFor(ctx.theme).body}
       >
         <Column>
           {entries.map((e, i) => {
@@ -50,7 +50,7 @@ export function renderRisksRows(block: MemoryBlock, ctx: BlockRenderContext): Re
         </Column>
       </Row>,
     );
-    rows.push(...notesRows(block, notes, ctx.surface));
+    rows.push(...notesRows(block, notes, ctx.surface, ctx.theme));
     return rows;
   }
 
@@ -83,7 +83,7 @@ export function renderRisksRows(block: MemoryBlock, ctx: BlockRenderContext): Re
       key={`${block.id}-table`}
       layout={ColumnLayouts.OneColumn}
       backgroundColor={ctx.surface}
-      padding={notes.length === 0 ? PAD.last : PAD.body}
+      padding={notes.length === 0 ? padFor(ctx.theme).last : padFor(ctx.theme).body}
     >
       <Column padding="6px 0px">
         <Table
@@ -131,6 +131,6 @@ export function renderRisksRows(block: MemoryBlock, ctx: BlockRenderContext): Re
       </Column>
     </Row>,
   );
-  rows.push(...notesRows(block, notes, ctx.surface));
+  rows.push(...notesRows(block, notes, ctx.surface, ctx.theme));
   return rows;
 }

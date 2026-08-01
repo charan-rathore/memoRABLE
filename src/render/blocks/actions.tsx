@@ -1,9 +1,17 @@
 import type { ReactElement } from "react";
 import { Column, ColumnLayouts, Paragraph, Row } from "@unlayer/react-elements";
 import type { ActionEntry, ActionsPayload, MemoryBlock } from "@/domain/memory/schema";
-import { colors, fonts, HAIRLINE, statusColor, statusLabel } from "../tokens";
+import { hairline, statusLabel, themedStatusColor } from "../tokens";
 import { inlineBold, inlineText } from "../safe-inline";
-import { emptyBlockRow, notesRows, sectionLabelRow, asideParagraph, PAD, type BlockRenderContext } from "./common";
+import {
+  emptyBlockRow,
+  notesRows,
+  sectionLabelRow,
+  asideParagraph,
+  padFor,
+  scaledPx,
+  type BlockRenderContext,
+} from "./common";
 
 /** Actions: task on the left, owner/state on the right, linked back to a decision. */
 export function renderActionsRows(block: MemoryBlock, ctx: BlockRenderContext): ReactElement[] {
@@ -13,8 +21,10 @@ export function renderActionsRows(block: MemoryBlock, ctx: BlockRenderContext): 
   const rows: ReactElement[] = [...sectionLabelRow(block, ctx)];
 
   if (entries.length === 0) {
-    rows.push(emptyBlockRow(block, "No action items were recognized in this source. Nothing was invented.", ctx.surface));
-    rows.push(...notesRows(block, notes, ctx.surface));
+    rows.push(
+      emptyBlockRow(block, "No action items were recognized in this source. Nothing was invented.", ctx.surface, ctx.theme),
+    );
+    rows.push(...notesRows(block, notes, ctx.surface, ctx.theme));
     return rows;
   }
 
@@ -22,7 +32,7 @@ export function renderActionsRows(block: MemoryBlock, ctx: BlockRenderContext): 
     const last = i === entries.length - 1;
     rows.push(actionRow(block, ctx, entry, i, last && notes.length === 0, !last));
   });
-  rows.push(...notesRows(block, notes, ctx.surface));
+  rows.push(...notesRows(block, notes, ctx.surface, ctx.theme));
   return rows;
 }
 
@@ -32,32 +42,46 @@ function actionRow(
   entry: ActionEntry,
   index: number,
   isLast: boolean,
-  hairline: boolean,
+  showHairline: boolean,
 ): ReactElement {
-  const cellBorder = hairline ? HAIRLINE : undefined;
+  const c = ctx.theme.colors;
+  const f = ctx.theme.fonts;
+  const pad = padFor(ctx.theme);
+  const scale = ctx.theme.fontScale;
+  const cellBorder = showHairline ? hairline(c.line) : undefined;
   const who = assignment(entry);
   return (
     <Row
       key={`${block.id}-action-${index}`}
       layout={ColumnLayouts.TwoWideNarrow}
       backgroundColor={ctx.surface}
-      padding={isLast ? PAD.last : PAD.body}
+      padding={isLast ? pad.last : pad.body}
     >
       <Column padding="12px 12px 12px 0px" border={cellBorder}>
-        <Paragraph html={inlineBold(entry.task)} fontFamily={fonts.sans} fontSize="13.5px" color={colors.ink} lineHeight="152%" />
+        <Paragraph
+          html={inlineBold(entry.task)}
+          fontFamily={f.sans}
+          fontSize={scaledPx(13.5, scale)}
+          color={c.ink}
+          lineHeight="152%"
+        />
         {who ? (
-          <Paragraph html={inlineText(who)} fontFamily={fonts.mono} fontSize="11px" color={colors.ink3} lineHeight="150%" />
+          <Paragraph
+            html={inlineText(who)}
+            fontFamily={f.mono}
+            fontSize={scaledPx(11, scale)}
+            color={c.ink3}
+            lineHeight="150%"
+          />
         ) : null}
-        {entry.from
-          ? asideParagraph(`Carries out ${entry.from}`, `${block.id}-from-${index}`)
-          : null}
+        {entry.from ? asideParagraph(`Carries out ${entry.from}`, `${block.id}-from-${index}`, ctx.theme) : null}
       </Column>
       <Column padding="12px 0px 12px 12px" border={cellBorder}>
         <Paragraph
           html={inlineText(statusLabel(entry.status).toUpperCase())}
-          fontFamily={fonts.mono}
-          fontSize="10.5px"
-          color={statusColor(entry.status)}
+          fontFamily={f.mono}
+          fontSize={scaledPx(10.5, scale)}
+          color={themedStatusColor(entry.status, c.accent)}
           letterSpacing="0.1em"
           textAlign="right"
           lineHeight="150%"

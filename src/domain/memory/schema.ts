@@ -281,6 +281,19 @@ export const MEMORY_RELATION_LABELS: Record<MemoryRelationKind, string> = {
 /* ------------------------------- source blocks ------------------------------ */
 
 /**
+ * Detected document archetype — drives UI bucket projection only.
+ * Universal observation kinds stay fixed; this selects the furniture.
+ */
+export const documentArchetypeInfoSchema = z
+  .object({
+    id: z.string().min(1).max(40),
+    label: z.string().min(1).max(80),
+  })
+  .strict();
+
+export type DocumentArchetypeInfo = z.infer<typeof documentArchetypeInfoSchema>;
+
+/**
  * The strict JSON import format. A discriminated union on `kind` validates
  * each payload against exactly its own schema, so malformed fields produce
  * exact paths. One entry per kind; kinds are unique; all six kinds are
@@ -306,6 +319,8 @@ export const memorySourceSchema = z
     blocks: z.array(sourceBlockSchema).min(1).max(LIMITS.maxBlocks),
     /** Optional: edges between memories, recomputed when absent. */
     relations: z.array(memoryRelationSchema).max(LIMITS.maxRelations).optional(),
+    /** Optional: drives UI bucket labels after projection. */
+    archetype: documentArchetypeInfoSchema.optional(),
   })
   .strict();
 
@@ -362,6 +377,8 @@ export const memoryDocumentSchema = z
     /** Edges between memories. Always present, possibly empty. */
     relations: z.array(memoryRelationSchema).max(LIMITS.maxRelations),
     warnings: z.array(importWarningSchema).max(200),
+    /** Optional: which adaptive projection selected and labeled the memories. */
+    archetype: documentArchetypeInfoSchema.optional(),
   })
   .strict();
 

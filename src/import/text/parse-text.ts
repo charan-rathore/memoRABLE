@@ -3,7 +3,6 @@ import type { Diagnostic } from "@/reliability/diagnostics";
 import { finalizeDocument, type BlockInput } from "@/domain/memory/normalize";
 import {
   BLOCK_KINDS,
-  BLOCK_KIND_LABELS,
   type ActionEntry,
   type BlockKind,
   type DecisionEntry,
@@ -13,7 +12,17 @@ import {
   type SignalEntry,
   type TimelineEntry,
 } from "@/domain/memory/schema";
-import { gateTimelineEntries, recallFrom, understand, type Recall, type Understanding } from "@/understanding";
+import {
+  isKindApplicable,
+  memoryProjectionFor,
+  projectAdaptiveMemories,
+  bucketLabel,
+  gateTimelineEntries,
+  recallFrom,
+  understand,
+  type Recall,
+  type Understanding,
+} from "@/understanding";
 import {
   blocksDecisionInference,
   harvestSingleLegLine,
@@ -246,10 +255,17 @@ export function parseText(input: TextImportInput): Result<MemoryDocument> {
   });
   built.set("snapshot", buildBlock("snapshot", sections.filter((s) => s.kind === "snapshot"), ctx));
 
-  const blocks: BlockInput[] = BLOCK_KINDS.map((kind) => built.get(kind)!);
+  const blocks: BlockInput[] = projectAdaptiveMemories(
+    BLOCK_KINDS.map((kind) => built.get(kind)!),
+    understanding.archetype.archetype,
+  );
   linkActionsToDecisions(blocks);
   warnings.push(...understandingWarnings(understanding));
   warnings.push(...graphWarnings(graph, segmented.segments.length));
+  warnings.push({
+    code: "text.adaptive-projection",
+    message: `Adaptive memory projection for ${understanding.archetype.label}: ${blocks.map((b) => b.title).join(", ")}.`,
+  });
 
   const document = finalizeDocument({
     title,
@@ -257,6 +273,10 @@ export function parseText(input: TextImportInput): Result<MemoryDocument> {
     sourceLabel: label,
     blocks,
     warnings,
+    archetype: {
+      id: understanding.archetype.archetype,
+      label: understanding.archetype.label,
+    },
   });
   return ok(
     document,
@@ -494,7 +514,6 @@ function buildBlock(kind: BlockKind, matched: Section[], ctx: BuildContext): Blo
   const contentLines = matched.flatMap((s) => s.lines).filter((l) => l.text.trim() !== "");
   const assigned = matched.some((s) => s.assigned);
   const notes: string[] = [];
-  const kindLabel = BLOCK_KIND_LABELS[kind];
 
   let payload: BlockInput["payload"];
   if (kind === "snapshot") {
@@ -505,24 +524,25 @@ function buildBlock(kind: BlockKind, matched: Section[], ctx: BuildContext): Blo
 
   const entryCount = (payload as { entries?: unknown[] }).entries?.length ?? 0;
   const hasNotes = notes.length > (kind === "snapshot" ? ctx.keptOnPurpose : 0);
+  const archetypeId = ctx.understanding.archetype.archetype;
+  const applicable = isKindApplicable(archetypeId, kind);
+  const projectedLabel = bucketLabel(archetypeId, kind);
+  // Only PRD-style "keep empty" projections surface empty-bucket honesty warnings.
+  const keepsEmptyBuckets =
+    applicable && memoryProjectionFor(archetypeId).emptyApplicable === "keep";
 
   if (entryCount === 0 && notes.length === 0 && kind !== "snapshot") {
-    // Empty Timeline is expected for archetypes with timeline_mode "none".
-    if (kind === "timeline" && ctx.understanding.archetype.timelineMode === "none") {
-      warnings.push({
-        code: "text.timeline-empty-ok",
-        message: `No timeline for this ${ctx.understanding.archetype.label.toLowerCase()} — empty Timeline is correct, not a failure.`,
-      });
-    } else {
+    // Inapplicable / omitted empties are never extraction failures.
+    if (keepsEmptyBuckets) {
       warnings.push({
         code: "text.no-blocks-recognized",
-        message: `No ${kindLabel.toLowerCase()} were recognized, so that memory is empty. Nothing was invented.`,
+        message: `No ${projectedLabel.toLowerCase()} were recognized, so that memory is empty. Nothing was invented.`,
       });
     }
   } else if (hasNotes) {
     warnings.push({
       code: "text.unrecognized-section",
-      message: `Some text wasn't clearly recognized and is kept as-is in the ${kindLabel} memory.`,
+      message: `Some text wasn't clearly recognized and is kept as-is in the ${projectedLabel} memory.`,
     });
   }
 

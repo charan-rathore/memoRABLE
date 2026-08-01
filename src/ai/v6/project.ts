@@ -1,5 +1,7 @@
 import { memorySourceSchema, type MemorySource } from "@/domain/memory/schema";
 import { LIMITS } from "@/domain/memory/limits";
+import { projectAdaptiveMemories } from "@/understanding/projection-profiles";
+import type { DocumentArchetype } from "@/understanding/archetype";
 import type { V6Extraction } from "./schema";
 import type { FailureMode, RepairEvent } from "./validate";
 
@@ -40,87 +42,94 @@ export function projectV6ToMemorySource(
     LIMITS.maxFieldLength,
   );
 
+  const archetypeId = normalizeArchetype(extraction.document_meta.archetype);
+
   const source: MemorySource = {
     version: 1,
     title,
-    blocks: [
-      {
-        kind: "snapshot",
-        payload: {
-          heading,
-          summary: clamp(summary, LIMITS.maxFieldLength),
-          ...(snapshotNotes.length > 0 ? { notes: snapshotNotes } : {}),
-          ...(extraction.document_meta.anchor_date
-            ? { byline: `Anchor ${extraction.document_meta.anchor_date} · ${extraction.document_meta.anchor_confidence}` }
-            : extraction.document_meta.anchor_confidence === "none"
-              ? { byline: "No reliable date anchor" }
-              : {}),
+    archetype: {
+      id: archetypeId,
+      label: extraction.document_meta.archetype || archetypeId,
+    },
+    blocks: projectAdaptiveMemories(
+      [
+        {
+          kind: "snapshot" as const,
+          payload: {
+            heading,
+            summary: clamp(summary, LIMITS.maxFieldLength),
+            ...(snapshotNotes.length > 0 ? { notes: snapshotNotes } : {}),
+            ...(extraction.document_meta.anchor_date
+              ? { byline: `Anchor ${extraction.document_meta.anchor_date} · ${extraction.document_meta.anchor_confidence}` }
+              : extraction.document_meta.anchor_confidence === "none"
+                ? { byline: "No reliable date anchor" }
+                : {}),
+          },
         },
-      },
-      {
-        kind: "signals",
-        payload: {
-          entries: extraction.signals.slice(0, LIMITS.maxEntriesPerBlock).map((s) => ({
-            label: clamp(shortLabel(s.content), 120),
-            implication: clamp(s.content, LIMITS.maxFieldLength),
-            ...(s.signal_type === "tone" || s.signal_type === "omission"
-              ? {}
-              : {}),
-          })),
+        {
+          kind: "signals" as const,
+          payload: {
+            entries: extraction.signals.slice(0, LIMITS.maxEntriesPerBlock).map((s) => ({
+              label: clamp(shortLabel(s.content), 120),
+              implication: clamp(s.content, LIMITS.maxFieldLength),
+              ...(s.signal_type === "tone" || s.signal_type === "omission" ? {} : {}),
+            })),
+          },
         },
-      },
-      {
-        kind: "decisions",
-        payload: {
-          entries: extraction.decisions.slice(0, LIMITS.maxEntriesPerBlock).map((d) => ({
-            ref: clamp(d.decision_id ?? "D", 40),
-            text: clamp(d.content, LIMITS.maxFieldLength),
-            status: "approved" as const,
-            commitment: "committed" as const,
-            ...(d.decided_by ? { because: clamp(`Decided by ${d.decided_by}`, LIMITS.maxFieldLength) } : {}),
-          })),
+        {
+          kind: "decisions" as const,
+          payload: {
+            entries: extraction.decisions.slice(0, LIMITS.maxEntriesPerBlock).map((d) => ({
+              ref: clamp(d.decision_id ?? "D", 40),
+              text: clamp(d.content, LIMITS.maxFieldLength),
+              status: "approved" as const,
+              commitment: "committed" as const,
+              ...(d.decided_by ? { because: clamp(`Decided by ${d.decided_by}`, LIMITS.maxFieldLength) } : {}),
+            })),
+          },
         },
-      },
-      {
-        kind: "timeline",
-        payload: {
-          entries: extraction.timeline.slice(0, LIMITS.maxEntriesPerBlock).map((t) => ({
-            date: clamp(formatResolvedDate(t), 80),
-            title: clamp(t.content, LIMITS.maxFieldLength),
-            state: stateFromRole(t.date_role),
-            ...(t.depends_on?.[0] ? { requires: clamp(t.depends_on.join(", "), 240) } : {}),
-            ...(t.responsible_party ? { produces: clamp(t.responsible_party, 240) } : {}),
-          })),
+        {
+          kind: "timeline" as const,
+          payload: {
+            entries: extraction.timeline.slice(0, LIMITS.maxEntriesPerBlock).map((t) => ({
+              date: clamp(formatResolvedDate(t), 80),
+              title: clamp(t.content, LIMITS.maxFieldLength),
+              state: stateFromRole(t.date_role),
+              ...(t.depends_on?.[0] ? { requires: clamp(t.depends_on.join(", "), 240) } : {}),
+              ...(t.responsible_party ? { produces: clamp(t.responsible_party, 240) } : {}),
+            })),
+          },
         },
-      },
-      {
-        kind: "risks",
-        payload: {
-          entries: extraction.risks.slice(0, LIMITS.maxEntriesPerBlock).map((r) => ({
-            risk: clamp(r.content, LIMITS.maxFieldLength),
-            ...(r.why_it_matters
-              ? {
-                  because: clamp(r.content, LIMITS.maxFieldLength),
-                  consequence: clamp(r.why_it_matters, LIMITS.maxFieldLength),
-                }
-              : {}),
-            severity: confidenceToSeverity(r.source_confidence),
-          })),
+        {
+          kind: "risks" as const,
+          payload: {
+            entries: extraction.risks.slice(0, LIMITS.maxEntriesPerBlock).map((r) => ({
+              risk: clamp(r.content, LIMITS.maxFieldLength),
+              ...(r.why_it_matters
+                ? {
+                    because: clamp(r.content, LIMITS.maxFieldLength),
+                    consequence: clamp(r.why_it_matters, LIMITS.maxFieldLength),
+                  }
+                : {}),
+              severity: confidenceToSeverity(r.source_confidence),
+            })),
+          },
         },
-      },
-      {
-        kind: "actions",
-        payload: {
-          entries: extraction.actions.slice(0, LIMITS.maxEntriesPerBlock).map((a) => ({
-            task: clamp(a.content, LIMITS.maxFieldLength),
-            status: mapActionStatus(a.status),
-            ...(a.owner ? { owner: clamp(a.owner, 120) } : {}),
-            ...(a.due_date ? { due: clamp(a.due_date, 80) } : {}),
-            ...(a.carries_out ? { from: clamp(a.carries_out, LIMITS.maxFieldLength) } : {}),
-          })),
+        {
+          kind: "actions" as const,
+          payload: {
+            entries: extraction.actions.slice(0, LIMITS.maxEntriesPerBlock).map((a) => ({
+              task: clamp(a.content, LIMITS.maxFieldLength),
+              status: mapActionStatus(a.status),
+              ...(a.owner ? { owner: clamp(a.owner, 120) } : {}),
+              ...(a.due_date ? { due: clamp(a.due_date, 80) } : {}),
+              ...(a.carries_out ? { from: clamp(a.carries_out, LIMITS.maxFieldLength) } : {}),
+            })),
+          },
         },
-      },
-    ],
+      ],
+      archetypeId,
+    ),
   };
 
   const parsed = memorySourceSchema.safeParse(source);
@@ -182,4 +191,25 @@ function mapActionStatus(
 ): "ready" | "pending" | "suggested" | "done" {
   if (status === "ready" || status === "done" || status === "suggested") return status;
   return "pending";
+}
+
+function normalizeArchetype(raw: string | undefined): DocumentArchetype {
+  const key = (raw ?? "other").toLowerCase().replace(/\s+/g, "_");
+  const known: DocumentArchetype[] = [
+    "resume",
+    "prd",
+    "research",
+    "contract",
+    "invoice",
+    "ticket",
+    "job",
+    "menu",
+    "meeting",
+    "policy",
+    "glossary",
+    "slides",
+    "brief",
+    "other",
+  ];
+  return (known.includes(key as DocumentArchetype) ? key : "other") as DocumentArchetype;
 }

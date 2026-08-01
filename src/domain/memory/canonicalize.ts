@@ -68,6 +68,7 @@ export function canonicalDocumentProjection(doc: MemoryDocument): unknown {
     // Relations are addressed by kind and entry index, so they survive
     // reordering untouched and belong to the document's identity.
     relations: doc.relations,
+    ...(doc.archetype ? { archetype: doc.archetype } : {}),
   };
 }
 

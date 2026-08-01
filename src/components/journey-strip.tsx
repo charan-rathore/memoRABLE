@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import type { WorkbenchState } from "./workbench-state";
 import { OUTPUT_MODE_LABELS } from "@/domain/memory/types";
-import { BLOCK_KIND_LABELS } from "@/domain/memory/schema";
 import { formatBytes } from "./import/read-file";
 
 export type StepStatus = "done" | "live" | "pending" | "error";
@@ -58,7 +57,7 @@ export function journeyOf(
 ): JourneyStep[] {
   const hasDoc = state.document !== null;
   const hasErrors = state.errors.length > 0;
-  const kinds = state.document?.blocks.map((b) => BLOCK_KIND_LABELS[b.kind]).join(", ") ?? "";
+  const kinds = state.document?.blocks.map((b) => b.title).join(", ") ?? "";
   const sections = countSections(state.sourceText);
   const tables = countTables(state.sourceText);
   const images = countImages(state.sourceText);
@@ -97,19 +96,21 @@ export function journeyOf(
       detail: hasErrors
         ? `couldn't understand · ${state.errors.length} ${state.errors.length === 1 ? "error" : "errors"}`
         : hasDoc
-          ? "six types found"
+          ? `${state.document!.blocks.length} memories projected`
           : "waiting",
       status: hasErrors ? "error" : hasDoc ? "done" : "pending",
       lines: hasDoc
         ? [
-            `Six memory types: ${kinds}`,
+            `Projected memories: ${kinds}`,
+            `Archetype: ${state.document!.archetype?.label ?? "Other"}`,
             `Sections recognized: ${sections || "structure inferred"}`,
             `Tables detected: ${tables}`,
             `Images detected: ${images}`,
             `Parsing summary: ${hasErrors ? "errors kept source unchanged" : "local, deterministic"}`,
           ]
         : [
-            "Six memory types: waiting",
+            "Projected memories: waiting",
+            "Archetype: waiting",
             "Sections recognized: waiting",
             "Tables detected: waiting",
             "Images detected: waiting",

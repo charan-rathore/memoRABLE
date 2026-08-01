@@ -105,6 +105,20 @@ describe("Indent_PO_GRN PRD — semantic understanding regression", () => {
       (decisions.notes ?? []).some((n) => /auto-increment|edited on|edit button/i.test(n)) &&
       !/auto-increment|edited on|edit button/i.test(decisionText);
     expect(acStillOnlyNotes).toBe(false);
+
+    // Key Requirements + Acceptance Criteria must compress to one memory each.
+    const editedOn = decisions.entries.filter((e) => /edited on/i.test(e.text));
+    expect(editedOn.length).toBe(1);
+    const revision = decisions.entries.filter((e) =>
+      /auto-increment revision|revision number auto-increment/i.test(e.text),
+    );
+    expect(revision.length).toBe(1);
+    const approval = decisions.entries.filter((e) => /approval workflow/i.test(e.text));
+    expect(approval.length).toBe(1);
+    const advances = decisions.entries.filter((e) => /linked advances/i.test(e.text));
+    expect(advances.length).toBe(1);
+    // Section chrome is not a decision.
+    expect(decisions.entries.some((e) => /^business impact$/i.test(e.text.trim()))).toBe(false);
     // Decision status / commitment metadata must survive compression.
     expect(decisions.entries.some((e) => e.status === "approved" || e.status === "proposed")).toBe(
       true,

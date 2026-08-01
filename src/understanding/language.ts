@@ -142,6 +142,100 @@ export function dedupeByMeaning<T>(items: readonly T[], textOf: (item: T) => str
   return kept;
 }
 
+/**
+ * Normalize requirement phrasing so Key Requirements and Acceptance Criteria
+ * that restate the same product rule collapse to one memory.
+ */
+export function normalizeDecisionText(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[''`]/g, "")
+    .replace(/\b(po|indent|grn)\s+list\s+views?\b/g, "list view")
+    .replace(/\blist\s+views?\b/g, "list view")
+    .replace(/\bauto-?increments?\b/g, "auto increment")
+    .replace(/\brevision\s+numbers?\b/g, "revision number")
+    .replace(/\bwith each edit\b/g, "")
+    .replace(/\bremain(?:s)? intact\b/g, "preserve")
+    .replace(/\bpreserve[sd]?\b/g, "preserve")
+    .replace(/\blinked advances\b/g, "linked advance")
+    .replace(/\bapproval workflows?\b/g, "approval workflow")
+    .replace(/\bconfigurable\b/g, "")
+    .replace(/\bvisible in\b/g, "visible")
+    .replace(/\bshows?\b/g, "show")
+    .replace(/\bincludes?\b/g, "include")
+    .replace(/\([^)]*\)/g, " ")
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/** Distinctive requirement phrases that identify the same product rule. */
+const DECISION_ANCHORS = [
+  "edited on",
+  "edited by",
+  "revision number",
+  "auto increment",
+  "linked advance",
+  "approval workflow",
+  "edit history",
+  "visual indicator",
+  "pdf export",
+  "editor name",
+  "edit button",
+  "amend po",
+  "grn creation",
+] as const;
+
+/**
+ * Decisions restated across sections need a looser match than generic prose:
+ * "Edited On columns visible in list views" ≈ "…visible in PO list view".
+ */
+export function sameDecision(a: string, b: string): boolean {
+  if (saysTheSame(a, b)) return true;
+  const na = normalizeDecisionText(a);
+  const nb = normalizeDecisionText(b);
+  if (!na || !nb) return false;
+  if (na === nb) return true;
+  if (na.includes(nb) || nb.includes(na)) {
+    const shorter = na.length <= nb.length ? na : nb;
+    if (contentTokens(shorter).length >= 3) return true;
+  }
+  const left = new Set(stemTokens(na));
+  const right = new Set(stemTokens(nb));
+  if (left.size === 0 || right.size === 0) return false;
+  let shared = 0;
+  for (const token of left) if (right.has(token)) shared++;
+  const ratio = shared / Math.min(left.size, right.size);
+  if (shared >= 3 && ratio >= 0.62) return true;
+  // Shared rule anchor + moderate stem overlap (Key Req ↔ Acceptance Criteria).
+  // Refuse when each side carries a distinctive unshared anchor (e.g. auto-increment
+  // vs pdf export both mentioning "revision number").
+  const aAnchors = DECISION_ANCHORS.filter((p) => na.includes(p));
+  const bAnchors = DECISION_ANCHORS.filter((p) => nb.includes(p));
+  const sharedAnchors = aAnchors.filter((p) => bAnchors.includes(p));
+  if (sharedAnchors.length === 0) return false;
+  const aOnly = aAnchors.filter((p) => !bAnchors.includes(p));
+  const bOnly = bAnchors.filter((p) => !aAnchors.includes(p));
+  if (aOnly.length > 0 && bOnly.length > 0) return false;
+  return shared >= 2 && ratio >= 0.45;
+}
+
+/** Section chrome / column headers that must never become Decisions. */
+export function isDecisionChrome(text: string): boolean {
+  const key = normalizeKey(text);
+  if (!key) return true;
+  if (
+    /^(business impact|priority|feature|status|module|field|remarks?|rules?|note|summary|overview|context)$/i.test(
+      key,
+    )
+  ) {
+    return true;
+  }
+  // Bare status labels from Cases sheet chrome, not product rules.
+  if (/^(po|grn|indent)\s*:\s*(delivery|payable|fulfilled)/i.test(key)) return true;
+  return false;
+}
+
 /** Trim to a whole-word budget, ending on a word rather than mid-syllable. */
 export function clampWords(text: string, maxWords: number): string {
   const words = text.trim().split(/\s+/);

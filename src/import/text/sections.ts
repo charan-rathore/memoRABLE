@@ -84,9 +84,11 @@ const HEADING_KEYWORDS: Record<string, BlockKind> = {
   "priority & impact matrix": "decisions",
   "impact matrix": "decisions",
   "cases - sheet": "decisions",
-  "cases – sheet": "decisions",
-  "cases – sheet (embedded spreadsheet)": "decisions",
+  "cases sheet": "decisions",
+  "cases sheet embedded spreadsheet": "decisions",
   "embedded spreadsheet": "decisions",
+  "editability rules": "decisions",
+  "editability rules recovered from spreadsheet": "decisions",
   philosophy: "decisions",
   tradeoffs: "decisions",
   "trade-offs": "decisions",
@@ -134,8 +136,10 @@ const HEADING_KEYWORDS: Record<string, BlockKind> = {
   "business impact": "risks",
   "pain points": "risks",
   "current pain points": "risks",
-  "open questions": "risks",
-  questions: "risks",
+  // Open questions are unresolved signals — not risks and not decisions.
+  "open questions": "signals",
+  questions: "signals",
+  "unresolved questions": "signals",
 
   // actions — work to do
   actions: "actions",
@@ -185,23 +189,31 @@ export function matchHeading(line: string, nextLine?: string): HeadingMatch | nu
 
 /** Map heading text to a memory kind, if it names one of the six. */
 export function classifyHeading(text: string): BlockKind | null {
+  // Normalize dashes to hyphen so "Cases – Sheet" still matches "cases - sheet".
+  // Compressing dashes to spaces was destroying Cases-sheet routing.
   const normalized = text
     .toLowerCase()
     .replace(/^\d+(\.\d+)*\.?\s*/, "") // "3.1 Risks" / "5. Business Impact"
     .replace(/^(slide|deck|page|section)\s+\d+\s*[-—–:.]?\s*/i, "") // "Slide 1 — Problem"
     .replace(/\s*\(.*\)\s*$/, "") // "Workflow (IMPORTANT)" → "workflow"
     .replace(/:$/, "")
-    .replace(/[—–]/g, " ")
+    .replace(/[—–]/g, "-")
+    .replace(/\s*-\s*/g, " - ")
     .replace(/\s+/g, " ")
     .trim();
-  const direct = HEADING_KEYWORDS[normalized];
+  // Also try a dash-stripped key for OCR headings like "Cases Sheet".
+  const compact = normalized.replace(/\s*-\s*/g, " ").replace(/\s+/g, " ").trim();
+
+  const direct = HEADING_KEYWORDS[normalized] ?? HEADING_KEYWORDS[compact];
   if (direct) return direct;
   // Prefer longer keyword phrases first ("key requirements" before "requirements").
   const keywords = Object.entries(HEADING_KEYWORDS).sort((a, b) => b[0].length - a[0].length);
   for (const [keyword, kind] of keywords) {
-    if (normalized === keyword) return kind;
+    if (normalized === keyword || compact === keyword) return kind;
     if (normalized.startsWith(keyword + " ") || normalized.endsWith(" " + keyword)) return kind;
     if (normalized.includes(" " + keyword + " ")) return kind;
+    if (compact.startsWith(keyword + " ") || compact.endsWith(" " + keyword)) return kind;
+    if (compact.includes(" " + keyword + " ")) return kind;
   }
   // Persona user-story headings: "4.1 As a Purchase Manager"
   if (/^as an?\s+/i.test(normalized)) return "actions";

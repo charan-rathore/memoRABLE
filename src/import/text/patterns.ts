@@ -190,7 +190,26 @@ function trendOf(text: string): "up" | "flat" | "down" | undefined {
 
 /* --------------------------------- signals ---------------------------------- */
 
+/** Open questions are Signals — unresolved cognitive items, not Risks. */
+export function parseOpenQuestionLine(raw: string): SignalEntry | null {
+  const item = splitListItem(raw);
+  const text = stripEmphasis((item ? item.text : raw).trim());
+  if (text.length < 12) return null;
+  // Require a ? or a clear interrogative — bare "Can amend…" is a criterion, not a question.
+  const looksLikeQuestion =
+    /\?/.test(text) ||
+    /\bopen question\b/i.test(text) ||
+    /^(should|what|who|when|where|why|how)\b/i.test(text);
+  if (!looksLikeQuestion) return null;
+  return {
+    label: "Open question",
+    implication: text.replace(/^\s*open questions?\s*[:—–-]\s*/i, "").slice(0, 400),
+  };
+}
+
 export function parseSignalLine(raw: string): SignalEntry | null {
+  const question = parseOpenQuestionLine(raw);
+  if (question) return question;
   const cells = splitTableRow(raw);
   if (cells && cells.length >= 2 && cells[0] && cells[1]) {
     const entry: SignalEntry = { label: cells[0], value: cells[1] };
@@ -218,11 +237,20 @@ export function parseSignalLine(raw: string): SignalEntry | null {
 /* --------------------------------- decisions -------------------------------- */
 
 const DECISION_STATUS = /\b(approved|requested|proposed|rejected)\b/i;
+/** Commitment metadata (schema field) — distinct from approval status. */
+const DECISION_COMMITMENT = /\b(committed|considered)\b/i;
 const REF_TOKEN = /^([A-Z]{1,5}-\d{1,4})\s+/;
+
+/** Cases-sheet / editability matrix rules — product constraints, not prose. */
+const CASES_RULE =
+  /\b(cannot be (?:edited|reduced|removed)|no changes are allowed|removal allowed only|must not|shall not|only when|backward compatibility|cannot go below|cannot be reduced|maintain(?:s)? backward compatibility|cannot be edited)\b/i;
 
 export function parseDecisionLine(raw: string): DecisionEntry | null {
   const priority = parsePriorityMatrixRow(raw);
   if (priority) return priority;
+
+  const casesRule = parseCasesRuleLine(raw);
+  if (casesRule) return casesRule;
 
   const item = splitListItem(raw);
   const text = (item ? item.text : raw).trim();
@@ -236,9 +264,14 @@ export function parseDecisionLine(raw: string): DecisionEntry | null {
   }
   let status: DecisionEntry["status"] = "proposed";
   let foundStatus = false;
+  let explicitCommitment: DecisionEntry["commitment"] | undefined;
   const { body, suffix } = extractParenSuffix(rest);
   if (suffix && DECISION_STATUS.test(suffix)) {
     status = suffix.match(DECISION_STATUS)![1]!.toLowerCase() as DecisionEntry["status"];
+    rest = body;
+    foundStatus = true;
+  } else if (suffix && DECISION_COMMITMENT.test(suffix)) {
+    explicitCommitment = suffix.match(DECISION_COMMITMENT)![1]!.toLowerCase() as DecisionEntry["commitment"];
     rest = body;
     foundStatus = true;
   } else {
@@ -247,6 +280,13 @@ export function parseDecisionLine(raw: string): DecisionEntry | null {
       status = trailing.keyword.toLowerCase() as DecisionEntry["status"];
       rest = trailing.body;
       foundStatus = true;
+    } else {
+      const commitTrail = splitTrailingKeyword(rest, DECISION_COMMITMENT);
+      if (commitTrail) {
+        explicitCommitment = commitTrail.keyword.toLowerCase() as DecisionEntry["commitment"];
+        rest = commitTrail.body;
+        foundStatus = true;
+      }
     }
   }
   // Require a ref, a list marker or an explicit status — bare prose is not a decision.
@@ -256,12 +296,38 @@ export function parseDecisionLine(raw: string): DecisionEntry | null {
   // explicit status, a decision has to read like a statement.
   if (!ref && !foundStatus && rest.split(/\s+/).length < 3 && !/[.!?]$/.test(rest)) return null;
   if (rest.length < 2) return null;
-  // An approved decision is settled by definition; the wording no longer gets
-  // a vote. Anything still awaiting a yes is read from how it was written.
-  const commitment = status === "approved" ? "committed" : readCommitment(rest);
+  // Status (proposed/approved/…) and commitment (committed/considered) are
+  // both kept — compressing them into one field loses the cognitive layer.
+  const commitment =
+    explicitCommitment ?? (status === "approved" ? "committed" : readCommitment(rest));
   const entry: DecisionEntry = { text: rest, status, commitment };
   if (ref) entry.ref = ref;
   return entry;
+}
+
+/**
+ * Reason over Cases-sheet editability rules.
+ * "Indent quantity cannot be reduced below…" is a committed product constraint.
+ */
+export function parseCasesRuleLine(raw: string): DecisionEntry | null {
+  const item = splitListItem(raw);
+  const text = stripEmphasis((item ? item.text : raw).trim());
+  if (text.length < 24) return null;
+  if (/^note:/i.test(text)) {
+    // "Note: No changes are allowed once the contract is closed."
+    if (!CASES_RULE.test(text)) return null;
+  } else if (!CASES_RULE.test(text)) {
+    return null;
+  }
+  // Drop noisy matrix chrome that still mentions "impacts delay" without a rule.
+  if (/^[A-Za-z ]+\s+[NYv|]{1,8}\b/i.test(text) && !/\bcannot\b|\ballowed\b|\bno changes\b/i.test(text)) {
+    return null;
+  }
+  return {
+    text: text.replace(/^note:\s*/i, "").slice(0, 500),
+    status: "approved",
+    commitment: "committed",
+  };
 }
 
 /** Priority matrix / impact rows are explicit product decisions. */
@@ -486,7 +552,46 @@ function normalizeSeverity(text: string): RiskEntry["severity"] {
 
 /* ---------------------------------- actions --------------------------------- */
 
+/**
+ * First-class user stories / personas.
+ * "User Story: I want…" and "Persona: As a Purchase Manager" must not dissolve
+ * into acceptance-criteria decisions during compression.
+ */
+export function parseUserStoryLine(raw: string): ActionEntry | null {
+  const item = splitListItem(raw);
+  const text = stripEmphasis((item ? item.text : raw).trim());
+  if (text.length < 12) return null;
+
+  const story = /^(?:user\s*story|story)\s*[:—–-]\s*(.+)$/i.exec(text);
+  if (story) {
+    return {
+      task: `User story: ${story[1]!.trim()}`.slice(0, 500),
+      status: "suggested",
+    };
+  }
+
+  const persona = /^(?:persona\s*[:—–-]\s*)?(as an?\s+.+)$/i.exec(text);
+  if (persona && !/\bi want\b/i.test(text)) {
+    return {
+      task: `Persona: ${persona[1]!.trim()}`.slice(0, 240),
+      status: "suggested",
+    };
+  }
+
+  // Bare "I want to…" under a persona section is still a user story.
+  if (/^i want\b/i.test(text) && text.length >= 20) {
+    return {
+      task: `User story: ${text}`.slice(0, 500),
+      status: "suggested",
+    };
+  }
+
+  return null;
+}
+
 export function parseActionLine(raw: string): ActionEntry | null {
+  const story = parseUserStoryLine(raw);
+  if (story) return story;
   const cells = splitTableRow(raw);
   if (cells && cells.length >= 3 && cells[0] && cells[1] && cells[2]) {
     const status = inferReadiness(cells.slice(3).join(" ") || cells[0]);
@@ -553,6 +658,8 @@ function entryText(raw: string): string | null {
 }
 
 export function parseSignalLineLenient(raw: string): SignalEntry | null {
+  const question = parseOpenQuestionLine(raw);
+  if (question) return question;
   const text = entryText(raw);
   if (!text) return null;
   const parts = splitOnFirstSeparator(text);
@@ -570,12 +677,15 @@ export function parseSignalLineLenient(raw: string): SignalEntry | null {
 }
 
 export function parseDecisionLineLenient(raw: string): DecisionEntry | null {
+  const cases = parseCasesRuleLine(raw);
+  if (cases) return cases;
   const text = entryText(raw);
   if (!text) return null;
   const strict = parseDecisionLine(raw);
   if (strict) return strict;
   // A bare noun ("Redis") is an item in a list, not a position someone took.
   if (text.split(/\s+/).length < 2) return null;
+  // Preserve commitment metadata; never invent approved/rejected.
   return { text, status: "proposed", commitment: readCommitment(text) };
 }
 
@@ -611,6 +721,8 @@ export function parseRiskLineLenient(raw: string): RiskEntry | null {
 }
 
 export function parseActionLineLenient(raw: string): ActionEntry | null {
+  const story = parseUserStoryLine(raw);
+  if (story) return story;
   const text = entryText(raw);
   if (!text) return null;
   const strict = parseActionLine(raw);

@@ -22,7 +22,7 @@ import {
   shouldProjectInvoiceDueToTimeline,
 } from "@/understanding/projection";
 import { buildDocumentGraph, hybridSegment } from "@/understanding/segment";
-import { saysTheSame } from "@/understanding/language";
+import { dedupeByMeaning, saysTheSame } from "@/understanding/language";
 import { LIMITS } from "@/domain/memory/limits";
 import { capExcerpt } from "../json/import-json";
 import {
@@ -494,7 +494,7 @@ function buildBlock(kind: BlockKind, matched: Section[], ctx: BuildContext): Blo
   if (kind === "snapshot") {
     payload = buildSnapshotPayload(contentLines, notes, ctx);
   } else {
-    payload = buildEntriesPayload(kind, contentLines, notes, assigned, ctx);
+    payload = buildEntriesPayload(kind, contentLines, notes, assigned, ctx, matched);
   }
 
   const entryCount = (payload as { entries?: unknown[] }).entries?.length ?? 0;
@@ -565,6 +565,7 @@ function buildEntriesPayload(
   notes: string[],
   assigned: boolean,
   ctx: BuildContext,
+  matched: readonly Section[] = [],
 ): BlockInput["payload"] {
   const collect = <T,>(strict: LineParser<T>, lenient: LineParser<T>): Collected<T> => {
     const entries: T[] = [];
@@ -612,11 +613,14 @@ function buildEntriesPayload(
     case "signals": {
       const built = collect(parseSignalLine, parseSignalLineLenient);
       mergeSignals(built, ctx, notes);
+      // Compress inside the bucket after projection — never before routing.
+      built.entries = dedupeByMeaning(built.entries, (e) => `${e.label} ${e.implication ?? ""}`);
       return finish(built);
     }
     case "decisions": {
       const built = collect(parseDecisionLine, parseDecisionLineLenient);
       mergeDecisions(built, ctx, notes);
+      built.entries = dedupeByMeaning(built.entries, (e) => e.text);
       return finish(built);
     }
     case "timeline": {
@@ -625,15 +629,29 @@ function buildEntriesPayload(
         const room = LIMITS.maxEntriesPerBlock - built.entries.length;
         built.entries.push(...ctx.extraTimeline.slice(0, Math.max(0, room)));
       }
+      built.entries = dedupeByMeaning(built.entries, (e) => `${e.date} ${e.title}`);
       return finish(built);
     }
     case "risks": {
       const built = collect(parseRiskLine, parseRiskLineLenient);
       mergeRisks(built, ctx, notes);
+      built.entries = dedupeByMeaning(built.entries, (e) => e.risk);
       return finish(built);
     }
-    case "actions":
-      return finish(collect(parseActionLine, parseActionLineLenient));
+    case "actions": {
+      const built = collect(parseActionLine, parseActionLineLenient);
+      // Persona headings ("As a Purchase Manager") are first-class observations.
+      for (const section of matched) {
+        const heading = section.headingText?.replace(/^\d+(\.\d+)*\.?\s*/, "").trim() ?? "";
+        if (!/^as an?\s+/i.test(heading)) continue;
+        const task = `Persona: ${heading}`.slice(0, LIMITS.maxFieldLength);
+        if (built.entries.some((e) => saysTheSame(e.task, task))) continue;
+        if (built.entries.length >= LIMITS.maxEntriesPerBlock) break;
+        built.entries.unshift({ task, status: "suggested" });
+      }
+      built.entries = dedupeByMeaning(built.entries, (e) => e.task);
+      return finish(built);
+    }
   }
 }
 
@@ -699,10 +717,11 @@ function mergeDecisions(built: Collected<DecisionEntry>, ctx: BuildContext, note
     if (built.entries.length >= LIMITS.maxEntriesPerBlock) break;
     if (alreadyUsed(evidence.lineNo, built.lineOf)) continue;
     if (built.entries.some((e) => saysTheSame(e.text, value.text))) continue;
+    // Preserve commitment as metadata; status stays honest to the source.
     built.entries.push({
       text: value.text,
       status: "proposed",
-      commitment: "committed",
+      commitment: value.commitment,
       ...(value.because ? { because: value.because } : {}),
     });
     built.lineOf.push(evidence.lineNo);

@@ -57,19 +57,15 @@ never assume PRD. Generic Knowledge has no score; it is the fallback.
 | Research | inferred research question, key findings, evidence metrics, insights, explicit limitations, future directions | narrative_sequence |
 | Generic Knowledge | snapshot facts, signals, decisions, timeline events, risks, actions | narrative_sequence (or none if no temporal content) |
 
-For **Research**, use a two-stage approach:
-Stage 1 — classify every observation into a Scientific World Model
-(Background, Research Gap, Hypothesis, Method, Experimental Setup, Result,
-Numerical Evidence, Error Analysis, Limitation, Future Work, Citation).
-Discard References, Bibliography, Appendix, prompt templates, JSON examples,
-figure/table headers, and venue lines. Keep only text that would still matter
-without the paper PDF.
-Stage 2 — project with gates:
-- Key Findings (confidence > 0.80): Gap + Hypothesis + Major Results + Error Analysis + Main Conclusion — never Related Work, dataset prose, tables, refs, prompts
-- Evidence (confidence > 0.95): numbers only (metrics, experiments, dataset sizes, benchmarks, setup) — no narrative
-- Insights: NEVER extracted; synthesize only if ≥2 independent observations support the claim
-- Limitations: only from Limitations / Threats to validity / Discussion / Future work — never from poor F1
-- Future Directions: only from Future Work / Conclusion / Discussion
+For **Research**, use section-aware projection (not arbitrary chunks):
+detect Abstract → Introduction → Method → Setup → Results → Discussion →
+Conclusion → (optional Future Work), then **hard-stop** — never References,
+Appendix, Acknowledgements, prompt templates, or JSON examples.
+- Research Question: infer gap + hypothesis (never paraphrase the title)
+- Key Findings: only Results / Discussion / Conclusion — complete conclusions
+- Evidence: setup, datasets, tables, metrics, benchmarks — numbers only
+- Insights: synthesize only if ≥2 independent findings support the claim
+- Limitations / Future Work: explicit author statements only
 
 Principle: **Projection is adaptive, understanding is universal.** You always
 extract the same universal observations. Only the final projection labels

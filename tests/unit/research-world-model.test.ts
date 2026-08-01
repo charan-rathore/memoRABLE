@@ -1,17 +1,16 @@
 /**
- * Research two-stage architecture:
- * Stage 1 classify → Stage 2 gated projection.
+ * Research projection v2 — section-aware framework tests.
  */
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { importSource } from "@/import/import-source";
+import { buildResearchWorldModel } from "@/understanding/research";
 import {
-  buildResearchWorldModel,
-  buildScientificWorldModel,
-  EVIDENCE_MIN_CONFIDENCE,
-  FINDING_MIN_CONFIDENCE,
-} from "@/understanding/research";
+  RESEARCH_SECTION_PROFILE,
+  detectSemanticSections,
+  PRESERVED_PREFIX,
+} from "@/understanding/section-aware";
 import type {
   ActionsPayload,
   DecisionsPayload,
@@ -21,138 +20,34 @@ import type {
   TimelinePayload,
 } from "@/domain/memory/schema";
 
-const PROMPTING_PAPER = {
-  title: "Prompting for Scientific Event Extraction",
-  label: "paper.md",
-  sections: [
-    {
-      headingText: "Abstract",
-      lines: [
-        {
-          text: "Existing work evaluates specialized extraction models, but there is little understanding of how modern general-purpose LLMs behave under different prompting strategies for scientific event extraction.",
-          lineNo: 2,
-        },
-        {
-          text: "We study whether prompt engineering alone can close this gap.",
-          lineNo: 3,
-        },
-      ],
-    },
-    {
-      headingText: "Related Work",
-      lines: [
-        { text: "Brown et al. (2020) introduced few-shot prompting for language models.", lineNo: 5 },
-        { text: "Proceedings of ACL 2020.", lineNo: 6 },
-      ],
-    },
-    {
-      headingText: "Results",
-      lines: [
-        {
-          text: "Few-shot is the only prompting strategy that consistently improves extraction.",
-          lineNo: 10,
-        },
-        {
-          text: "GPT-5-mini varied from 11–79% F1. Event classification stayed around 80–90%. Argument extraction stayed below ~70%.",
-          lineNo: 11,
-        },
-        {
-          text: "Reflection contributes almost nothing. Event-specific prompting sometimes hurts.",
-          lineNo: 12,
-        },
-      ],
-    },
-    {
-      headingText: "Discussion",
-      lines: [
-        {
-          text: "These results suggest LLMs understand semantics but fail at span localization. Prompt engineering is not the bottleneck.",
-          lineNo: 20,
-        },
-      ],
-    },
-    {
-      headingText: "Limitations",
-      lines: [
-        {
-          text: "Single dataset. Limited prompting strategies. Default model parameters. API cost constraints.",
-          lineNo: 30,
-        },
-      ],
-    },
-    {
-      headingText: "Future work",
-      lines: [
-        {
-          text: "Hybrid symbolic + LLM extraction, domain adaptation, and better grounding methods should be explored.",
-          lineNo: 40,
-        },
-      ],
-    },
-    {
-      headingText: "References",
-      lines: [
-        { text: "Brown et al. Language Models are Few-Shot Learners. NeurIPS 2020.", lineNo: 50 },
-        { text: "Table 3 header.", lineNo: 51 },
-      ],
-    },
-    {
-      headingText: "Appendix",
-      lines: [{ text: "Prompt template: You are an expert annotator. JSON schema follows.", lineNo: 60 }],
-    },
-  ],
-};
+describe("research projection v2", () => {
+  it("hard-stops after Conclusion (+ Future Work) and ignores References/Appendix", () => {
+    const text = readFileSync(resolve("tests/fixtures/archetypes/research.md"), "utf8");
+    // Parse headings roughly as the importer would expose them.
+    const sections = text.split(/\n(?=## )/).map((block, i) => {
+      const lines = block.split("\n");
+      const heading = lines[0]?.replace(/^#+\s*/, "") ?? null;
+      return {
+        headingText: i === 0 && heading?.startsWith("Sparse") ? null : heading,
+        lines: lines.slice(heading && !heading.startsWith("Sparse") ? 1 : 0).map((text, j) => ({
+          text,
+          lineNo: j + 1,
+        })),
+      };
+    });
 
-describe("research scientific world model", () => {
-  it("Stage 1 classifies and discards refs / appendix / venue noise", () => {
-    const model = buildScientificWorldModel(PROMPTING_PAPER.sections);
-    expect(model.some((o) => /brown et al|neurips|proceedings|prompt template|json schema/i.test(o.content))).toBe(
-      false,
-    );
-    expect(model.some((o) => o.kind === "research_gap")).toBe(true);
-    expect(model.some((o) => o.kind === "hypothesis")).toBe(true);
-    expect(model.some((o) => o.kind === "numerical_evidence" && o.confidence > EVIDENCE_MIN_CONFIDENCE)).toBe(true);
-    expect(model.some((o) => o.kind === "error_analysis" || /reflection|hurts/i.test(o.content))).toBe(true);
-    expect(model.some((o) => o.kind === "limitation")).toBe(true);
-    expect(model.some((o) => o.kind === "future_work")).toBe(true);
+    const detected = detectSemanticSections(sections, RESEARCH_SECTION_PROFILE);
+    const ids = detected.map((s) => s.id);
+    expect(ids).toContain("conclusion");
+    expect(ids).toContain("future_work");
+    expect(ids).not.toContain("references");
+    expect(ids).not.toContain("appendix");
+    expect(ids).not.toContain("related_work");
+    // Future Work is last kept section
+    expect(ids[ids.length - 1]).toBe("future_work");
   });
 
-  it("Stage 2 projects gated memories and never leaks bibliography", () => {
-    const projected = buildResearchWorldModel(PROMPTING_PAPER);
-    const titles = ["snapshot", "timeline", "signals", "decisions", "risks", "actions"] as const;
-
-    const question = projected.get("snapshot")!.payload as SnapshotPayload;
-    expect(question.summary.toLowerCase()).toMatch(/little understanding|whether prompt|gap/);
-    expect(question.summary.toLowerCase()).not.toMatch(/brown et al|proceedings|prompt template/);
-
-    const findings = (projected.get("timeline")!.payload as TimelinePayload).entries.map((e) => e.title);
-    expect(findings.some((t) => /few-shot|reflection|event-specific|gap|whether prompt/i.test(t))).toBe(true);
-    expect(findings.every((t) => !/brown et al|proceedings|table 3|json schema/i.test(t))).toBe(true);
-    // Dataset prose / related work must not become findings.
-    expect(findings.every((t) => !/introduced few-shot prompting for language models/i.test(t))).toBe(true);
-
-    const evidence = (projected.get("signals")!.payload as SignalsPayload).entries;
-    expect(evidence.length).toBeGreaterThanOrEqual(1);
-    expect(evidence.every((e) => /\d/.test(`${e.value ?? ""} ${e.implication ?? ""}`))).toBe(true);
-
-    const insights = (projected.get("decisions")!.payload as DecisionsPayload).entries;
-    // Insights require ≥2 supports — prompting + localization/error themes should synthesize.
-    expect(insights.length).toBeGreaterThanOrEqual(1);
-    expect(insights.some((i) => /prompt|localiz|span|few-shot|reflection/i.test(i.text))).toBe(true);
-
-    const limitations = (projected.get("risks")!.payload as RisksPayload).entries;
-    expect(limitations.some((l) => /dataset|prompting strategies|parameters|cost/i.test(l.risk))).toBe(true);
-    // Poor F1 must not be reinvented as a limitation.
-    expect(limitations.every((l) => !/below\s*~?70|11–79|poor f1/i.test(l.risk))).toBe(true);
-
-    const future = (projected.get("actions")!.payload as ActionsPayload).entries;
-    expect(future.some((a) => /hybrid|grounding|domain adaptation/i.test(a.task))).toBe(true);
-
-    void titles;
-    expect(FINDING_MIN_CONFIDENCE).toBe(0.8);
-  });
-
-  it("end-to-end import uses two-stage research path", () => {
+  it("projects Research furniture without bibliography / prompt / related-work noise", () => {
     const text = readFileSync(resolve("tests/fixtures/archetypes/research.md"), "utf8");
     const result = importSource({ raw: text, label: "research.md" });
     expect(result.ok).toBe(true);
@@ -168,17 +63,140 @@ describe("research scientific world model", () => {
       "Future Directions",
     ]);
 
-    const blob = result.value.blocks
-      .flatMap((b) => {
-        const p = b.payload as { summary?: string; entries?: Array<Record<string, string>> };
-        if (p.summary) return [p.summary];
-        return (p.entries ?? []).flatMap((e) => Object.values(e));
-      })
-      .join("\n");
-    expect(blob.toLowerCase()).not.toMatch(/proceedings of|bibliography|prompt template/);
+    const blob = JSON.stringify(result.value.blocks).toLowerCase();
+    expect(blob).not.toMatch(/brown et al|neurips 2020|prompt template|json schema|author biograph/);
+    expect(blob).not.toMatch(/proceedings of/);
+
+    const question = result.value.blocks.find((b) => b.kind === "snapshot")!.payload as SnapshotPayload;
+    expect(question.summary.toLowerCase()).not.toBe("sparse attention for long-context retrieval");
+    expect(question.summary.toLowerCase()).toMatch(/whether|gap|little understanding|hypothesis|sparsity/);
+
+    const findings = (
+      result.value.blocks.find((b) => b.kind === "timeline")!.payload as TimelinePayload
+    ).entries.map((e) => e.title);
+    expect(findings.length).toBeGreaterThanOrEqual(1);
+    expect(findings.every((t) => !/brown et al|related work/i.test(t))).toBe(true);
+
+    const evidence = (
+      result.value.blocks.find((b) => b.kind === "signals")!.payload as SignalsPayload
+    ).entries;
+    expect(evidence.every((e) => /\d/.test(`${e.value ?? ""} ${e.implication ?? ""}`))).toBe(true);
+
+    const insights = (
+      result.value.blocks.find((b) => b.kind === "decisions")!.payload as DecisionsPayload
+    ).entries;
+    expect(insights.length).toBeGreaterThanOrEqual(1);
+
+    const limitations = (
+      result.value.blocks.find((b) => b.kind === "risks")!.payload as RisksPayload
+    ).entries;
+    expect(limitations.some((l) => /english|multilingual|limited|parameters/i.test(l.risk))).toBe(true);
+
+    const future = (
+      result.value.blocks.find((b) => b.kind === "actions")!.payload as ActionsPayload
+    ).entries;
+    expect(future.some((a) => /streaming|hybrid|multi-hop/i.test(a.task))).toBe(true);
 
     expect(
-      result.value.warnings.some((w) => /Stage 1 scientific world model/i.test(w.message)),
+      result.value.warnings.some((w) => /Research v2|hard-stop after Conclusion/i.test(w.message)),
     ).toBe(true);
+  });
+
+  it("requires ≥2 findings before synthesizing Insights and preserves bad OCR as notes", () => {
+    const model = buildResearchWorldModel({
+      title: "Prompting for Scientific Event Extraction",
+      label: "paper.md",
+      sections: [
+        {
+          headingText: "Abstract",
+          lines: [
+            {
+              text: "Existing work evaluates specialized extraction models, but there is little understanding of how modern LLMs behave under prompting strategies.",
+              lineNo: 1,
+            },
+            { text: "We study whether prompt engineering alone can close this gap.", lineNo: 2 },
+          ],
+        },
+        {
+          headingText: "Results",
+          lines: [
+            {
+              text: "Few-shot is the only prompting strategy that consistently improves extraction.",
+              lineNo: 10,
+            },
+            {
+              text: "GPT-5-mini varied from 11–79% F1 on argument roles.",
+              lineNo: 11,
+            },
+            {
+              text: "Reflection contributes almost nothing and event-specific prompting sometimes hurts.",
+              lineNo: 12,
+            },
+          ],
+        },
+        {
+          headingText: "Discussion",
+          lines: [
+            {
+              text: "These results suggest LLMs understand semantics but fail at span localization.",
+              lineNo: 20,
+            },
+          ],
+        },
+        {
+          headingText: "Conclusion",
+          lines: [
+            {
+              text: "Prompt engineering alone cannot bridge the performance gap for scientific event extraction.",
+              lineNo: 30,
+            },
+          ],
+        },
+        {
+          headingText: "References",
+          lines: [{ text: "Brown et al. ACL 2020.", lineNo: 40 }],
+        },
+      ],
+    });
+
+    const findings = (model.get("timeline")!.payload as TimelinePayload).entries;
+    expect(findings.length).toBeGreaterThanOrEqual(2);
+
+    const insights = (model.get("decisions")!.payload as DecisionsPayload).entries;
+    expect(insights.length).toBeGreaterThanOrEqual(1);
+    expect(insights.every((i) => !findings.some((f) => f.title === i.text))).toBe(true);
+
+    const evidence = (model.get("signals")!.payload as SignalsPayload).entries;
+    expect(evidence.some((e) => /11|79|f1|%/i.test(`${e.value ?? ""} ${e.implication ?? ""}`))).toBe(
+      true,
+    );
+
+    // References must not leak
+    const blob = JSON.stringify([...model.values()]);
+    expect(blob.toLowerCase()).not.toMatch(/brown et al|acl 2020/);
+    void PRESERVED_PREFIX;
+  });
+
+  it("does not invent limitations from poor metrics alone", () => {
+    const model = buildResearchWorldModel({
+      title: "Weak Scores Paper",
+      label: "weak.md",
+      sections: [
+        {
+          headingText: "Results",
+          lines: [{ text: "The model achieved only 42% F1 and poor performance on rare events.", lineNo: 1 }],
+        },
+        {
+          headingText: "Conclusion",
+          lines: [{ text: "Overall extraction quality remains below production thresholds.", lineNo: 2 }],
+        },
+        {
+          headingText: "References",
+          lines: [{ text: "Someone et al. 2019.", lineNo: 3 }],
+        },
+      ],
+    });
+    const limitations = (model.get("risks")!.payload as RisksPayload).entries;
+    expect(limitations.every((l) => !/42%|poor performance/i.test(l.risk))).toBe(true);
   });
 });

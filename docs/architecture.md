@@ -46,7 +46,7 @@ layer adapts furniture:
 |---|---|
 | Resume | Experience · Projects · Skills · Education · Achievements · Profile |
 | Invoice | Vendor · Line items · Payment · Timeline · Totals |
-| Research | Research Question · Key Findings · Evidence · Insights · Limitations · Future Directions (Stage 1 scientific world model → Stage 2 gated projection) |
+| Research | Section-aware v2 → Research Question · Key Findings · Evidence · Insights · Limitations · Future Directions (hard-stop after Conclusion) |
 | else → Generic Knowledge | Snapshot · Signals · Decisions · Timeline · Risks · Actions |
 
 Specialized win rule (deterministic integer scores):

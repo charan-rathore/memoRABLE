@@ -127,33 +127,33 @@ const INVOICE_FURNITURE: ProjectionProfile = {
 };
 
 /**
- * Research — Stage 2 projection of the Scientific World Model.
- * Evidence is numeric-only; Insights require ≥2 supporting observations.
+ * Research v2 furniture — projected only after the section-aware world model.
+ * Labels only; extraction rules live in section-aware/profiles/research.ts.
  */
 const RESEARCH_FURNITURE: ProjectionProfile = {
   snapshot: {
     label: "Research Question",
-    subtitle: "Gap + hypothesis under test (inferred)",
+    subtitle: "Inferred research gap and hypothesis — not a title paraphrase",
   },
   signals: {
     label: "Evidence",
-    subtitle: "Numbers only — metrics, setup, benchmarks (confidence > 0.95)",
+    subtitle: "Setup, datasets, metrics, and benchmarks — numbers only",
   },
   decisions: {
     label: "Insights",
-    subtitle: "Synthesized only when ≥2 independent observations agree",
+    subtitle: "Synthesized implications supported by ≥2 findings",
   },
   timeline: {
     label: "Key Findings",
-    subtitle: "Gap, hypothesis, major results, errors, conclusion — never refs/tables",
+    subtitle: "Complete conclusions from Results / Discussion / Conclusion",
   },
   risks: {
     label: "Limitations",
-    subtitle: "Author-stated limits only — never inferred from poor F1",
+    subtitle: "Explicit author-stated bounds only",
   },
   actions: {
     label: "Future Directions",
-    subtitle: "From Future Work / Conclusion / Discussion only",
+    subtitle: "Explicit future work proposed by the authors",
   },
 };
 

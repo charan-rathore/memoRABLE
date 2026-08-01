@@ -251,7 +251,7 @@ export function parseText(input: TextImportInput): Result<MemoryDocument> {
     warnings.push({
       code: "text.adaptive-projection",
       message:
-        "Research path: section summaries → cross-section reasoning → world model (not chunk→bucket).",
+        "Research v2: section-aware detection → whole-section understanding → world model → gated projection (hard-stop after Conclusion).",
     });
   } else {
     // The five list memories are built first. The snapshot frames them, so it

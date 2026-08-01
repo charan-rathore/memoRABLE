@@ -127,33 +127,33 @@ const INVOICE_FURNITURE: ProjectionProfile = {
 };
 
 /**
- * Research — inferential memory (Evidence is the only descriptive dump).
- * Research Question · Key Findings · Evidence · Insights · Limitations · Future Directions
+ * Research v2 furniture — projected only after the section-aware world model.
+ * Labels only; extraction rules live in section-aware/profiles/research.ts.
  */
 const RESEARCH_FURNITURE: ProjectionProfile = {
   snapshot: {
     label: "Research Question",
-    subtitle: "Inferred gap, assumption, and hypothesis under test",
+    subtitle: "Inferred research gap and hypothesis — not a title paraphrase",
   },
   signals: {
     label: "Evidence",
-    subtitle: "Metrics and measurements that support the findings",
+    subtitle: "Setup, datasets, metrics, and benchmarks — numbers only",
   },
   decisions: {
     label: "Insights",
-    subtitle: "Cross-section understanding beyond the wording",
+    subtitle: "Synthesized implications supported by ≥2 findings",
   },
   timeline: {
     label: "Key Findings",
-    subtitle: "Synthesized findings — not raw tables",
+    subtitle: "Complete conclusions from Results / Discussion / Conclusion",
   },
   risks: {
     label: "Limitations",
-    subtitle: "Explicit bounds stated by the authors",
+    subtitle: "Explicit author-stated bounds only",
   },
   actions: {
     label: "Future Directions",
-    subtitle: "Where the work should go next",
+    subtitle: "Explicit future work proposed by the authors",
   },
 };
 

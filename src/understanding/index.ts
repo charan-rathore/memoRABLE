@@ -46,6 +46,12 @@ export type { ArchetypeScores } from "./archetype";
 export { buildResearchWorldModel, summarizeResearchSections } from "./research";
 export type { ResearchSectionInput, ResearchSectionRole } from "./research";
 export {
+  RESEARCH_SECTION_PROFILE,
+  detectSemanticSections,
+  runSectionAwareProjection,
+} from "./section-aware";
+export type { SectionAwareProfile, SemanticSectionId } from "./section-aware";
+export {
   applyProjectionTitles,
   bucketLabel,
   bucketSubtitle,

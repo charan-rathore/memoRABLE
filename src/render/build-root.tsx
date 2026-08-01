@@ -206,16 +206,7 @@ function conversationRows(doc: MemoryDocument, theme: PublishTheme): ReactElemen
   for (const edge of edges) {
     const from = labelFor(edge.from);
     const to = labelFor(edge.to);
-    const verb =
-      edge.relation === "implements"
-        ? "carries out"
-        : edge.relation === "threatens"
-          ? "points at"
-          : edge.relation === "unblocks"
-            ? "unblocks"
-            : edge.relation === "schedules"
-              ? "is scheduled by"
-              : "informs";
+    const verb = conversationVerb(edge.relation);
     const text = `${from} ${verb} ${to}`;
     if (seen.has(text)) continue;
     seen.add(text);
@@ -244,6 +235,35 @@ function conversationRows(doc: MemoryDocument, theme: PublishTheme): ReactElemen
       </Column>
     </Row>,
   ];
+}
+
+function conversationVerb(relation: string): string {
+  switch (relation) {
+    case "implements":
+      return "carries out";
+    case "threatens":
+      return "points at";
+    case "unblocks":
+      return "unblocks";
+    case "schedules":
+      return "is scheduled by";
+    case "supports":
+      return "supports";
+    case "motivates":
+      return "motivates";
+    case "mitigates":
+      return "mitigates";
+    case "causes":
+      return "causes";
+    case "depends_on":
+      return "depends on";
+    case "blocks":
+      return "blocks";
+    case "informs":
+      return "informs";
+    default:
+      return relation.replace(/_/g, " ");
+  }
 }
 
 /** Short phrase naming one memory entry in the conversation strip. */

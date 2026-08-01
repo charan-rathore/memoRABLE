@@ -25,13 +25,8 @@ import {
  * Step four: say the document back, the way a person would a week later.
  *
  * A summary describes a document. Recall describes what the document was
- * *for*, and it is a different sentence entirely. "This contains six sections"
- * is a summary. "This walks through how to break a client brief into an
- * answerable question" is recall, and only one of the two is worth reading.
- *
- * The paragraph is composed, never copied. Its clauses come from the intent,
- * the recurring concepts and the strongest memories, so its sentences did not
- * exist in the source even though every noun in them did.
+ * *for*, and it is a different sentence entirely. Snapshot frames primary
+ * goal, problem, and business outcome — then names outstanding work.
  */
 
 const KIND_NOUN: Record<Intent["kind"], string> = {
@@ -44,24 +39,6 @@ const KIND_NOUN: Record<Intent["kind"], string> = {
   notes: "set of notes",
 };
 
-/** How the opening clause is phrased, so six documents do not read as one. */
-const OPENING: Record<Intent["kind"], (subject: string) => string> = {
-  guide: (s) => `This guide walks through ${s}`,
-  plan: (s) => `This plan lays out ${s}`,
-  review: (s) => `This review takes stock of ${s}`,
-  brief: (s) => `This brief brings you up to speed on ${s}`,
-  spec: (s) => `This spec pins down ${s}`,
-  analysis: (s) => `This analysis works through ${s}`,
-  notes: (s) => `These notes record ${s}`,
-};
-
-/**
- * Recall is composed from the *finished* memories, not from the candidates.
- *
- * Composing it earlier would mean the snapshot describes what understanding
- * guessed rather than what the document ended up remembering, and the two are
- * not always the same thing. Snapshot frames everything, so it goes last.
- */
 export interface RecallInput {
   intent: Intent;
   concepts: readonly Concept[];
@@ -81,57 +58,129 @@ export interface Recall {
   composed: boolean;
   /** One line that earns the next line. Empty when nothing stands out. */
   hook: string;
+  /** Primary product goal, when memories support one. */
+  goal: string;
+  /** Primary problem the document exists to solve. */
+  problem: string;
+  /** Primary business outcome the work unlocks. */
+  outcome: string;
   /** Honest reading estimate for the source, in whole minutes. */
   readingMinutes: number;
 }
 
 export function composeRecall(input: RecallInput): Recall {
+  const goal = primaryGoal(input);
+  const problem = primaryProblem(input);
+  const outcome = primaryOutcome(input);
+
   const clauses: string[] = [];
+  const framed = Boolean(goal || problem || outcome);
+  // Goal / problem / outcome render as labeled fields; summary keeps domain
+  // framing from the opening and names outstanding work.
+  const waiting = outstandingWorkClause(input.timeline, input.actions);
 
-  // The subject comes from the title, which the author already cased. Forcing
-  // it lower turns "Atlas Launch" into "atlas Launch", which reads as a typo.
-  const subject = shorten(input.intent.subject, 12);
-  const opening = subject.length > 0 ? OPENING[input.intent.kind](subject) : "";
+  if (!framed) {
+    // Unstructured notes: keep the author's opening — don't invent a title sentence.
+    if (input.fallback.trim()) {
+      return {
+        summary: clampWords(unpunctuated(input.fallback), LIMITS.maxSnapshotWords),
+        composed: false,
+        hook: hookLine(input),
+        goal: "",
+        problem: "",
+        outcome: "",
+        readingMinutes: readingMinutes(input),
+      };
+    }
+    const subject = shorten(input.intent.subject, 12);
+    const opening =
+      subject.length > 0 ? `This ${KIND_NOUN[input.intent.kind]} pins down ${subject}.` : "";
+    if (opening) clauses.unshift(opening);
+    const commitment = commitmentClause(input.decisions);
+    if (commitment) clauses.push(commitment);
+  } else {
+    if (input.fallback.trim()) {
+      const framing = sentenceCase(shorten(unpunctuated(input.fallback), 22));
+      if (framing && !readsAsFragment(framing)) clauses.push(framing);
+    } else if (goal) {
+      clauses.push(`This ${KIND_NOUN[input.intent.kind]} remembers ${decapitalize(shorten(goal, 16))}.`);
+    }
+    if (waiting) clauses.push(waiting);
+  }
 
-  const method = methodClause(input.concepts);
-  if (opening) clauses.push(`${opening}${method}.`);
-
-  const commitment = commitmentClause(input.decisions);
-  if (commitment) clauses.push(commitment);
-
-  const watch = watchClause(input.risks, input.signals);
-  if (watch) clauses.push(watch);
-
-  const delivery = deliveryClause(input.timeline, input.actions);
-  if (delivery) clauses.push(delivery);
-
-  // Composition needs at least an opening and one substantive clause; a lone
-  // "This guide walks through X." is a title with extra words, not recall.
-  const composed = clauses.length >= 2;
+  const composed = framed || clauses.length >= 1;
   const summary = composed
     ? withinBudget(clauses)
-    : clampWords(unpunctuated(input.fallback) || opening || subject, LIMITS.maxSnapshotWords);
+    : clampWords(unpunctuated(input.fallback) || goal || subjectFallback(input), LIMITS.maxSnapshotWords);
 
   return {
-    summary: summary.trim(),
+    summary: summary.trim() || (goal ? `Primary goal: ${goal}.` : ""),
     composed,
-    hook: hookLine(input),
+    hook: goal ? `Primary goal: ${goal}.` : hookLine(input),
+    goal,
+    problem,
+    outcome,
     readingMinutes: readingMinutes(input),
   };
 }
 
-/** ", built around decomposition, business reasoning and AI-assisted analysis" */
-function methodClause(concepts: readonly Concept[]): string {
-  // Only concepts the document returns to across sections belong in the
-  // opening line; a term used twice in one paragraph is not what it is about.
-  const recurring = concepts.filter((c) => c.spread >= 2);
-  // A theme named in one word is usually a category, not a subject: "pricing"
-  // could be any document, "fleet-analytics pricing" could only be this one.
-  // Single words are still allowed when the document offers nothing longer.
-  const named = recurring.filter((c) => wordCount(c.phrase) >= 2);
-  const themes = (named.length > 0 ? named : recurring).slice(0, 3).map((c) => decapitalize(c.phrase));
-  if (themes.length === 0) return "";
-  return `, built around ${speakList(themes)}`;
+function subjectFallback(input: RecallInput): string {
+  return shorten(input.intent.subject, 12);
+}
+
+/** Enable / deliver / provide — the settled product intent. */
+function primaryGoal(input: RecallInput): string {
+  const committed = input.decisions.filter(
+    (d) => d.commitment === "committed" && d.status !== "rejected" && !/^p\d\b/i.test(d.text),
+  );
+  // Prefer audit / editability goals over matrix chrome.
+  const preferred =
+    committed.find((d) => /\b(audit|edit history|amend|traceable|editable)\b/i.test(d.text)) ??
+    committed[0];
+  if (preferred) {
+    const text = sentenceCase(shorten(preferred.text, 18));
+    if (!readsAsFragment(text)) {
+      if (/^(enable|deliver|provide|support|build|create)\b/i.test(text)) return text;
+      return `Enable ${decapitalize(text)}`;
+    }
+  }
+  const story = input.actions.find((a) => /^user story:/i.test(a.task));
+  if (story) {
+    const want = story.task.replace(/^user story:\s*/i, "");
+    return sentenceCase(shorten(want.replace(/^i want (?:to\s+)?/i, ""), 18));
+  }
+  // Never invent a goal from the filename alone — leave the source opening.
+  return "";
+}
+
+function primaryProblem(input: RecallInput): string {
+  const ranked = [...input.risks].sort((a, b) => severityRank(b) - severityRank(a));
+  const withCost = ranked.find((r) => r.consequence);
+  if (withCost) {
+    return sentenceCase(
+      shorten(`${withCost.risk}, causing ${withCost.consequence}`, 22),
+    );
+  }
+  if (ranked[0]) return sentenceCase(shorten(ranked[0].risk, 20));
+  return "";
+}
+
+function primaryOutcome(input: RecallInput): string {
+  const measured = input.signals.find(
+    (s) => s.value !== undefined && !/^open question$/i.test(s.label),
+  );
+  if (measured?.implication && measured.implication !== "Target") {
+    return sentenceCase(shorten(`${measured.label}: ${measured.implication}`, 18));
+  }
+  const theme = input.concepts.find((c) =>
+    /\b(mid-market|compliance|audit|onboarding|procurement)\b/i.test(c.phrase),
+  );
+  if (theme) {
+    return sentenceCase(`Support ${decapitalize(shorten(theme.phrase, 12))} through traceable workflows`);
+  }
+  const committed = input.decisions.find((d) => /\b(compliance|audit|mid-market|accountab)/i.test(d.text));
+  if (committed) return sentenceCase(shorten(committed.text, 18));
+  return "";
 }
 
 /** "It settles on cleaning the data first and using many small prompts." */
@@ -145,36 +194,6 @@ function commitmentClause(decisions: readonly DecisionEntry[]): string {
   return `It settles on ${speakList(committed)}.`;
 }
 
-/** "The warning it keeps returning to is X, and what that costs is Y." */
-function watchClause(risks: readonly RiskEntry[], signals: readonly SignalEntry[]): string {
-  const ranked = [...risks].sort((a, b) => severityRank(b) - severityRank(a));
-  const withConsequence = ranked.find((r) => r.consequence !== undefined);
-  if (withConsequence) {
-    const risk = decapitalize(shorten(withConsequence.risk, 11));
-    const cost = decapitalize(shorten(withConsequence.consequence!, 11));
-    return `The warning it keeps returning to is ${risk}, and what that costs is ${cost}.`;
-  }
-  const firstRisk = ranked[0];
-  if (firstRisk) {
-    const risk = decapitalize(shorten(firstRisk.risk, 12));
-    return firstRisk.mitigation
-      ? `It flags ${risk}, and answers it with ${decapitalize(shorten(firstRisk.mitigation, 10))}.`
-      : `It flags ${risk}.`;
-  }
-  const pattern = signals.find((s) => s.implication !== undefined);
-  if (pattern) {
-    const label = decapitalize(shorten(pattern.label, 10));
-    const meaning = decapitalize(shorten(pattern.implication!, 12));
-    return `The pattern it leans on is that ${label} tends to mean ${meaning}.`;
-  }
-  const measured = signals.filter((s) => s.value !== undefined).slice(0, 2);
-  if (measured.length > 0) {
-    const said = measured.map((s) => `${decapitalize(s.label)} at ${String(s.value)}`);
-    return `The numbers it turns on are ${speakList(said)}.`;
-  }
-  return "";
-}
-
 function severityRank(risk: RiskEntry): number {
   if (risk.severity === "high") return 3;
   if (risk.severity === "medium") return 2;
@@ -182,19 +201,42 @@ function severityRank(risk: RiskEntry): number {
   return 0;
 }
 
-/** "The work runs from Jul to Oct, and three things are still waiting." */
-function deliveryClause(timeline: readonly TimelineEntry[], actions: readonly ActionEntry[]): string {
-  const waiting = actions.filter((a) => a.status !== "done").length;
-  const tail =
-    waiting > 0 ? `, and ${spellCount(waiting)} ${waiting === 1 ? "thing is" : "things are"} still waiting` : "";
-  if (timeline.length >= 2) {
-    const first = unpunctuated(timeline[0]!.date || timeline[0]!.title);
-    const last = unpunctuated(timeline[timeline.length - 1]!.date || timeline[timeline.length - 1]!.title);
-    if (first && last && first !== last) {
-      return `The work runs from ${shorten(first, 8)} to ${shorten(last, 8)}${tail}.`;
-    }
+/**
+ * Name the outstanding work — never "eight things" without saying which.
+ * Prefer ticket IDs from Timeline; fall back to action tasks.
+ */
+function outstandingWorkClause(
+  timeline: readonly TimelineEntry[],
+  actions: readonly ActionEntry[],
+): string {
+  const tickets = timeline
+    .map((t) => {
+      const fromDate = /^(PSTD-\d+|[A-Z]{2,5}-\d+)/i.exec(t.date)?.[1];
+      const fromTitle = /^(PSTD-\d+|[A-Z]{2,5}-\d+)/i.exec(t.title)?.[1];
+      return fromDate ?? fromTitle ?? null;
+    })
+    .filter((t): t is string => Boolean(t));
+  const uniqueTickets = [...new Set(tickets.map((t) => t.toUpperCase()))];
+
+  const waitingActions = actions.filter(
+    (a) => a.status !== "done" && !/^persona:/i.test(a.task) && !/^user story:/i.test(a.task),
+  );
+
+  if (uniqueTickets.length > 0) {
+    const shown = uniqueTickets.slice(0, 6);
+    const more = uniqueTickets.length - shown.length;
+    const list = speakList(shown);
+    const tally = spellCount(uniqueTickets.length);
+    return `Outstanding work (${tally}): ${list}${more > 0 ? `, +${more} more` : ""}.`;
   }
-  return waiting > 0 ? `${sentenceCase(tail.replace(/^, and /, ""))}.` : "";
+
+  if (waitingActions.length > 0) {
+    const shown = waitingActions.slice(0, 4).map((a) => shorten(a.task, 8));
+    const more = waitingActions.length - shown.length;
+    return `Outstanding work (${spellCount(waitingActions.length)}): ${speakList(shown)}${more > 0 ? `, +${more} more` : ""}.`;
+  }
+
+  return "";
 }
 
 /** Add clauses while they fit; the budget is a hard limit, not a target. */
@@ -209,36 +251,20 @@ function withinBudget(clauses: readonly string[]): string {
 }
 
 /**
- * The line that has to earn the second line.
- *
- * It is the single thing most worth carrying out of the document, phrased as
- * a person would hand it to a colleague. It is never invented: it is the
- * strongest memory already found, said shorter.
+ * Fallback hook when no primary goal could be composed.
  */
 function hookLine(input: RecallInput): string {
-  const lead = "If you remember one thing:";
-
-  const costly = input.risks.find((r) => r.consequence !== undefined && r.severity === "high")
-    ?? input.risks.find((r) => r.consequence !== undefined);
+  const costly =
+    input.risks.find((r) => r.consequence !== undefined && r.severity === "high") ??
+    input.risks.find((r) => r.consequence !== undefined);
   if (costly) {
-    return `${lead} ${decapitalize(shorten(costly.risk, 12))} costs you ${decapitalize(shorten(costly.consequence!, 11))}.`;
+    return `Primary problem: ${decapitalize(shorten(costly.risk, 14))}.`;
   }
-  const committed = input.decisions.find((d) => d.commitment !== "considered" && d.status === "approved")
-    ?? input.decisions.find((d) => d.commitment !== "considered");
+  const committed =
+    input.decisions.find((d) => d.commitment !== "considered" && d.status === "approved") ??
+    input.decisions.find((d) => d.commitment !== "considered");
   if (committed) {
-    return `${lead} ${decapitalize(shorten(committed.text, 16))}.`;
-  }
-  const pattern = input.signals.find((s) => s.implication !== undefined);
-  if (pattern) {
-    return `${lead} ${decapitalize(shorten(pattern.label, 12))} tends to mean ${decapitalize(shorten(pattern.implication!, 12))}.`;
-  }
-  const measured = input.signals.find((s) => s.value !== undefined);
-  if (measured) {
-    return `${lead} ${decapitalize(unpunctuated(measured.label))} is at ${String(measured.value)}.`;
-  }
-  const theme = input.concepts.find((c) => c.spread >= 2);
-  if (theme) {
-    return `${lead} this keeps coming back to ${decapitalize(theme.phrase)}.`;
+    return `Primary goal: ${decapitalize(shorten(committed.text, 16))}.`;
   }
   return "";
 }

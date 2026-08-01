@@ -245,7 +245,7 @@ export function notesRows(
           color={c.ink3}
           letterSpacing="0.12em"
         >
-          KEPT AS TEXT
+          PRESERVED FROM SOURCE
         </Heading>
       </Column>
     </Row>,

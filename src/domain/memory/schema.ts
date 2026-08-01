@@ -135,12 +135,18 @@ const notesSchema = z.array(z.string().max(LIMITS.maxFieldLength)).max(LIMITS.ma
  * `hook` is the one line that has to earn the second line. It is composed from
  * the strongest memory already found, never written from nothing, and is
  * omitted entirely when no memory stands out enough to deserve the position.
+ *
+ * `goal` / `problem` / `outcome` are the three primary memories the snapshot
+ * frames — preferred over a generic "if you remember one thing" line.
  */
 export const snapshotPayloadSchema = z
   .object({
     heading: textField(LIMITS.maxFieldLength),
     summary: textField(LIMITS.maxFieldLength),
     hook: textField(300).optional(),
+    goal: textField(LIMITS.maxFieldLength).optional(),
+    problem: textField(LIMITS.maxFieldLength).optional(),
+    outcome: textField(LIMITS.maxFieldLength).optional(),
     byline: textField(240).optional(),
     notes: notesSchema.optional(),
   })
@@ -214,6 +220,18 @@ export type ActionEntry = z.infer<typeof actionEntrySchema>;
 export const MEMORY_RELATIONS = [
   /** A signal that shaped a decision. */
   "informs",
+  /** Evidence that backs a decision or requirement. */
+  "supports",
+  /** A risk or need that drives a decision. */
+  "motivates",
+  /** A decision or action that lessens a risk. */
+  "mitigates",
+  /** Causal pressure from one memory onto another. */
+  "causes",
+  /** An unresolved question or dependency a decision waits on. */
+  "depends_on",
+  /** Something that prevents settling or shipping. */
+  "blocks",
   /** An action that carries out a decision. */
   "implements",
   /** A timeline phase that places an action in time. */
@@ -247,6 +265,12 @@ export type MemoryRelation = z.infer<typeof memoryRelationSchema>;
 
 export const MEMORY_RELATION_LABELS: Record<MemoryRelationKind, string> = {
   informs: "informs",
+  supports: "supports",
+  motivates: "motivates",
+  mitigates: "mitigates",
+  causes: "causes",
+  depends_on: "depends on",
+  blocks: "blocks",
   implements: "carries out",
   schedules: "is scheduled by",
   threatens: "points at",

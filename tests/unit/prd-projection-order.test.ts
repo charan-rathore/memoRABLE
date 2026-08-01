@@ -55,6 +55,7 @@ describe("PRD projection order + semantic layers", () => {
     expect(classifyHeading("Cases – Sheet")).toBe("decisions");
     expect(classifyHeading("Cases - Sheet (embedded spreadsheet)")).toBe("decisions");
     expect(classifyHeading("Open Questions")).toBe("signals");
+    expect(classifyHeading("Acceptance Criteria")).toBe("decisions");
     expect(classifyHeading("User Stories & Acceptance Criteria")).toBe("actions");
     expect(classifyHeading("4.1 As a Purchase Manager")).toBe("actions");
   });
@@ -64,7 +65,7 @@ describe("PRD projection order + semantic layers", () => {
       "User Story: I want to see a complete edit history for every PO so that I can audit changes.",
     );
     expect(story?.task).toMatch(/^User story:/i);
-    expect(story?.status).toBe("suggested");
+    expect(story?.status).toBe("pending");
 
     const rule = parseCasesRuleLine(
       "- After PO creation, indent quantity cannot be reduced below the highest recorded quantity.",

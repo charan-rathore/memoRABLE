@@ -28,7 +28,7 @@ function docOf(): MemoryDocument {
 
 describe("publication render — conversation, open questions, decision stance", () => {
   it("does not repeat identical Signals informs Decisions lines", () => {
-    const html = renderBundle(docOf()).outputs.web.html;
+    const html = renderBundle(docOf()).outputs.web.html ?? "";
     const matches = html.match(/informs/gi) ?? [];
     // At most a handful of distinct conversation links — never four identical block-level lines.
     const repeatedBlockLine = html.match(/Signals informs Decisions/g) ?? [];
@@ -37,7 +37,7 @@ describe("publication render — conversation, open questions, decision stance",
   });
 
   it("puts open-question implication text inside the signal card", () => {
-    const html = renderBundle(docOf()).outputs.web.html;
+    const html = renderBundle(docOf()).outputs.web.html ?? "";
     expect(html).toMatch(/Should we limit the number of times a PO can be amended/i);
     expect(html).toMatch(/default approval workflow/i);
     // Label is chrome; the question body must also appear.
@@ -45,7 +45,7 @@ describe("publication render — conversation, open questions, decision stance",
   });
 
   it("renders decision stance as Proposed / committed, not PROPOSED · COMMITTED wrap", () => {
-    const html = renderBundle(docOf()).outputs.web.html;
+    const html = renderBundle(docOf()).outputs.web.html ?? "";
     expect(html).toMatch(/Proposed\s*\/\s*committed/i);
     expect(html).not.toMatch(/PROPOSED\s*·\s*COMMITTED/);
   });

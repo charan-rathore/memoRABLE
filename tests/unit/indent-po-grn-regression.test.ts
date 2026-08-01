@@ -99,6 +99,12 @@ describe("Indent_PO_GRN PRD — semantic understanding regression", () => {
     expect(decisionText).toMatch(/edit history|audit|revision|amend|p0|p1/);
     // Cases – Sheet rules must project into Decisions (not Snapshot notes).
     expect(decisionText).toMatch(/cannot be reduced|no changes are allowed|backward compatibility/);
+    // Acceptance criteria become structured requirements (Decisions), not notes-only.
+    expect(decisionText).toMatch(/auto-increment|edited on|edit button|approval workflow/);
+    const acStillOnlyNotes =
+      (decisions.notes ?? []).some((n) => /auto-increment|edited on|edit button/i.test(n)) &&
+      !/auto-increment|edited on|edit button/i.test(decisionText);
+    expect(acStillOnlyNotes).toBe(false);
     // Decision status / commitment metadata must survive compression.
     expect(decisions.entries.some((e) => e.status === "approved" || e.status === "proposed")).toBe(
       true,
@@ -135,6 +141,9 @@ describe("Indent_PO_GRN PRD — semantic understanding regression", () => {
       .toLowerCase();
     // Open Questions → Signals (own cognitive surface).
     expect(signalText).toMatch(/should we limit|default approval workflow|time limit|permissions/);
+    // KPI targets are first-class measured Signals (value = target).
+    const measured = signals.entries.filter((e) => e.value !== undefined);
+    expect(measured.some((e) => /70%|50%|5\s*min|4\.5/i.test(String(e.value)))).toBe(true);
 
     const actions = payloadOf<ActionsPayload>(doc, "actions");
     expect(actions.entries.length + (actions.notes?.length ?? 0)).toBeGreaterThanOrEqual(2);
@@ -142,6 +151,16 @@ describe("Indent_PO_GRN PRD — semantic understanding regression", () => {
     const actionEntries = actions.entries.map((e) => e.task).join(" ").toLowerCase();
     expect(actionEntries).toMatch(/user story:\s*i want/);
     expect(actionEntries).toMatch(/persona:\s*as a (purchase manager|project manager|site engineer|accountant)/);
+    // Source facts — not "suggested" work.
+    expect(
+      actions.entries
+        .filter((e) => /^(persona|user story):/i.test(e.task))
+        .every((e) => e.status !== "suggested"),
+    ).toBe(true);
+
+    // Snapshot names outstanding tickets instead of a bare count.
+    expect(snapshot.summary.toLowerCase()).toMatch(/outstanding|pstd-\d+/);
+    expect(snapshot.goal || snapshot.problem || snapshot.outcome).toBeTruthy();
 
     const timeline = payloadOf<TimelinePayload>(doc, "timeline");
     const timelineText = [

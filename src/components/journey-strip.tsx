@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import type { WorkbenchState } from "./workbench-state";
 import { OUTPUT_MODE_LABELS } from "@/domain/memory/types";
 import { BLOCK_KIND_LABELS } from "@/domain/memory/schema";
@@ -25,8 +24,6 @@ export interface JourneyStep {
   status: StepStatus;
   lines: string[];
 }
-
-const CARD_OPEN_MS = 5200;
 
 function fileTypeOf(label: string): string {
   const lower = label.toLowerCase();
@@ -191,9 +188,10 @@ export function journeyOf(
   return steps;
 }
 
+const REPLAY_LABELS = ["Importing…", "Understanding…", "Remembering…", "Arranging…", "Publishing…"];
+
 /**
- * Compact journey bar by default. Click a step to peek its info card;
- * the card auto-closes after a few seconds.
+ * Compact status bar — a single readable line instead of five scrolling columns.
  */
 export function JourneyStrip({
   state,
@@ -204,75 +202,46 @@ export function JourneyStrip({
   replayStep: number | null;
   sourceMeta?: SourceMeta | null;
 }) {
-  const steps = journeyOf(state, replayStep, sourceMeta ?? null);
-  const [openKey, setOpenKey] = useState<string | null>(null);
+  const hasDoc = state.document !== null;
+  const hasErrors = state.errors.length > 0;
+  const fileType = sourceMeta?.fileType ?? (state.sourceLabel ? fileTypeOf(state.sourceLabel) : null);
+  const size =
+    sourceMeta?.sizeBytes != null
+      ? formatBytes(sourceMeta.sizeBytes)
+      : state.sourceText
+        ? formatBytes(new TextEncoder().encode(state.sourceText).length)
+        : null;
 
-  useEffect(() => {
-    if (!openKey) return;
-    const t = window.setTimeout(() => setOpenKey(null), CARD_OPEN_MS);
-    return () => window.clearTimeout(t);
-  }, [openKey]);
+  let statusText: string;
+  let statusKind: "ready" | "error" | "pending" | "live";
 
-  const openStep = steps.find((s) => s.key === openKey) ?? null;
-
-  const renderSteps = (suffix: string, inert = false) =>
-    steps.map((step, i) => (
-      <span key={`${suffix}-${step.key}`} style={{ display: "contents" }}>
-        {i > 0 && (
-          <span className="psep" aria-hidden="true">
-            →
-          </span>
-        )}
-        <button
-          type="button"
-          className={`pstep ${step.status}${openKey === step.key ? " peek" : ""}`}
-          onClick={() => {
-            if (inert) return;
-            setOpenKey((k) => (k === step.key ? null : step.key));
-          }}
-          tabIndex={inert ? -1 : 0}
-          aria-hidden={inert || undefined}
-          aria-expanded={!inert && openKey === step.key}
-          aria-controls={!inert && openKey === step.key ? "journey-peek" : undefined}
-          title={`Show what ${step.label} means`}
-        >
-          <span className="dot" aria-hidden="true" />
-          <span className="k">{step.index}</span>
-          <b>{step.label}</b>
-          <span>{step.detail}</span>
-        </button>
-      </span>
-    ));
+  if (replayStep !== null) {
+    statusText = REPLAY_LABELS[replayStep] ?? "Processing…";
+    statusKind = "live";
+  } else if (hasErrors) {
+    statusText = `Couldn't understand · ${state.errors.length} ${state.errors.length === 1 ? "error" : "errors"}`;
+    statusKind = "error";
+  } else if (!hasDoc) {
+    statusText = "Bring a document to begin";
+    statusKind = "pending";
+  } else if (state.publishedAt) {
+    statusText = `Published · ${OUTPUT_MODE_LABELS[state.mode]}`;
+    statusKind = "ready";
+  } else {
+    statusText = `${state.document!.blocks.length} memories · ${OUTPUT_MODE_LABELS[state.mode]} ready`;
+    statusKind = "ready";
+  }
 
   return (
-    <div className={`pipe-wrap${openKey ? " paused" : ""}`}>
-      <div className="pipe" aria-label="Your progress">
-        <div className="pipe-viewport">
-          <div className="pipe-track">
-            <nav className="pipe-group">{renderSteps("a")}</nav>
-            <nav className="pipe-group" aria-hidden="true">
-              {renderSteps("b", true)}
-            </nav>
-          </div>
-        </div>
-        <span className="pmeta">
-          {state.document ? `publish: ${state.mode} · ${state.document.blocks.length} memories` : "nothing here yet"}
+    <div className="status-bar" aria-label="Document status">
+      <span className={`status-dot ${statusKind}`} aria-hidden="true" />
+      <span className="status-text">{statusText}</span>
+      {hasDoc && !hasErrors && (
+        <span className="status-meta">
+          {fileType}
+          {size ? ` · ${size}` : ""}
+          {sourceMeta?.pages ? ` · ${sourceMeta.pages} pages` : ""}
         </span>
-      </div>
-      {openStep && (
-        <article id="journey-peek" className={`jcard jcard-peek ${openStep.status}`} aria-live="polite">
-          <header className="jcard-h">
-            <span className="dot" aria-hidden="true" />
-            <span className="k">{openStep.index}</span>
-            <b>{openStep.label}</b>
-            <span className="jcard-hint">closes shortly</span>
-          </header>
-          <ul className="jcard-lines">
-            {openStep.lines.map((line) => (
-              <li key={line}>{line}</li>
-            ))}
-          </ul>
-        </article>
       )}
     </div>
   );

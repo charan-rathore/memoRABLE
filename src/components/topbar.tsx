@@ -20,6 +20,9 @@ export function Topbar({
   onPublish,
   canPublish,
   onHome,
+  onNewDoc,
+  onRegenerate,
+  regenerateBusy,
 }: {
   documentTitle: string;
   blockCount: number;
@@ -34,6 +37,9 @@ export function Topbar({
   onPublish: () => void;
   canPublish: boolean;
   onHome: () => void;
+  onNewDoc: () => void;
+  onRegenerate: () => void;
+  regenerateBusy?: boolean;
 }) {
   const [aiOpen, setAiOpen] = useState(false);
   const [themeOpen, setThemeOpen] = useState(false);
@@ -49,16 +55,52 @@ export function Topbar({
 
   return (
     <header className="topbar">
-      <button type="button" className="brand" onClick={onHome} aria-label="memoRABLE. back to the start">
-        <BrandMark />
-        <span className="wordmark">
-          memo<b>RABLE</b>
-        </span>
-      </button>
-      <span className="vr" aria-hidden="true" />
-      <div className="doc-title">
-        <span className="t">{documentTitle}</span>
-        <span className="n">{blockCount} blocks</span>
+      <div className="topbar-nav">
+        <button type="button" className="nav-back" onClick={onHome} aria-label="Back to start">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <path d="M10 3L5 8l5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          <span>Back</span>
+        </button>
+        <span className="vr" aria-hidden="true" />
+        <button type="button" className="brand" onClick={onHome} aria-label="memoRABLE home">
+          <BrandMark />
+          <span className="wordmark">
+            memo<b>RABLE</b>
+          </span>
+        </button>
+        <span className="vr" aria-hidden="true" />
+        <div className="doc-title">
+          <span className="t">{documentTitle}</span>
+          <span className="n">{blockCount} memories</span>
+        </div>
+      </div>
+
+      <div className="topbar-actions">
+        <button type="button" className="btn ghost small" onClick={onNewDoc}>
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+          </svg>
+          New doc
+        </button>
+        <button
+          type="button"
+          className="btn ghost small"
+          onClick={onRegenerate}
+          disabled={!canPublish || regenerateBusy}
+          title="Re-process the current document"
+        >
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <path
+              d="M13.5 8A5.5 5.5 0 1 1 8 2.5"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+            />
+            <path d="M8 1v3.5L10.5 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          {regenerateBusy ? "Processing…" : "Regenerate"}
+        </button>
       </div>
 
       <div className="doc-search" data-testid="doc-search">
@@ -68,7 +110,7 @@ export function Topbar({
         <input
           id="doc-search-input"
           type="search"
-          placeholder="Search recent docs…"
+          placeholder="Recent docs…"
           value={query}
           onChange={(e) => {
             setQuery(e.target.value);
@@ -106,7 +148,7 @@ export function Topbar({
         )}
       </div>
 
-      <div className="topright">
+      <div className="topbar-controls">
         <span className="ai-wrap">
           <button
             type="button"
@@ -139,12 +181,16 @@ export function Topbar({
         <span className="ai-wrap">
           <button
             type="button"
-            className="ai-chip"
+            className="preset-btn"
             aria-expanded={themeOpen}
+            aria-haspopup="listbox"
             onClick={() => setThemeOpen((open) => !open)}
-            title="Publication preset"
           >
-            Preset · {PUBLISH_THEMES[theme].label}
+            <span className="preset-label">Preset</span>
+            <span className="preset-value">{PUBLISH_THEMES[theme].label}</span>
+            <svg className="preset-chev" width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+              <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
           </button>
           {themeOpen && (
             <span className="ai-pop theme-pop" role="listbox" aria-label="Publication presets">
@@ -182,9 +228,32 @@ export function Topbar({
             </button>
           ))}
         </div>
-        <button type="button" className="btn ghost" onClick={onReplay}>
-          {replayActive ? "Stop replay" : "Replay the 20-second story"}
+
+        <button
+          type="button"
+          className={`btn ghost replay-btn${replayActive ? " active" : ""}`}
+          onClick={onReplay}
+          aria-pressed={replayActive}
+          aria-label={replayActive ? "Stop replay" : "Replay the 20-second story"}
+        >
+          {replayActive ? (
+            <>
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                <rect x="4" y="3" width="3" height="10" rx="0.5" fill="currentColor" />
+                <rect x="9" y="3" width="3" height="10" rx="0.5" fill="currentColor" />
+              </svg>
+              Stop replay
+            </>
+          ) : (
+            <>
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                <path d="M4 3.5v9l9-4.5-9-4.5z" fill="currentColor" />
+              </svg>
+              Replay story
+            </>
+          )}
         </button>
+
         <button
           type="button"
           className="btn pri magnetic"

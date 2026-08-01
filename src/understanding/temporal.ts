@@ -1,5 +1,6 @@
 import type { TimelineEntry } from "@/domain/memory/schema";
 import type { ArchetypeResult } from "./archetype";
+import { projectSingleLegTimeline } from "./projection";
 
 /**
  * Local temporal honesty — Phase C lite for the deterministic parser.
@@ -80,8 +81,8 @@ export function gateTimelineEntries(
   }
 
   if (archetype.timelineMode === "single_leg") {
-    const hard = entries.filter((e) => isHardDate(e.date) || /depart|arriv/i.test(e.title));
-    const chosen = (hard.length > 0 ? hard : entries).slice(0, 2);
+    // Hard priority: Departure then Arrival ALWAYS occupy Timeline.
+    const chosen = projectSingleLegTimeline(entries);
     const demoted = entries
       .filter((e) => !chosen.includes(e))
       .map((e) => `${e.date}: ${e.title}`);

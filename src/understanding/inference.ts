@@ -1,6 +1,13 @@
+import { kindClaimedByHeading } from "@/import/text/sections";
 import type { Concept } from "./concepts";
 import { labelFor } from "./concepts";
+import type { DocumentArchetype } from "./archetype";
 import type { Intent } from "./intent";
+import {
+  allowSlideDecision,
+  blocksDecisionInference,
+  isProblemStatement,
+} from "./projection";
 import {
   clampWords,
   decapitalize,
@@ -258,15 +265,31 @@ export function readCommitment(text: string): "committed" | "considered" {
 export function inferDecisions(
   statements: readonly Statement[],
   intent: Intent,
+  archetype?: DocumentArchetype,
 ): Array<Inferred<InferredDecision>> {
   const out: Array<Inferred<InferredDecision>> = [];
+
   // Only a document that exists to prescribe may read a bare instruction as a
   // commitment. In a status report, "check the dashboard" is an aside.
   const prescriptive = intent.kind === "guide" || intent.kind === "spec" || intent.instructional;
 
   for (const statement of statements) {
+    // A line already filed under Timeline / Risks / Actions / Signals is not a
+    // Decision. Inferring across buckets is how PRD Phases polluted Decisions.
+    const claimed = kindClaimedByHeading(statement.sectionTitle);
+    if (claimed && claimed !== "decisions" && claimed !== "snapshot") continue;
+
     const text = unpunctuated(statement.text);
     if (wordCount(text) < 3) continue;
+
+    // Precedence: Requirement > Risk > Action > Decision.
+    // Never classify as Decision if a stronger category already matches.
+    if (blocksDecisionInference(text)) continue;
+
+    // Slides / problem statements: Problem ≠ Decision; need explicit commitment verbs.
+    if (archetype === "slides" || isProblemStatement(text, statement.sectionTitle)) {
+      if (!allowSlideDecision(text, statement.sectionTitle)) continue;
+    }
 
     const considered = CONSIDERED.test(text);
     const committed = COMMITTED.test(text);
@@ -389,6 +412,9 @@ export function riskReasoning(text: string): { because?: string; consequence?: s
 export function inferRisks(statements: readonly Statement[]): Array<Inferred<InferredRisk>> {
   const out: Array<Inferred<InferredRisk>> = [];
   for (const statement of statements) {
+    const claimed = kindClaimedByHeading(statement.sectionTitle);
+    // Do not re-home Timeline / Actions / Decisions lines as Risks.
+    if (claimed && claimed !== "risks" && claimed !== "snapshot") continue;
     const value = readRisk(statement.text);
     if (value) out.push({ value, evidence: statement });
   }

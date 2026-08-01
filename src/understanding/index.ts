@@ -38,6 +38,14 @@ export type { ArchetypeResult, DocumentArchetype } from "./archetype";
 export type { AnchorDate } from "./temporal";
 export { classifyArchetype } from "./archetype";
 export { findAnchorDate, gateTimelineEntries } from "./temporal";
+export {
+  allowSlideDecision,
+  blocksDecisionInference,
+  harvestSingleLegLine,
+  projectSingleLegTimeline,
+  shouldProjectInvoiceDueToTimeline,
+  strongestCategory,
+} from "./projection";
 export { inferArtifact, inferReadiness } from "./inference";
 export { buildRelations, relationsFor, relationsFrom, relationsTo, parseRef } from "./graph";
 export { recallHeading } from "./recall";
@@ -110,7 +118,10 @@ export function understand(input: UnderstandingInput & { sourceLabel?: string })
   const { statements, redundant } = distill(input.sections);
 
   const signals = dedupeByMeaning(inferSignals(statements, concepts), (s) => s.value.label);
-  const decisions = dedupeByMeaning(inferDecisions(statements, intent), (d) => d.value.text);
+  const decisions = dedupeByMeaning(
+    inferDecisions(statements, intent, archetype.archetype),
+    (d) => d.value.text,
+  );
   const risks = dedupeByMeaning(inferRisks(statements), (r) => r.value.risk);
 
   return {

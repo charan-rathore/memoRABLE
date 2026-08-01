@@ -14,6 +14,13 @@ import {
   type TimelineEntry,
 } from "@/domain/memory/schema";
 import { gateTimelineEntries, recallFrom, understand, type Recall, type Understanding } from "@/understanding";
+import {
+  blocksDecisionInference,
+  harvestSingleLegLine,
+  isInvoiceArchetype,
+  projectSingleLegTimeline,
+  shouldProjectInvoiceDueToTimeline,
+} from "@/understanding/projection";
 import { buildDocumentGraph, hybridSegment } from "@/understanding/segment";
 import { saysTheSame } from "@/understanding/language";
 import { LIMITS } from "@/domain/memory/limits";
@@ -33,6 +40,7 @@ import {
   parseActionLineLenient,
   parseDecisionLine,
   parseDecisionLineLenient,
+  parseObligationDateLine,
   parseRiskLine,
   parseRiskLineLenient,
   parseSignalLine,
@@ -217,6 +225,9 @@ export function parseText(input: TextImportInput): Result<MemoryDocument> {
     built.set(kind, buildBlock(kind, sections.filter((s) => s.kind === kind), ctx));
   }
 
+  // Archetype-aware harvest: ticket legs, invoice/policy dues, etc.
+  harvestArchetypeTimeline(built, sections, understanding, warnings);
+
   // Layer 3 lite: temporal honesty gate on the local Timeline bucket.
   applyTemporalHonesty(built, understanding, warnings);
 
@@ -267,6 +278,103 @@ function entriesOf<T>(built: ReadonlyMap<BlockKind, BlockInput>, kind: BlockKind
   const block = built.get(kind);
   if (!block || !("entries" in block.payload)) return [];
   return block.payload.entries as T[];
+}
+
+/**
+ * Archetype projection priorities (submission rules):
+ *  1. single_leg → Departure + Arrival ALWAYS Timeline
+ *  2. Invoice → Due Date → Timeline unless confidence < threshold
+ *  Policy/contract obligation dates share the same confidence gate.
+ */
+function harvestArchetypeTimeline(
+  built: Map<BlockKind, BlockInput>,
+  sections: readonly Section[],
+  understanding: Understanding,
+  warnings: ImportWarning[],
+): void {
+  const mode = understanding.archetype.timelineMode;
+  if (mode === "none") return;
+
+  const timelineBlock = built.get("timeline");
+  if (!timelineBlock || !("entries" in timelineBlock.payload)) return;
+  const entries = timelineBlock.payload.entries as TimelineEntry[];
+  const before = entries.length;
+
+  const pushUnique = (entry: TimelineEntry): void => {
+    if (entries.length >= LIMITS.maxEntriesPerBlock) return;
+    if (entries.some((e) => e.date === entry.date && saysTheSame(e.title, entry.title))) return;
+    entries.push(entry);
+  };
+
+  for (const section of sections) {
+    for (const line of section.lines) {
+      const text = plainContentOf(line.text);
+      if (!text) continue;
+
+      // Rule 1 — Ticket / single_leg: Departure + Arrival always Timeline.
+      if (mode === "single_leg") {
+        const leg = harvestSingleLegLine(text);
+        if (leg) pushUnique(leg);
+        continue;
+      }
+
+      // Rule 2 — Invoice (and other obligation docs): Due Date → Timeline if confident.
+      if (mode === "obligation_deadlines") {
+        if (!shouldProjectInvoiceDueToTimeline(text)) continue;
+        const due = parseObligationDateLine(text);
+        if (due) pushUnique(due);
+      }
+    }
+  }
+
+  // Invoice "Due date" often lands as a Signal — promote only above confidence threshold.
+  if (mode === "obligation_deadlines") {
+    const signalsBlock = built.get("signals");
+    if (signalsBlock && "entries" in signalsBlock.payload) {
+      const signals = signalsBlock.payload.entries as SignalEntry[];
+      const kept: SignalEntry[] = [];
+      for (const signal of signals) {
+        const asLine = `${signal.label}: ${signal.value ?? ""}`.trim();
+        if (
+          (shouldProjectInvoiceDueToTimeline(asLine) ||
+            (/^due(?:\s+date)?$/i.test(signal.label) &&
+              signal.value != null &&
+              shouldProjectInvoiceDueToTimeline(`Due date: ${signal.value}`))) &&
+          (isInvoiceArchetype(understanding.archetype.archetype) || mode === "obligation_deadlines")
+        ) {
+          const due =
+            parseObligationDateLine(asLine) ??
+            (signal.value != null
+              ? {
+                  date: String(signal.value),
+                  title: `Due date: ${signal.value}`,
+                  state: "planned" as const,
+                }
+              : null);
+          if (due) {
+            pushUnique(due);
+            continue;
+          }
+        }
+        kept.push(signal);
+      }
+      signalsBlock.payload.entries = kept;
+    }
+  }
+
+  // Rule 1 finalize — Departure then Arrival occupy Timeline exclusively.
+  if (mode === "single_leg") {
+    timelineBlock.payload.entries = projectSingleLegTimeline(entries);
+  }
+
+  const after = (timelineBlock.payload.entries as TimelineEntry[]).length;
+  const added = Math.max(0, after - before);
+  if (added > 0) {
+    warnings.push({
+      code: "text.timeline-harvested",
+      message: `Projected ${added} ${understanding.archetype.label.toLowerCase()} date memor${added === 1 ? "y" : "ies"} into Timeline.`,
+    });
+  }
 }
 
 /**
@@ -585,6 +693,8 @@ function mergeDecisions(built: Collected<DecisionEntry>, ctx: BuildContext, note
     // A suggestion is not a decision. Only settled positions may join a list
     // the reader will read as things that were decided.
     if (value.commitment !== "committed") continue;
+    // Precedence belt: never merge a stronger category into Decisions.
+    if (blocksDecisionInference(evidence.text) || blocksDecisionInference(value.text)) continue;
     if (added >= INFERRED_BUDGET) continue;
     if (built.entries.length >= LIMITS.maxEntriesPerBlock) break;
     if (alreadyUsed(evidence.lineNo, built.lineOf)) continue;

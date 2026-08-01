@@ -92,7 +92,7 @@ const HEADING_KEYWORDS: Record<string, BlockKind> = {
   "trade-offs": "decisions",
   "non-goals": "decisions",
 
-  // timeline — ordered delivery
+  // timeline — ordered delivery / dated itinerary / obligation dates
   timeline: "timeline",
   roadmap: "timeline",
   milestones: "timeline",
@@ -104,6 +104,12 @@ const HEADING_KEYWORDS: Record<string, BlockKind> = {
   sprints: "timeline",
   iterations: "timeline",
   stages: "timeline",
+  itinerary: "timeline",
+  "flight itinerary": "timeline",
+  "travel itinerary": "timeline",
+  "boarding pass": "timeline",
+  "due dates": "timeline",
+  deadlines: "timeline",
   "ticket breakdown": "timeline",
   "ticket breakdown by theme": "timeline",
   "po edit history & audit trail": "timeline",
@@ -182,8 +188,10 @@ export function classifyHeading(text: string): BlockKind | null {
   const normalized = text
     .toLowerCase()
     .replace(/^\d+(\.\d+)*\.?\s*/, "") // "3.1 Risks" / "5. Business Impact"
+    .replace(/^(slide|deck|page|section)\s+\d+\s*[-—–:.]?\s*/i, "") // "Slide 1 — Problem"
     .replace(/\s*\(.*\)\s*$/, "") // "Workflow (IMPORTANT)" → "workflow"
     .replace(/:$/, "")
+    .replace(/[—–]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
   const direct = HEADING_KEYWORDS[normalized];
@@ -198,6 +206,15 @@ export function classifyHeading(text: string): BlockKind | null {
   // Persona user-story headings: "4.1 As a Purchase Manager"
   if (/^as an?\s+/i.test(normalized)) return "actions";
   return null;
+}
+
+/**
+ * Which memory a section heading already owns — used to stop inference from
+ * pulling Timeline/Risks/Actions lines into Decisions (and vice versa).
+ */
+export function kindClaimedByHeading(headingText: string | null | undefined): BlockKind | null {
+  if (!headingText) return null;
+  return classifyHeading(headingText);
 }
 
 /**

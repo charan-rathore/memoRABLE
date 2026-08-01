@@ -77,7 +77,7 @@ export function Topbar({
       </div>
 
       <div className="topbar-actions">
-        <button type="button" className="btn ghost small" onClick={onNewDoc}>
+        <button type="button" className="btn ghost small action-new" onClick={onNewDoc}>
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
             <path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
           </svg>
@@ -85,7 +85,7 @@ export function Topbar({
         </button>
         <button
           type="button"
-          className="btn ghost small"
+          className="btn ghost small action-regen"
           onClick={onRegenerate}
           disabled={!canPublish || regenerateBusy}
           title="Re-process the current document"

@@ -12,7 +12,8 @@ describe("publication presets change Elements composition", () => {
   it("every preset produces HTML", () => {
     for (const id of PUBLISH_THEME_IDS) {
       const out = renderMode(doc, "web", id);
-      expect(out.html.length).toBeGreaterThan(200);
+      expect(out.html).toBeTruthy();
+      expect(out.html!.length).toBeGreaterThan(200);
       expect(out.error).toBeFalsy();
     }
   });
@@ -20,24 +21,30 @@ describe("publication presets change Elements composition", () => {
   it("Minimal drops Menu chrome that Editorial keeps", () => {
     const editorial = renderMode(doc, "web", "editorial").html;
     const minimal = renderMode(doc, "web", "minimal").html;
+    expect(editorial).toBeTruthy();
+    expect(minimal).toBeTruthy();
     // Editorial composes a jump Menu; Minimal strips chrome to Rows + type.
-    expect(editorial.toLowerCase()).toMatch(/menu|href=["']#section-/);
+    expect(editorial!.toLowerCase()).toMatch(/menu|href=["']#section-/);
     expect(minimal).not.toEqual(editorial);
   });
 
   it("Executive uses a cooler accent than Academic's forest", () => {
     const academic = renderMode(doc, "web", "academic").html;
     const executive = renderMode(doc, "web", "executive").html;
+    expect(academic).toBeTruthy();
+    expect(executive).toBeTruthy();
     expect(academic).toContain("#1F5E4E");
     expect(executive).toContain("#0B5FFF");
     expect(academic).not.toContain("#0B5FFF");
   });
 
   it("Academic document keeps a TOC band Editorial also has, Minimal does not", () => {
-    const academic = renderMode(doc, "document", "academic").html.toLowerCase();
-    const minimal = renderMode(doc, "document", "minimal").html.toLowerCase();
+    const academic = renderMode(doc, "document", "academic").html;
+    const minimal = renderMode(doc, "document", "minimal").html;
+    expect(academic).toBeTruthy();
+    expect(minimal).toBeTruthy();
     // TOC entries are paragraph links to section anchors.
-    expect(academic).toMatch(/section-signals|contents|table of contents|i\.\s|signals/);
+    expect(academic!.toLowerCase()).toMatch(/section-signals|contents|table of contents|i\.\s|signals/);
     expect(minimal).not.toEqual(academic);
   });
 });

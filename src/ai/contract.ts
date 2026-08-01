@@ -27,13 +27,20 @@ export const aiExtractResponseSchema = z
 export type AiExtractRequest = z.infer<typeof aiExtractRequestSchema>;
 export type AiExtractResponse = z.infer<typeof aiExtractResponseSchema>;
 
+/**
+ * AI failure modes (reliability layer). Each leaves the local candidate
+ * unchanged. Layer 3 also records soft repair modes (timeline gating, orphan
+ * links, etc.) that do not fail the request.
+ */
 export type AiFailureReason =
   | "disabled"
   | "missing-config"
   | "timeout"
   | "rate-limited"
   | "provider-error"
-  | "invalid-output";
+  | "invalid-output"
+  | "schema-rejected"
+  | "projection-failed";
 
 export interface AiFailure {
   ok: false;

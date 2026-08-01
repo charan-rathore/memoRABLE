@@ -6,6 +6,7 @@ import type {
   TimelineEntry,
 } from "@/domain/memory/schema";
 import { isDecorativeLine, isTableSeparator, plainContentOf, splitListItem } from "@/import/text/patterns";
+import { classifyArchetype, type ArchetypeResult } from "./archetype";
 import { extractConcepts, type Concept } from "./concepts";
 import { understandIntent, type Intent } from "./intent";
 import {
@@ -20,6 +21,7 @@ import {
 } from "./inference";
 import { dedupeByMeaning, splitSentences, wordCount } from "./language";
 import { composeRecall, recallHeading, type Recall } from "./recall";
+import { findAnchorDate, type AnchorDate } from "./temporal";
 
 export type { Concept } from "./concepts";
 export type { Intent, DocumentIntent } from "./intent";
@@ -32,6 +34,10 @@ export type {
   Statement,
 } from "./inference";
 export type { Recall } from "./recall";
+export type { ArchetypeResult, DocumentArchetype } from "./archetype";
+export type { AnchorDate } from "./temporal";
+export { classifyArchetype } from "./archetype";
+export { findAnchorDate, gateTimelineEntries } from "./temporal";
 export { inferArtifact, inferReadiness } from "./inference";
 export { buildRelations, relationsFor, relationsFrom, relationsTo, parseRef } from "./graph";
 export { recallHeading } from "./recall";
@@ -71,6 +77,10 @@ export interface UnderstandingInput {
 export interface Understanding {
   intent: Intent;
   concepts: Concept[];
+  /** Archetype steers timeline honesty (v6 Phase A.2). */
+  archetype: ArchetypeResult;
+  /** Temporal anchor for resolving relative dates (v6 Phase A.1). */
+  anchor: AnchorDate;
   /** Every distilled sentence, redundancy already removed. */
   statements: Statement[];
   signals: Array<Inferred<InferredSignal>>;
@@ -86,13 +96,16 @@ export interface Understanding {
   redundant: number;
 }
 
-export function understand(input: UnderstandingInput): Understanding {
+export function understand(input: UnderstandingInput & { sourceLabel?: string }): Understanding {
   const headings = input.sections.map((s) => s.headingText).filter((h): h is string => h !== null);
   const sectionLines = input.sections.map((s) => s.lines.map((l) => plainContentOf(l.text)));
   const flatLines = sectionLines.flat().filter((l) => l.trim() !== "");
+  const bodySample = flatLines.slice(0, 80).join("\n");
 
   const intent = understandIntent({ title: input.title, headings, lines: flatLines });
   const concepts = extractConcepts({ headings, sections: sectionLines });
+  const archetype = classifyArchetype({ title: input.title, headings, bodySample });
+  const anchor = findAnchorDate(`${input.title}\n${bodySample}`, input.sourceLabel);
 
   const { statements, redundant } = distill(input.sections);
 
@@ -103,6 +116,8 @@ export function understand(input: UnderstandingInput): Understanding {
   return {
     intent,
     concepts,
+    archetype,
+    anchor,
     statements,
     signals,
     decisions,

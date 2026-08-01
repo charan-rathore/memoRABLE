@@ -43,6 +43,8 @@ export {
   classifyArchetype,
 } from "./archetype";
 export type { ArchetypeScores } from "./archetype";
+export { buildResearchWorldModel, summarizeResearchSections } from "./research";
+export type { ResearchSectionInput, ResearchSectionRole } from "./research";
 export {
   applyProjectionTitles,
   bucketLabel,

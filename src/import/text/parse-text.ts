@@ -23,6 +23,7 @@ import {
   type Recall,
   type Understanding,
 } from "@/understanding";
+import { buildResearchWorldModel } from "@/understanding/research";
 import {
   blocksDecisionInference,
   harvestSingleLegLine,
@@ -232,34 +233,55 @@ export function parseText(input: TextImportInput): Result<MemoryDocument> {
     keptOnPurpose: 0,
   };
 
-  // The five list memories are built first. The snapshot frames them, so it
-  // cannot be written until it has something to frame.
+  // Research papers: Sections → summaries → cross-section world model → projection.
+  // Everything else: heading-routed line parsers (chunks are graph-only).
   const built = new Map<BlockKind, BlockInput>();
-  for (const kind of BLOCK_KINDS) {
-    if (kind === "snapshot") continue;
-    built.set(kind, buildBlock(kind, sections.filter((s) => s.kind === kind), ctx));
+  const isResearch = understanding.archetype.archetype === "research";
+
+  if (isResearch) {
+    const researchBuilt = buildResearchWorldModel({
+      title,
+      label,
+      sections: sections.map((s) => ({ headingText: s.headingText, lines: s.lines })),
+    });
+    for (const kind of BLOCK_KINDS) {
+      const block = researchBuilt.get(kind);
+      if (block) built.set(kind, block);
+    }
+    warnings.push({
+      code: "text.adaptive-projection",
+      message:
+        "Research path: section summaries → cross-section reasoning → world model (not chunk→bucket).",
+    });
+  } else {
+    // The five list memories are built first. The snapshot frames them, so it
+    // cannot be written until it has something to frame.
+    for (const kind of BLOCK_KINDS) {
+      if (kind === "snapshot") continue;
+      built.set(kind, buildBlock(kind, sections.filter((s) => s.kind === kind), ctx));
+    }
+
+    // Archetype-aware harvest: ticket legs, invoice/policy dues, etc.
+    harvestArchetypeTimeline(built, sections, understanding, warnings);
+
+    // Layer 3 lite: temporal honesty gate on the local Timeline bucket.
+    applyTemporalHonesty(built, understanding, warnings);
+
+    ctx.recall = recallFrom(understanding, {
+      signals: entriesOf<SignalEntry>(built, "signals"),
+      decisions: entriesOf<DecisionEntry>(built, "decisions"),
+      risks: entriesOf<RiskEntry>(built, "risks"),
+      timeline: entriesOf<TimelineEntry>(built, "timeline"),
+      actions: entriesOf<ActionEntry>(built, "actions"),
+    });
+    built.set("snapshot", buildBlock("snapshot", sections.filter((s) => s.kind === "snapshot"), ctx));
   }
-
-  // Archetype-aware harvest: ticket legs, invoice/policy dues, etc.
-  harvestArchetypeTimeline(built, sections, understanding, warnings);
-
-  // Layer 3 lite: temporal honesty gate on the local Timeline bucket.
-  applyTemporalHonesty(built, understanding, warnings);
-
-  ctx.recall = recallFrom(understanding, {
-    signals: entriesOf<SignalEntry>(built, "signals"),
-    decisions: entriesOf<DecisionEntry>(built, "decisions"),
-    risks: entriesOf<RiskEntry>(built, "risks"),
-    timeline: entriesOf<TimelineEntry>(built, "timeline"),
-    actions: entriesOf<ActionEntry>(built, "actions"),
-  });
-  built.set("snapshot", buildBlock("snapshot", sections.filter((s) => s.kind === "snapshot"), ctx));
 
   const blocks: BlockInput[] = projectAdaptiveMemories(
     BLOCK_KINDS.map((kind) => built.get(kind)!),
     understanding.archetype.archetype,
   );
-  linkActionsToDecisions(blocks);
+  if (!isResearch) linkActionsToDecisions(blocks);
   warnings.push(...understandingWarnings(understanding));
   warnings.push(...graphWarnings(graph, segmented.segments.length));
   const { archetype: detected, label: archetypeLabel, score, scores, reasons } = understanding.archetype;

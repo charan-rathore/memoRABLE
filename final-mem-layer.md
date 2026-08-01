@@ -159,7 +159,7 @@ specs, PRDs, and unknowns all map to **Generic Knowledge**.
 |---|---|---|---|
 | Resume | skills, roles, employers, education, achievements, projects | narrative_sequence | Experience, Projects, Skills, Education, Achievements, Profile |
 | Invoice | line items, amounts, vendor, payment terms, due date, totals | obligation_deadlines | Vendor, Line items, Payment, Timeline, Totals |
-| Research | hypothesis, method, dataset, experiments, results, limitations, future work | narrative_sequence | Hypothesis, Method, Results, Limitations, Future work |
+| Research | inferred research question, synthesized findings, evidence metrics, insights, explicit limitations, future directions | narrative_sequence | Research Question, Key Findings, Evidence, Insights, Limitations, Future Directions |
 | Generic Knowledge | snapshot facts, signals, decisions, timeline events, risks, actions | narrative_sequence (or none if no temporal content) | Snapshot, Signals, Decisions, Timeline, Risks, Actions |
 
 If a document has essentially no temporal content, set

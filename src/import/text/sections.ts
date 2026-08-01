@@ -203,20 +203,28 @@ const HEADING_KEYWORDS: Record<string, BlockKind> = {
   "due date": "timeline",
   "issue date": "timeline",
 
-  // Research paper → Hypothesis / Method / Results / Limitations / Future work
-  hypothesis: "decisions",
-  "research question": "decisions",
+  // Research paper → Research Question / Key Findings / Evidence / Insights / …
+  // (Research world-model also reads section roles directly; these route leftovers.)
+  hypothesis: "snapshot",
+  "research question": "snapshot",
   methodology: "signals",
   methods: "signals",
   method: "signals",
   "experimental setup": "signals",
+  evaluation: "timeline",
   findings: "timeline",
+  "key findings": "timeline",
+  evidence: "signals",
+  insights: "decisions",
   "future work": "actions",
   "further work": "actions",
   "future research": "actions",
+  "future directions": "actions",
+  conclusion: "decisions",
+  conclusions: "decisions",
 
-  // Meeting notes
-  discussion: "signals",
+  // Meeting notes / research discussion → Insights under research furniture
+  discussion: "decisions",
   agenda: "timeline",
   attendees: "snapshot",
   "meeting notes": "snapshot",

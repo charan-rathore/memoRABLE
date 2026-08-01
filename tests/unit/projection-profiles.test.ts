@@ -78,12 +78,21 @@ describe("adaptive memory projection", () => {
     ]);
   });
 
-  it("projects research as Hypothesis / Method / Results / Limitations / Future work", () => {
-    expect(bucketLabel("research", "decisions")).toBe("Hypothesis");
-    expect(bucketLabel("research", "signals")).toBe("Method");
-    expect(bucketLabel("research", "timeline")).toBe("Results");
+  it("projects research as Research Question / Key Findings / Evidence / Insights / …", () => {
+    expect(bucketLabel("research", "snapshot")).toBe("Research Question");
+    expect(bucketLabel("research", "timeline")).toBe("Key Findings");
+    expect(bucketLabel("research", "signals")).toBe("Evidence");
+    expect(bucketLabel("research", "decisions")).toBe("Insights");
     expect(bucketLabel("research", "risks")).toBe("Limitations");
-    expect(bucketLabel("research", "actions")).toBe("Future work");
+    expect(bucketLabel("research", "actions")).toBe("Future Directions");
+    expect(memoryProjectionFor("research").applicable).toEqual([
+      "snapshot",
+      "timeline",
+      "signals",
+      "decisions",
+      "risks",
+      "actions",
+    ]);
   });
 
   it("defaults unidentified documents to Generic Knowledge, never PRD", () => {
@@ -168,10 +177,12 @@ describe("adaptive memory projection", () => {
     expect(classifyHeading("Line items")).toBe("signals");
     expect(classifyHeading("Totals")).toBe("risks");
     expect(classifyHeading("Payment")).toBe("actions");
-    expect(classifyHeading("Hypothesis")).toBe("decisions");
+    expect(classifyHeading("Hypothesis")).toBe("snapshot");
+    expect(classifyHeading("Research Question")).toBe("snapshot");
     expect(classifyHeading("Methodology")).toBe("signals");
+    expect(classifyHeading("Key Findings")).toBe("timeline");
     expect(classifyHeading("Limitations")).toBe("risks");
-    expect(classifyHeading("Future Work")).toBe("actions");
+    expect(classifyHeading("Future Directions")).toBe("actions");
   });
 
   it("classifies with raw scores, margin, and Generic Knowledge fallback", () => {

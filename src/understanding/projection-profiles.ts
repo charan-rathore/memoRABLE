@@ -126,14 +126,35 @@ const INVOICE_FURNITURE: ProjectionProfile = {
   actions: { label: "Payment", subtitle: "How and when to pay" },
 };
 
-/** Research — Hypothesis, Method, Results, Limitations, Future Work. */
+/**
+ * Research — inferential memory (Evidence is the only descriptive dump).
+ * Research Question · Key Findings · Evidence · Insights · Limitations · Future Directions
+ */
 const RESEARCH_FURNITURE: ProjectionProfile = {
-  snapshot: { label: "Paper", subtitle: "What this research is about" },
-  signals: { label: "Method", subtitle: "How the study was run" },
-  decisions: { label: "Hypothesis", subtitle: "What the work set out to test" },
-  timeline: { label: "Results", subtitle: "What was found" },
-  risks: { label: "Limitations", subtitle: "Bounds and caveats on the findings" },
-  actions: { label: "Future work", subtitle: "What should be studied next" },
+  snapshot: {
+    label: "Research Question",
+    subtitle: "Inferred gap, assumption, and hypothesis under test",
+  },
+  signals: {
+    label: "Evidence",
+    subtitle: "Metrics and measurements that support the findings",
+  },
+  decisions: {
+    label: "Insights",
+    subtitle: "Cross-section understanding beyond the wording",
+  },
+  timeline: {
+    label: "Key Findings",
+    subtitle: "Synthesized findings — not raw tables",
+  },
+  risks: {
+    label: "Limitations",
+    subtitle: "Explicit bounds stated by the authors",
+  },
+  actions: {
+    label: "Future Directions",
+    subtitle: "Where the work should go next",
+  },
 };
 
 function classicKeep(furniture: ProjectionProfile = GENERIC_KNOWLEDGE_FURNITURE): AdaptiveMemoryProjection {
@@ -181,10 +202,10 @@ const PROJECTIONS: Record<Exclude<DocumentArchetype, "generic">, AdaptiveMemoryP
     emptyApplicable: "omit",
   }),
 
-  // Hypothesis → Method → Results → Limitations → Future work (+ Paper).
+  // Research Question → Key Findings → Evidence → Insights → Limitations → Future Directions.
   research: selective({
     furniture: RESEARCH_FURNITURE,
-    applicable: ["decisions", "signals", "timeline", "risks", "actions", "snapshot"],
+    applicable: ["snapshot", "timeline", "signals", "decisions", "risks", "actions"],
     required: ["snapshot"],
     emptyApplicable: "omit",
   }),

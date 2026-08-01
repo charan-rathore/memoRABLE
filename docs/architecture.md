@@ -46,7 +46,7 @@ layer adapts furniture:
 |---|---|
 | Resume | Experience · Projects · Skills · Education · Achievements · Profile |
 | Invoice | Vendor · Line items · Payment · Timeline · Totals |
-| Research | Hypothesis · Method · Results · Limitations · Future work |
+| Research | Research Question · Key Findings · Evidence · Insights · Limitations · Future Directions |
 | else → Generic Knowledge | Snapshot · Signals · Decisions · Timeline · Risks · Actions |
 
 Specialized win rule (deterministic integer scores):

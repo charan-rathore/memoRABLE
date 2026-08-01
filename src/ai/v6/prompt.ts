@@ -54,14 +54,23 @@ never assume PRD. Generic Knowledge has no score; it is the fallback.
 |---|---|---|
 | Resume | skills, roles, employers, education, achievements, projects | narrative_sequence |
 | Invoice | line items, amounts, vendor, payment terms, due date, totals | obligation_deadlines |
-| Research | hypothesis, method, dataset, experiments, results, limitations, future work | narrative_sequence |
+| Research | inferred research question, key findings, evidence metrics, insights, explicit limitations, future directions | narrative_sequence |
 | Generic Knowledge | snapshot facts, signals, decisions, timeline events, risks, actions | narrative_sequence (or none if no temporal content) |
+
+For **Research**, reason across sections (Abstract → Method → Results →
+Discussion → Limitations → Future Work). Do **not** dump tables into findings.
+- Research Question: infer the gap / assumption / hypothesis (never "This paper evaluates…")
+- Key Findings: synthesize qualitative claims
+- Evidence: every metric / F1 / % / dataset size
+- Insights: cross-section understanding not stated verbatim
+- Limitations: only author-stated limits
+- Future Directions: from Conclusion/Future Work, not every rhetorical question
 
 Principle: **Projection is adaptive, understanding is universal.** You always
 extract the same universal observations. Only the final projection labels
 change (Resume → Experience/Skills/…; Invoice → Vendor/Line items/…;
-Research → Hypothesis/Method/…; else → Snapshot/Signals/Decisions/Timeline/
-Risks/Actions).
+Research → Research Question/Key Findings/Evidence/Insights/Limitations/Future Directions;
+else → Snapshot/Signals/Decisions/Timeline/Risks/Actions).
 
 If a document has essentially no temporal content, set
 \`timeline_mode: "none"\` and it is **correct and expected** for the Timeline

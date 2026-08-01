@@ -176,30 +176,56 @@ function menuItems(doc: MemoryDocument) {
 /**
  * A short strip of how the memories speak to each other.
  * Each line is a jump, so reading feels like following a conversation.
+ *
+ * Edges are entry→entry, but naive block titles collapse every Signals→Decisions
+ * link into the same sentence. Prefer entry phrases, and never repeat a line.
  */
 function conversationRows(doc: MemoryDocument, theme: PublishTheme): ReactElement[] {
-  const edges = (doc.relations ?? [])
-    .filter((r) => r.relation !== "frames")
-    .slice(0, 4);
+  const edges = (doc.relations ?? []).filter((r) => r.relation !== "frames");
   if (edges.length === 0) return [];
   const c = theme.colors;
   const f = theme.fonts;
 
-  const labelFor = (ref: string) => {
-    const kind = ref.split(":")[0]!;
+  const labelFor = (ref: string): string => {
+    const [kind, indexText] = ref.split(":");
     const block = doc.blocks.find((b) => b.kind === kind);
-    return block?.title.replace(/\s+[—–-].*$/, "").trim() ?? kind;
+    if (!block) return kind ?? "memory";
+    const index = Number(indexText);
+    if ("entries" in block.payload && Number.isFinite(index)) {
+      const entry = block.payload.entries[index] as Record<string, unknown> | undefined;
+      if (entry) {
+        const phrase = conversationPhrase(kind!, entry);
+        if (phrase) return phrase;
+      }
+    }
+    return block.title.replace(/\s+[—–-].*$/, "").trim() || kind!;
   };
 
-  const lines = edges.map((edge) => {
+  const seen = new Set<string>();
+  const lines: string[] = [];
+  for (const edge of edges) {
     const from = labelFor(edge.from);
     const to = labelFor(edge.to);
-    const verb = edge.relation === "implements" ? "carries out" : edge.relation === "threatens" ? "points at" : edge.relation === "unblocks" ? "unblocks" : edge.relation === "schedules" ? "is scheduled by" : "informs";
+    const verb =
+      edge.relation === "implements"
+        ? "carries out"
+        : edge.relation === "threatens"
+          ? "points at"
+          : edge.relation === "unblocks"
+            ? "unblocks"
+            : edge.relation === "schedules"
+              ? "is scheduled by"
+              : "informs";
+    const text = `${from} ${verb} ${to}`;
+    if (seen.has(text)) continue;
+    seen.add(text);
     const targetKind = edge.to.split(":")[0]!;
     const target = doc.blocks.find((b) => b.kind === targetKind);
     const href = target ? `#${sectionAnchor(target)}` : "#";
-    return inlineLink(href, `${from} ${verb} ${to}`, c.ink2);
-  });
+    lines.push(inlineLink(href, text, c.ink2));
+    if (lines.length >= 4) break;
+  }
+  if (lines.length === 0) return [];
 
   return [
     <Row key="conversation" layout={ColumnLayouts.OneColumn} backgroundColor={c.surface2} padding="14px 44px 16px 44px">
@@ -218,6 +244,31 @@ function conversationRows(doc: MemoryDocument, theme: PublishTheme): ReactElemen
       </Column>
     </Row>,
   ];
+}
+
+/** Short phrase naming one memory entry in the conversation strip. */
+function conversationPhrase(kind: string, entry: Record<string, unknown>): string | null {
+  const clamp = (text: string) => {
+    const flat = text.replace(/\s+/g, " ").trim();
+    if (flat.length <= 48) return flat;
+    return `${flat.slice(0, 45).replace(/\s+\S*$/, "")}…`;
+  };
+  if (kind === "signals") {
+    const label = String(entry.label ?? "");
+    const implication = entry.implication != null ? String(entry.implication) : "";
+    if (implication && /^open questions?$/i.test(label)) return clamp(implication);
+    if (entry.value != null && label) return clamp(`${label}: ${entry.value}`);
+    if (implication) return clamp(implication);
+    return label ? clamp(label) : null;
+  }
+  if (kind === "decisions" && entry.text != null) return clamp(String(entry.text));
+  if (kind === "risks" && entry.risk != null) return clamp(String(entry.risk));
+  if (kind === "actions" && entry.task != null) return clamp(String(entry.task));
+  if (kind === "timeline" && entry.title != null) {
+    const date = entry.date != null ? String(entry.date) : "";
+    return clamp(date ? `${date} · ${entry.title}` : String(entry.title));
+  }
+  return null;
 }
 
 /* --------------------------------- email --------------------------------- */

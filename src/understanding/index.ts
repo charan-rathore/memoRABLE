@@ -43,19 +43,8 @@ export {
   classifyArchetype,
 } from "./archetype";
 export type { ArchetypeScores } from "./archetype";
-export {
-  EVIDENCE_MIN_CONFIDENCE,
-  FINDING_MIN_CONFIDENCE,
-  buildResearchWorldModel,
-  buildScientificWorldModel,
-  summarizeResearchSections,
-} from "./research";
-export type {
-  ResearchSectionInput,
-  ResearchSectionRole,
-  ScientificKind,
-  ScientificObservation,
-} from "./research";
+export { buildResearchWorldModel, summarizeResearchSections } from "./research";
+export type { ResearchSectionInput, ResearchSectionRole } from "./research";
 export {
   applyProjectionTitles,
   bucketLabel,

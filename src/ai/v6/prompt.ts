@@ -57,19 +57,14 @@ never assume PRD. Generic Knowledge has no score; it is the fallback.
 | Research | inferred research question, key findings, evidence metrics, insights, explicit limitations, future directions | narrative_sequence |
 | Generic Knowledge | snapshot facts, signals, decisions, timeline events, risks, actions | narrative_sequence (or none if no temporal content) |
 
-For **Research**, use a two-stage approach:
-Stage 1 — classify every observation into a Scientific World Model
-(Background, Research Gap, Hypothesis, Method, Experimental Setup, Result,
-Numerical Evidence, Error Analysis, Limitation, Future Work, Citation).
-Discard References, Bibliography, Appendix, prompt templates, JSON examples,
-figure/table headers, and venue lines. Keep only text that would still matter
-without the paper PDF.
-Stage 2 — project with gates:
-- Key Findings (confidence > 0.80): Gap + Hypothesis + Major Results + Error Analysis + Main Conclusion — never Related Work, dataset prose, tables, refs, prompts
-- Evidence (confidence > 0.95): numbers only (metrics, experiments, dataset sizes, benchmarks, setup) — no narrative
-- Insights: NEVER extracted; synthesize only if ≥2 independent observations support the claim
-- Limitations: only from Limitations / Threats to validity / Discussion / Future work — never from poor F1
-- Future Directions: only from Future Work / Conclusion / Discussion
+For **Research**, reason across sections (Abstract → Method → Results →
+Discussion → Limitations → Future Work). Do **not** dump tables into findings.
+- Research Question: infer the gap / assumption / hypothesis (never "This paper evaluates…")
+- Key Findings: synthesize qualitative claims
+- Evidence: every metric / F1 / % / dataset size
+- Insights: cross-section understanding not stated verbatim
+- Limitations: only author-stated limits
+- Future Directions: from Conclusion/Future Work, not every rhetorical question
 
 Principle: **Projection is adaptive, understanding is universal.** You always
 extract the same universal observations. Only the final projection labels

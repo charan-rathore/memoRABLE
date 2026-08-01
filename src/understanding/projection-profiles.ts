@@ -127,33 +127,33 @@ const INVOICE_FURNITURE: ProjectionProfile = {
 };
 
 /**
- * Research — Stage 2 projection of the Scientific World Model.
- * Evidence is numeric-only; Insights require ≥2 supporting observations.
+ * Research — inferential memory (Evidence is the only descriptive dump).
+ * Research Question · Key Findings · Evidence · Insights · Limitations · Future Directions
  */
 const RESEARCH_FURNITURE: ProjectionProfile = {
   snapshot: {
     label: "Research Question",
-    subtitle: "Gap + hypothesis under test (inferred)",
+    subtitle: "Inferred gap, assumption, and hypothesis under test",
   },
   signals: {
     label: "Evidence",
-    subtitle: "Numbers only — metrics, setup, benchmarks (confidence > 0.95)",
+    subtitle: "Metrics and measurements that support the findings",
   },
   decisions: {
     label: "Insights",
-    subtitle: "Synthesized only when ≥2 independent observations agree",
+    subtitle: "Cross-section understanding beyond the wording",
   },
   timeline: {
     label: "Key Findings",
-    subtitle: "Gap, hypothesis, major results, errors, conclusion — never refs/tables",
+    subtitle: "Synthesized findings — not raw tables",
   },
   risks: {
     label: "Limitations",
-    subtitle: "Author-stated limits only — never inferred from poor F1",
+    subtitle: "Explicit bounds stated by the authors",
   },
   actions: {
     label: "Future Directions",
-    subtitle: "From Future Work / Conclusion / Discussion only",
+    subtitle: "Where the work should go next",
   },
 };
 

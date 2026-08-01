@@ -13,7 +13,7 @@ import {
   type SignalEntry,
   type TimelineEntry,
 } from "@/domain/memory/schema";
-import { recallFrom, understand, type Recall, type Understanding } from "@/understanding";
+import { gateTimelineEntries, recallFrom, understand, type Recall, type Understanding } from "@/understanding";
 import { buildDocumentGraph, hybridSegment } from "@/understanding/segment";
 import { saysTheSame } from "@/understanding/language";
 import { LIMITS } from "@/domain/memory/limits";
@@ -178,18 +178,25 @@ export function parseText(input: TextImportInput): Result<MemoryDocument> {
 
   const warnings: ImportWarning[] = [];
   const leftovers = sections.filter((s) => s.kind === null);
-  const timelineExtras = ordinals
-    .filter((o) => o.title)
-    .slice(0, LIMITS.maxEntriesPerBlock)
-    .map<TimelineEntry>((o) => ({ date: o.marker, title: o.title!, state: "planned" }));
 
   // Understand before classifying. Every section is read, including the ones
   // no heading claimed, because a document's most quotable sentence is rarely
   // filed under a heading that names what it is.
   const understanding = understand({
     title,
+    sourceLabel: label,
     sections: sections.map((s) => ({ headingText: s.headingText, lines: s.lines })),
   });
+
+  // Ordinal phases are timeline-worthy only when the archetype has a real
+  // timeline mode. Menus/glossaries must not invent a schedule from "Phase 1".
+  const timelineExtras =
+    understanding.archetype.timelineMode === "none"
+      ? []
+      : ordinals
+          .filter((o) => o.title)
+          .slice(0, LIMITS.maxEntriesPerBlock)
+          .map<TimelineEntry>((o) => ({ date: o.marker, title: o.title!, state: "planned" }));
 
   const ctx: BuildContext = {
     title,
@@ -209,6 +216,9 @@ export function parseText(input: TextImportInput): Result<MemoryDocument> {
     if (kind === "snapshot") continue;
     built.set(kind, buildBlock(kind, sections.filter((s) => s.kind === kind), ctx));
   }
+
+  // Layer 3 lite: temporal honesty gate on the local Timeline bucket.
+  applyTemporalHonesty(built, understanding, warnings);
 
   ctx.recall = recallFrom(understanding, {
     signals: entriesOf<SignalEntry>(built, "signals"),
@@ -260,6 +270,42 @@ function entriesOf<T>(built: ReadonlyMap<BlockKind, BlockInput>, kind: BlockKind
 }
 
 /**
+ * Move weak / unanchored temporal items out of Timeline into Signals.
+ * Empty Timeline for menus/glossaries is correct — never pad it.
+ */
+function applyTemporalHonesty(
+  built: Map<BlockKind, BlockInput>,
+  understanding: Understanding,
+  warnings: ImportWarning[],
+): void {
+  const timelineBlock = built.get("timeline");
+  if (!timelineBlock || !("entries" in timelineBlock.payload)) return;
+
+  const before = timelineBlock.payload.entries as TimelineEntry[];
+  const gated = gateTimelineEntries(before, understanding.archetype, understanding.anchor);
+  timelineBlock.payload.entries = gated.timeline;
+
+  if (gated.demoted.length === 0) return;
+
+  const signalsBlock = built.get("signals");
+  if (signalsBlock && "entries" in signalsBlock.payload) {
+    const entries = signalsBlock.payload.entries as SignalEntry[];
+    for (const text of gated.demoted) {
+      if (entries.length >= LIMITS.maxEntriesPerBlock) break;
+      entries.push({
+        label: "Unresolved temporal",
+        implication: text.slice(0, LIMITS.maxFieldLength),
+      });
+    }
+  }
+
+  warnings.push({
+    code: "text.timeline-gated",
+    message: `Kept Timeline honest for ${understanding.archetype.label} (${understanding.archetype.timelineMode}): moved ${gated.demoted.length} weak temporal item${gated.demoted.length === 1 ? "" : "s"} to Signals.`,
+  });
+}
+
+/**
  * An action that repeats a decision is that decision being carried out. The
  * link is recorded on the action so the reader can see the chain rather than
  * being told two unrelated things in two different lists.
@@ -288,11 +334,18 @@ interface ActionLike {
 function understandingWarnings(understanding: Understanding): ImportWarning[] {
   const inferred =
     understanding.signals.length + understanding.decisions.length + understanding.risks.length;
-  if (inferred === 0 && understanding.redundant === 0) return [];
   const parts: string[] = [];
-  parts.push(`Read ${understanding.distilled} distinct statements as a ${understanding.intent.kind}`);
+  parts.push(
+    `Read ${understanding.distilled} distinct statements as a ${understanding.intent.kind} (${understanding.archetype.label}, timeline ${understanding.archetype.timelineMode})`,
+  );
+  if (understanding.anchor.confidence !== "none" && understanding.anchor.value) {
+    parts.push(`anchor ${understanding.anchor.value}`);
+  } else {
+    parts.push("no date anchor");
+  }
   if (understanding.redundant > 0) parts.push(`set aside ${understanding.redundant} restatements`);
   if (inferred > 0) parts.push(`inferred ${inferred} memories from what they mean`);
+  if (inferred === 0 && understanding.redundant === 0 && understanding.distilled === 0) return [];
   return [{ code: "text.understood", message: `${parts.join(", ")}.` }];
 }
 
@@ -340,10 +393,18 @@ function buildBlock(kind: BlockKind, matched: Section[], ctx: BuildContext): Blo
   const hasNotes = notes.length > (kind === "snapshot" ? ctx.keptOnPurpose : 0);
 
   if (entryCount === 0 && notes.length === 0 && kind !== "snapshot") {
-    warnings.push({
-      code: "text.no-blocks-recognized",
-      message: `No ${kindLabel.toLowerCase()} were recognized, so that memory is empty. Nothing was invented.`,
-    });
+    // Empty Timeline is expected for archetypes with timeline_mode "none".
+    if (kind === "timeline" && ctx.understanding.archetype.timelineMode === "none") {
+      warnings.push({
+        code: "text.timeline-empty-ok",
+        message: `No timeline for this ${ctx.understanding.archetype.label.toLowerCase()} — empty Timeline is correct, not a failure.`,
+      });
+    } else {
+      warnings.push({
+        code: "text.no-blocks-recognized",
+        message: `No ${kindLabel.toLowerCase()} were recognized, so that memory is empty. Nothing was invented.`,
+      });
+    }
   } else if (hasNotes) {
     warnings.push({
       code: "text.unrecognized-section",

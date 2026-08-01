@@ -31,8 +31,11 @@ export const LIMITS = {
   maxSnapshotWords: 120,
   /** AI request bound: 50 KiB of source text. */
   aiMaxInputBytes: 51_200,
-  /** AI abort deadline in milliseconds. */
-  aiTimeoutMs: 8_000,
+  /**
+   * AI abort deadline in milliseconds.
+   * Cognitive extraction (v6 phases A–E) needs more headroom than a shallow rewrite.
+   */
+  aiTimeoutMs: 45_000,
 } as const;
 
 /** Keys that must never be accepted from parsed JSON (prototype pollution). */

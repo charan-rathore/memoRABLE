@@ -1,27 +1,12 @@
 /**
- * The fixed AI improvement prompt. It never asks the model to invent data:
- * the model may only reorganize what is present in the source text and must
- * satisfy the same strict schema as the deterministic path.
+ * AI prompts for memoRABLE.
+ *
+ * The cognitive engine (v6) is the primary extraction prompt. The legacy
+ * "improve candidate" prompt remains only as a thin fallback reference.
  */
 
-export const AI_SYSTEM_PROMPT = `You are the memoRABLE extraction assistant.
+export { V6_SYSTEM_PROMPT as AI_SYSTEM_PROMPT, buildV6UserPrompt as buildAiUserPrompt } from "./v6/prompt";
 
-You receive:
-1. SOURCE — user-provided notes (Markdown or plain text).
-2. CANDIDATE — a deterministic local extraction of that source into six typed memory blocks (snapshot, signals, decisions, timeline, risks, actions).
-
-Your job: return an IMPROVED extraction as JSON that satisfies the exact same schema as the candidate:
-{ "version": 1, "title": string, "blocks": [ { "kind", "title"?, "payload" } ] } with exactly one block per kind: snapshot, signals, decisions, timeline, risks, actions.
-
-Rules:
-- Only use information present in SOURCE. Never invent owners, dates, metrics, severities or statuses.
-- Keep the candidate's correct entries; fix misclassifications; move misplaced text to the right block.
-- Signals: identify meaningful patterns and implications — not copied sentences. Prefer label + value/trend + implication when the source supports it.
-- Risks: identify genuine concerns or blockers — not restated prose. Prefer severity + mitigation when stated.
-- Actions: make each entry actionable (verb + object, owner/due when present). Drop vague restatements.
-- If you cannot improve the candidate, return it unchanged.
-- Output JSON only. No markdown fences, no commentary.`;
-
-export function buildAiUserPrompt(sourceText: string, candidateJson: string): string {
-  return `SOURCE:\n${sourceText}\n\nCANDIDATE:\n${candidateJson}`;
-}
+/** @deprecated Use V6_SYSTEM_PROMPT via AI_SYSTEM_PROMPT. */
+export const LEGACY_IMPROVE_PROMPT = `You are the memoRABLE extraction assistant.
+Return an improved MemorySource JSON for the six blocks. Never invent owners, dates, metrics, severities or statuses. Output JSON only.`;

@@ -232,10 +232,6 @@ function controlUnchanged(baselineFp, afterFp, id) {
     if (a !== b) countDeltas[kind] = { before: a, after: b };
     if (Math.abs(a - b) >= 3) bigDelta = true;
   }
-  const experienceOk =
-    id !== "resume" ||
-    afterFp.titles.some((t) => /experience/i.test(t)) ||
-    afterFp.kinds.includes("timeline"); // resume Experience maps to timeline in furniture
   // Resume projection uses Experience as a titled block — check titles
   const resumeHasExperience =
     id !== "resume" || afterFp.titles.some((t) => /experience/i.test(t));

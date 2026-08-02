@@ -1,0 +1,21 @@
+# Docling + Graphify sidecar for memoRABLE
+# Python ≥ 3.10 (3.12 recommended)
+#
+# Notes for macOS arm64:
+# - Prefer pypdfium2 backend (configured in parse_docling.py) so native
+#   docling-parse wheels are not required at runtime.
+# - Pin docling-parse to 4.7.2 (last widely available macOS arm64 wheel).
+# - Keep docling-core in the 2.44–2.49 band for SegmentedPdfPage compatibility.
+
+docling==2.28.0
+docling-core>=2.44.1,<2.50
+docling-parse==4.7.2
+
+# Graphify schema pipeline (PyPI name is temporarily graphifyy; import is `graphify`)
+graphifyy>=0.7.0
+
+fastapi>=0.115.0
+uvicorn[standard]>=0.30.0
+python-multipart>=0.0.9
+networkx>=3.2
+numpy>=1.26,<2.0

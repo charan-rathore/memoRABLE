@@ -25,6 +25,11 @@ import {
 } from "@/understanding";
 import { buildResearchWorldModel } from "@/understanding/research";
 import {
+  buildResearchKnowledgeGraph,
+  mergeKnowledgeGraphs,
+} from "@/understanding/knowledge-graph";
+import type { KnowledgeGraph } from "@/domain/memory/schema";
+import {
   blocksDecisionInference,
   harvestSingleLegLine,
   isInvoiceArchetype,
@@ -102,6 +107,10 @@ export interface TextImportInput {
   text: string;
   /** Sanitized human label, e.g. "Pasted notes" or "launch-notes.md". */
   label: string;
+  /** Optional Graphify-schema graph from Docling/Graphify sidecar. */
+  knowledgeGraph?: KnowledgeGraph;
+  /** Markdown produced by Docling (vs browser pdf.js). */
+  parsedByDocling?: boolean;
 }
 
 interface SourceLine {
@@ -238,20 +247,37 @@ export function parseText(input: TextImportInput): Result<MemoryDocument> {
   const built = new Map<BlockKind, BlockInput>();
   const isResearch = understanding.archetype.archetype === "research";
 
+  let researchGraph: KnowledgeGraph | undefined;
   if (isResearch) {
+    const researchSections = sections.map((s) => ({
+      headingText: s.headingText,
+      lines: s.lines,
+    }));
     const researchBuilt = buildResearchWorldModel({
       title,
       label,
-      sections: sections.map((s) => ({ headingText: s.headingText, lines: s.lines })),
+      sections: researchSections,
     });
     for (const kind of BLOCK_KINDS) {
       const block = researchBuilt.get(kind);
       if (block) built.set(kind, block);
     }
+    const localGraph = buildResearchKnowledgeGraph({
+      title,
+      label,
+      sections: researchSections,
+    });
+    researchGraph = mergeKnowledgeGraphs(input.knowledgeGraph, localGraph);
+    warnings.push({
+      code: "text.understood",
+      message: `Knowledge graph: ${researchGraph.nodes.length} nodes / ${researchGraph.edges.length} edges via ${researchGraph.extractor}${
+        input.parsedByDocling ? " · Docling parse" : ""
+      }.`,
+    });
     warnings.push({
       code: "text.adaptive-projection",
       message:
-        "Research v2: section-aware detection → whole-section understanding → world model → gated projection (hard-stop after Conclusion).",
+        "Research path: section summaries → cross-section reasoning → world model (not chunk→bucket).",
     });
   } else {
     // The five list memories are built first. The snapshot frames them, so it
@@ -305,6 +331,7 @@ export function parseText(input: TextImportInput): Result<MemoryDocument> {
       scores,
       ...(reasons.length > 0 ? { reasons: [...reasons] } : {}),
     },
+    ...(researchGraph ? { knowledgeGraph: researchGraph } : {}),
   });
   return ok(
     document,

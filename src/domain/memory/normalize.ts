@@ -6,6 +6,7 @@ import type {
   ImportWarning,
   MemoryBlock,
   MemoryDocument,
+  KnowledgeGraph,
   MemoryRelation,
   MemorySource,
   ProvenanceMethod,
@@ -39,6 +40,8 @@ export interface DocumentInput {
   relations?: readonly MemoryRelation[];
   /** Detected archetype — selects UI bucket labels, not extraction. */
   archetype?: MemoryDocument["archetype"];
+  /** Optional Graphify-schema paper/concept graph. */
+  knowledgeGraph?: KnowledgeGraph;
 }
 
 export function buildBlockId(kind: BlockKind, title: string, payload: unknown, locator: string): string {
@@ -69,6 +72,7 @@ export function finalizeDocument(input: DocumentInput): MemoryDocument {
     relations: input.relations ? [...input.relations] : buildRelations(blocks),
     warnings: input.warnings,
     ...(input.archetype ? { archetype: input.archetype } : {}),
+    ...(input.knowledgeGraph ? { knowledgeGraph: input.knowledgeGraph } : {}),
   };
 
   const hash = contentHashOf(draft);

@@ -1,6 +1,10 @@
 # dependencies
 /node_modules
 
+# Python sidecars
+services/**/.venv/
+**/.venv/
+
 # next.js
 /.next/
 /out/
@@ -37,3 +41,13 @@ yarn-error.log*
 
 # tesseract language packs downloaded at runtime
 *.traineddata
+
+# Private local eval PDFs — never push (keep fixtures under tests/fixtures/)
+/Charan_Rathore.pdf
+/Evaluating_LLMs_on_Scientific_event_argument_extraction-v1.pdf
+/Hotel_and_Restaurant_Invoice_Format.pdf
+/tmp/private-eval/
+/tmp/docgraph-eval/
+services/docgraph/.cache/
+services/**/__pycache__/
+**/__pycache__/

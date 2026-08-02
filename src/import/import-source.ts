@@ -1,5 +1,5 @@
 import { err, ok, type Result } from "@/reliability/result";
-import type { MemoryDocument } from "@/domain/memory/schema";
+import type { KnowledgeGraph, MemoryDocument } from "@/domain/memory/schema";
 import { preflightInput } from "./preflight";
 import { importJson } from "./json/import-json";
 import { parseText } from "./text/parse-text";
@@ -14,6 +14,13 @@ export interface ImportSourceInput {
   raw: string;
   /** Human label shown in provenance — sanitized before use. */
   label: string;
+  /**
+   * Optional Graphify-schema graph from the Docling/Graphify sidecar.
+   * Merged into research documents; ignored for JSON imports.
+   */
+  knowledgeGraph?: KnowledgeGraph;
+  /** When true, markdown came from Docling rather than pdf.js. */
+  parsedByDocling?: boolean;
 }
 
 export type ImportMethod = "deterministic-json" | "local-parser";
@@ -26,7 +33,12 @@ export function importSource(input: ImportSourceInput): Result<MemoryDocument> {
   if (preflighted.value.looksLikeJson) {
     return importJson({ text: preflighted.value.text, label });
   }
-  return parseText({ text: preflighted.value.text, label });
+  return parseText({
+    text: preflighted.value.text,
+    label,
+    ...(input.knowledgeGraph ? { knowledgeGraph: input.knowledgeGraph } : {}),
+    ...(input.parsedByDocling ? { parsedByDocling: true } : {}),
+  });
 }
 
 /** Detect the format without importing (used for honest UI stage copy). */

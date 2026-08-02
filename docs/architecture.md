@@ -5,10 +5,16 @@ memoRABLE is a single Next.js 15 (App Router) application. Everything interestin
 ## Frozen hackathon pipeline
 
 ```
-Upload
+Upload PDF
       │
       ▼
-Multimodal Parsing
+pdf.js (default, ~1–3s) ──► memories immediately
+      │
+      ├─ Graphify-schema KG in TypeScript (research)
+      │
+      └─ optional background Docling refine
+         (NEXT_PUBLIC_DOCGRAPH=1 + research/long/table-heavy)
+         → SHA-256 cache → replace only if improved
       │
       ▼
 Deterministic Archetype Scoring
@@ -34,6 +40,7 @@ Adaptive Memory Projection
              │
              ▼
 Evidence-Linked Memory Cards
+  (+ optional knowledgeGraph)
 ```
 
 **Principle: Projection is adaptive, understanding is universal.**
@@ -46,7 +53,7 @@ layer adapts furniture:
 |---|---|
 | Resume | Experience · Projects · Skills · Education · Achievements · Profile |
 | Invoice | Vendor · Line items · Payment · Timeline · Totals |
-| Research | Section-aware v2 → Research Question · Key Findings · Evidence · Insights · Limitations · Future Directions (hard-stop after Conclusion) |
+| Research | Cross-section world model → Research Question · Key Findings · Evidence · Insights · Limitations · Future Directions (+ Graphify KG) |
 | else → Generic Knowledge | Snapshot · Signals · Decisions · Timeline · Risks · Actions |
 
 Specialized win rule (deterministic integer scores):
@@ -66,13 +73,17 @@ Projection, and matched cue reasons (e.g. `✓ Education ✓ Experience`).
 
 ```
 ┌────────────────────────────────────────────────────────────────────┐
-│ source (pasted/dropped/example: JSON, Markdown, plain text)        │
+│ source (pasted/dropped/example: JSON, Markdown, plain text, PDF)   │
+│   ├─ services/docgraph/             Docling parse + Graphify KG    │
+│   ├─ src/app/api/docgraph           proxy to Python sidecar        │
 │   ├─ src/import/preflight.ts        size/encoding/binary guards    │
 │   ├─ src/import/json/import-json.ts strict, all-or-nothing         │
 │   └─ src/import/text/parse-text.ts  conservative local parser      │
 ├────────────────────────────────────────────────────────────────────┤
 │ src/understanding                                                  │
 │   archetype.ts           weighted Resume/Invoice/Research scoring  │
+│   research.ts            cross-section research world model        │
+│   knowledge-graph.ts     Graphify-schema paper graph (TS fallback) │
 │   projection-profiles.ts adaptive furniture (3 + Generic)          │
 ├────────────────────────────────────────────────────────────────────┤
 │ src/domain/memory                                                  │

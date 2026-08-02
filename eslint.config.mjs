@@ -17,6 +17,12 @@ const config = [
       "coverage/**",
       "next-env.d.ts",
       "public/pdf.worker.min.mjs",
+      // Python sidecars / local tooling — never lint vendored site-packages
+      "services/**/.venv/**",
+      "**/.venv/**",
+      ".venv-manim/**",
+      "manim/**",
+      "tmp/**",
     ],
   },
   ...compat.extends("next/core-web-vitals", "next/typescript"),

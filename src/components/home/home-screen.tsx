@@ -7,7 +7,14 @@ import { detectFormat } from "@/import/import-source";
 import { BrandMark } from "../ui/brand-mark";
 import { StaggerTitle } from "../ui/stagger-title";
 import { formatBytes, readTextFileWithProgress } from "../import/read-file";
-import { isPdfFile, pdfTruncationNote, readPdfFile } from "@/import/read-pdf";
+import { isPdfFile } from "@/import/read-pdf";
+import {
+  isDoclingRefinementBetter,
+  readPdfQuick,
+  scheduleDoclingRefine,
+} from "@/import/docgraph";
+import { importSource } from "@/import/import-source";
+import type { KnowledgeGraph } from "@/domain/memory/schema";
 import type { SourceMeta } from "../journey-strip";
 import { readStats, summarize } from "@/stats/local-stats";
 import {
@@ -34,7 +41,15 @@ export function HomeScreen({
   understanding,
 }: {
   errors: Diagnostic[];
-  onImport: (text: string, label: string, meta?: Partial<SourceMeta>) => void | Promise<void>;
+  onImport: (
+    text: string,
+    label: string,
+    meta?: Partial<SourceMeta> & {
+      knowledgeGraph?: KnowledgeGraph;
+      parsedByDocling?: boolean;
+      quiet?: boolean;
+    },
+  ) => void | Promise<void>;
   onUseExample: (id: "atlas-json" | "atlas-notes") => void;
   onReplayBrand?: () => void;
   onWatchDemo?: () => void;
@@ -65,20 +80,78 @@ export function HomeScreen({
     try {
       if (isPdfFile(file)) {
         setReading({ name: file.name, size: file.size, percent: 4 });
-        const result = await readPdfFile(file, (percent) => {
+        const quick = await readPdfQuick(file, (percent) => {
           setReading({ name: file.name, size: file.size, percent });
         });
-        if (result.truncated) setReadNote(pdfTruncationNote(result.pages));
+        if (quick.note) setReadNote(quick.note);
         setReading({ name: file.name, size: file.size, percent: 100 });
-        await onImport(result.text, file.name, {
+        const fast = importSource({ raw: quick.text, label: file.name });
+        await onImport(quick.text, file.name, {
           filename: file.name,
           fileType: "PDF",
           uploadedAt: new Date().toLocaleString(),
           sizeBytes: file.size,
-          pages: result.truncated ? 40 : result.pages,
-          parseStatus: result.truncated ? "first 40 pages remembered" : "understood",
+          pages: quick.pages,
+          parseStatus: quick.truncated ? "first 40 pages remembered" : "understood",
         });
         setReading(null);
+
+        const beforeArch = fast.ok ? fast.value.archetype?.id : null;
+        const beforeBlocks = fast.ok ? fast.value.blocks.length : 0;
+        const beforeEvidence =
+          fast.ok
+            ? (fast.value.blocks.find((b) => b.kind === "signals")?.payload as { entries?: unknown[] } | undefined)
+                ?.entries?.length ?? 0
+            : 0;
+
+        scheduleDoclingRefine({
+          file,
+          quickText: quick.text,
+          pages: quick.pages,
+          archetype: beforeArch,
+          beforeBlockCount: beforeBlocks,
+          beforeEvidence,
+          onRefine: async (refined) => {
+            const candidate = importSource({
+              raw: refined.markdown,
+              label: file.name,
+              parsedByDocling: true,
+            });
+            if (!candidate.ok) return;
+            const afterEvidence =
+              (candidate.value.blocks.find((b) => b.kind === "signals")?.payload as { entries?: unknown[] } | undefined)
+                ?.entries?.length ?? 0;
+            if (
+              !isDoclingRefinementBetter({
+                beforeArchetype: beforeArch,
+                afterArchetype: candidate.value.archetype?.id,
+                beforeBlockCount: beforeBlocks,
+                afterBlockCount: candidate.value.blocks.length,
+                beforeEvidence,
+                afterEvidence,
+                beforeText: quick.text,
+                afterText: refined.markdown,
+              })
+            ) {
+              return;
+            }
+            setReadNote(
+              refined.cache === "hit"
+                ? "Refined with Docling (cached)."
+                : "Refined with Docling in the background.",
+            );
+            await onImport(refined.markdown, file.name, {
+              filename: file.name,
+              fileType: "PDF",
+              uploadedAt: new Date().toLocaleString(),
+              sizeBytes: file.size,
+              pages: refined.pages ?? quick.pages,
+              parseStatus: refined.cache === "hit" ? "Docling refine (cached)" : "Docling refine",
+              parsedByDocling: true,
+              quiet: true,
+            });
+          },
+        });
         return;
       }
       const { text } = await readTextFileWithProgress(file, ({ percent, visible }) => {

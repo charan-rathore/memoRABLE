@@ -263,6 +263,71 @@ export const memoryRelationSchema = z
 
 export type MemoryRelation = z.infer<typeof memoryRelationSchema>;
 
+/** Graphify-schema paper/code knowledge graph (optional artifact). */
+export const knowledgeGraphNodeSchema = z
+  .object({
+    id: z.string().min(1).max(120),
+    label: z.string().min(1).max(400),
+    kind: z.string().min(1).max(60).optional(),
+    role: z.string().min(1).max(60).optional(),
+    source_file: z.string().max(200).optional(),
+    source_location: z.string().max(120).optional(),
+    community: z.union([z.number(), z.string()]).optional(),
+  })
+  .strict();
+
+export const knowledgeGraphEdgeSchema = z
+  .object({
+    source: z.string().min(1).max(120),
+    target: z.string().min(1).max(120),
+    relation: z.string().min(1).max(80),
+    confidence: z.enum(["EXTRACTED", "INFERRED", "AMBIGUOUS"]),
+  })
+  .strict();
+
+export const knowledgeGraphSchema = z
+  .object({
+    nodes: z.array(knowledgeGraphNodeSchema).max(2000),
+    edges: z.array(knowledgeGraphEdgeSchema).max(5000),
+    schema: z.literal("graphify-v1"),
+    extractor: z.string().min(1).max(120),
+    analysis: z
+      .object({
+        god_nodes: z
+          .array(
+            z
+              .object({
+                id: z.string(),
+                label: z.string(),
+                degree: z.number().optional(),
+              })
+              .strict(),
+          )
+          .max(32)
+          .optional(),
+        surprising_connections: z
+          .array(
+            z
+              .object({
+                source: z.string(),
+                target: z.string(),
+                relation: z.string(),
+                confidence: z.enum(["EXTRACTED", "INFERRED", "AMBIGUOUS"]).optional(),
+              })
+              .strict(),
+          )
+          .max(64)
+          .optional(),
+        suggested_questions: z.array(z.string().max(240)).max(12).optional(),
+      })
+      .strict()
+      .optional(),
+    graphify_status: z.string().max(400).optional(),
+  })
+  .strict();
+
+export type KnowledgeGraph = z.infer<typeof knowledgeGraphSchema>;
+
 export const MEMORY_RELATION_LABELS: Record<MemoryRelationKind, string> = {
   informs: "informs",
   supports: "supports",
@@ -397,6 +462,11 @@ export const memoryDocumentSchema = z
     warnings: z.array(importWarningSchema).max(200),
     /** Optional: which adaptive projection selected and labeled the memories. */
     archetype: documentArchetypeInfoSchema.optional(),
+    /**
+     * Optional Graphify-schema knowledge graph (paper/concepts/citations).
+     * Separate from `relations`, which link the six memory cards.
+     */
+    knowledgeGraph: knowledgeGraphSchema.optional(),
   })
   .strict();
 

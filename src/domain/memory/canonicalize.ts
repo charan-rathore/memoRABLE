@@ -69,6 +69,7 @@ export function canonicalDocumentProjection(doc: MemoryDocument): unknown {
     // reordering untouched and belong to the document's identity.
     relations: doc.relations,
     ...(doc.archetype ? { archetype: doc.archetype } : {}),
+    ...(doc.knowledgeGraph ? { knowledgeGraph: doc.knowledgeGraph } : {}),
   };
 }
 

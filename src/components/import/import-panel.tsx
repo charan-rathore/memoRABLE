@@ -7,7 +7,14 @@ import type { ImportWarning } from "@/domain/memory/schema";
 import { EXAMPLES } from "@/import/examples/catalog";
 import { detectFormat } from "@/import/import-source";
 import { readTextFileWithProgress } from "./read-file";
-import { isPdfFile, readPdfFile } from "@/import/read-pdf";
+import { isPdfFile } from "@/import/read-pdf";
+import {
+  isDoclingRefinementBetter,
+  readPdfQuick,
+  scheduleDoclingRefine,
+} from "@/import/docgraph";
+import type { KnowledgeGraph } from "@/domain/memory/schema";
+import { importSource } from "@/import/import-source";
 
 /**
  * Bring information: paste, drop a file, or start from a checked-in sample.
@@ -44,7 +51,22 @@ export function ImportPanel({
   hasVerified: boolean;
   aiEnabled: boolean;
   onEditSource: (text: string) => void;
-  onImport: (text: string, label: string, meta?: { filename?: string; fileType?: string; sizeBytes?: number | null; pages?: number | null; parseStatus?: string; uploadedAt?: string }) => void | Promise<void>;
+  onImport: (
+    text: string,
+    label: string,
+    meta?: {
+      filename?: string;
+      fileType?: string;
+      sizeBytes?: number | null;
+      pages?: number | null;
+      parseStatus?: string;
+      uploadedAt?: string;
+      knowledgeGraph?: KnowledgeGraph;
+      parsedByDocling?: boolean;
+      /** Quiet re-import (background Docling refine) — skip journey animation. */
+      quiet?: boolean;
+    },
+  ) => void | Promise<void>;
   onUseExample: (id: "atlas-json" | "atlas-notes") => void;
   onUseVerified: () => void;
   onImproveWithAi: () => void;
@@ -66,15 +88,70 @@ export function ImportPanel({
   const openFile = async (file: File) => {
     try {
       if (isPdfFile(file)) {
-        const { text, pages, truncated } = await readPdfFile(file);
-        onEditSource(text);
-        await onImport(text, file.name, {
+        // Always pdf.js first — never block the UI on Docling.
+        const quick = await readPdfQuick(file);
+        onEditSource(quick.text);
+        const fast = importSource({ raw: quick.text, label: file.name });
+        await onImport(quick.text, file.name, {
           filename: file.name,
           fileType: "PDF",
           uploadedAt: new Date().toLocaleString(),
           sizeBytes: file.size,
-          pages: truncated ? 40 : pages,
-          parseStatus: truncated ? "first 40 pages remembered" : "understood",
+          pages: quick.pages,
+          parseStatus: quick.truncated ? "first 40 pages remembered" : "understood",
+        });
+
+        const beforeArch = fast.ok ? fast.value.archetype?.id : null;
+        const beforeBlocks = fast.ok ? fast.value.blocks.length : 0;
+        const beforeEvidence =
+          fast.ok
+            ? (fast.value.blocks.find((b) => b.kind === "signals")?.payload as { entries?: unknown[] } | undefined)
+                ?.entries?.length ?? 0
+            : 0;
+
+        scheduleDoclingRefine({
+          file,
+          quickText: quick.text,
+          pages: quick.pages,
+          archetype: beforeArch,
+          beforeBlockCount: beforeBlocks,
+          beforeEvidence,
+          onRefine: async (refined) => {
+            const candidate = importSource({
+              raw: refined.markdown,
+              label: file.name,
+              parsedByDocling: true,
+            });
+            if (!candidate.ok) return;
+            const afterEvidence =
+              (candidate.value.blocks.find((b) => b.kind === "signals")?.payload as { entries?: unknown[] } | undefined)
+                ?.entries?.length ?? 0;
+            if (
+              !isDoclingRefinementBetter({
+                beforeArchetype: beforeArch,
+                afterArchetype: candidate.value.archetype?.id,
+                beforeBlockCount: beforeBlocks,
+                afterBlockCount: candidate.value.blocks.length,
+                beforeEvidence,
+                afterEvidence,
+                beforeText: quick.text,
+                afterText: refined.markdown,
+              })
+            ) {
+              return;
+            }
+            onEditSource(refined.markdown);
+            await onImport(refined.markdown, file.name, {
+              filename: file.name,
+              fileType: "PDF",
+              uploadedAt: new Date().toLocaleString(),
+              sizeBytes: file.size,
+              pages: refined.pages ?? quick.pages,
+              parseStatus: refined.cache === "hit" ? "Docling refine (cached)" : "Docling refine",
+              parsedByDocling: true,
+              quiet: true,
+            });
+          },
         });
         return;
       }

@@ -77,6 +77,17 @@ npm install
 npm run dev             # → http://localhost:3000
 ```
 
+### Optional: Docling refine (experimental, research-only)
+
+**pdf.js is always the default.** Docling never blocks the UI.
+
+```bash
+npm run docgraph                              # sidecar → http://127.0.0.1:8765
+NEXT_PUBLIC_DOCGRAPH=1 npm run dev            # allow selective background refine
+```
+
+With the flag on, uploads still parse via pdf.js in ~1–3s. Docling may refine in the background only for research-like / long / table-heavy PDFs, and only replaces memories when quality improves. SHA-256 parse cache avoids re-parsing. Graphify-schema graphs are built in TypeScript (not on the Docling critical path). See [services/docgraph/README.md](services/docgraph/README.md).
+
 | Command | What it does |
 | --- | --- |
 | `npm run dev` | Local app |

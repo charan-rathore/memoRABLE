@@ -18,7 +18,9 @@
     "media": "node scripts/capture-media.mjs",
     "demo:video": "node scripts/make-demo-video.mjs",
     "test:all": "npm run lint && npm run typecheck && npm run test && npm run build",
-    "verify": "npm run lint && npm run typecheck && npm run test && npm run build"
+    "verify": "npm run lint && npm run typecheck && npm run test && npm run build",
+    "docgraph": "cd services/docgraph && (test -d .venv || python3.12 -m venv .venv) && .venv/bin/pip install -q -r requirements.txt && .venv/bin/uvicorn server:app --host 127.0.0.1 --port 8765",
+    "eval:docgraph": "node scripts/eval-docgraph-gate.mjs"
   },
   "dependencies": {
     "@unlayer/react-elements": "0.1.20",

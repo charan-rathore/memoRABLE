@@ -23,6 +23,7 @@ export function Inspector({
   onSelectRelated?: (blockId: string) => void;
 }) {
   if (!block) {
+    const kg = document?.knowledgeGraph;
     return (
       <section className="card" aria-labelledby="insp-h">
         <div className="card-h" id="insp-h">
@@ -32,6 +33,23 @@ export function Inspector({
           <p style={{ fontSize: 12.5, color: "var(--ink-2)" }}>
             Choose a memory to see what it contains, and exactly where it came from.
           </p>
+          {kg ? (
+            <div style={{ marginTop: 12, fontSize: 12.5, color: "var(--ink-2)" }}>
+              <strong style={{ color: "var(--ink)" }}>Knowledge graph</strong>
+              <div>
+                {kg.nodes.length} nodes · {kg.edges.length} edges · {kg.extractor}
+              </div>
+              {kg.analysis?.god_nodes && kg.analysis.god_nodes.length > 0 ? (
+                <div style={{ marginTop: 6 }}>
+                  God nodes:{" "}
+                  {kg.analysis.god_nodes
+                    .slice(0, 4)
+                    .map((n) => n.label)
+                    .join(" · ")}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
         </div>
       </section>
     );

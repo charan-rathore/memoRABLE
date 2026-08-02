@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "r
 import type { MemoryBlock, MemoryDocument } from "@/domain/memory/schema";
 import { OUTPUT_MODES, type OutputMode } from "@/domain/memory/types";
 import { importSource } from "@/import/import-source";
+import type { KnowledgeGraph } from "@/domain/memory/schema";
 import { importJson } from "@/import/json/import-json";
 import { getExample, hasVerifiedExtraction, verifiedExtractionFor } from "@/import/examples/catalog";
 import { renderMode, type ModeOutput } from "@/render/render-bundle";
@@ -86,8 +87,18 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
   /* ------------------------------- import flow ------------------------------- */
 
   const runImport = useCallback(
-    async (text: string, label: string, meta?: Partial<SourceMeta>) => {
+    async (
+      text: string,
+      label: string,
+      meta?: Partial<SourceMeta> & {
+        knowledgeGraph?: KnowledgeGraph;
+        parsedByDocling?: boolean;
+        quiet?: boolean;
+      },
+    ) => {
+      const quiet = !!meta?.quiet;
       const mark = async (stage: ImportStage) => {
+        if (quiet) return;
         setImportProgress({ stage, percent: IMPORT_STAGE_PERCENT[stage] });
         announce(IMPORT_STAGE_LABEL[stage]);
         await yieldFrame(stage === "publishing" ? 160 : 56);
@@ -110,7 +121,12 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
       await mark("reading");
       await mark("understanding");
       await mark("remembering");
-      const result = importSource({ raw: text, label });
+      const result = importSource({
+        raw: text,
+        label,
+        ...(meta?.knowledgeGraph ? { knowledgeGraph: meta.knowledgeGraph } : {}),
+        ...(meta?.parsedByDocling ? { parsedByDocling: true } : {}),
+      });
       if (result.ok) {
         await mark("arranging");
         setSourceMeta({
@@ -122,14 +138,22 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
           parseStatus: meta?.parseStatus ?? "understood",
         });
         dispatch({ type: "imported", sourceText: text, sourceLabel: label, document: result.value, at: nowLabel() });
-        recordDocument(result.value.blocks.length);
-        rememberLibraryDoc({ title: result.value.title, label, sourceText: text });
+        if (!quiet) {
+          recordDocument(result.value.blocks.length);
+          rememberLibraryDoc({ title: result.value.title, label, sourceText: text });
+        } else {
+          rememberLibraryDoc({ title: result.value.title, label, sourceText: text });
+        }
         setView("workbench");
         setMobileTab("publish");
         await mark("publishing");
         scheduleLazyRenders(result.value, [], "document", themeRef.current, dispatch);
-        announce(`Understood: 6 memories created from ${label}.`);
-      } else {
+        announce(
+          quiet
+            ? `Refined memories from ${label}.`
+            : `Understood: 6 memories created from ${label}.`,
+        );
+      } else if (!quiet) {
         setSourceMeta({
           filename: meta?.filename ?? label,
           fileType,
@@ -143,7 +167,7 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
           `We couldn't understand this. Nothing was changed. ${result.errors.length} ${result.errors.length === 1 ? "error" : "errors"}.`,
         );
       }
-      setImportProgress(null);
+      if (!quiet) setImportProgress(null);
     },
     [announce],
   );

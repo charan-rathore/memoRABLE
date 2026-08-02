@@ -116,33 +116,51 @@ function stripCitations(text: string): string {
  * Reject PDF garbage that looks like a memory but isn't memorable:
  * mid-word starts, broken hyphenation, citation mashups, tiny fragments.
  */
+const STOP_OPENERS =
+  /^(whether|when|where|while|what|which|whose|how|why|for|and|but|yet|also|still|thus|hence|here|there|these|those|this|that|with|from|into|onto|over|under|after|before|about|above|below|such|each|both|most|many|some|more|less|only|even|just|not|no|yes|on|of|in|at|to|vs|via|by|as|or|the|a|an)$/i;
+
+/** Mid-word stumps from char-truncated context ("rmance", "t role"). */
+function looksLikeWordStump(token: string): boolean {
+  const t = token.replace(/[^A-Za-z]/g, "");
+  if (t.length < 2 || t.length > 8) return false;
+  if (STOP_OPENERS.test(t)) return false;
+  if (!/[aeiouy]/i.test(t)) return true;
+  // Known PDF/char-truncation suffixes — not real standalone words in labels.
+  return /^(rmance|formance|nance|tance|tion|sion|ment|ness|ting|cial|ical|trole|sults|nificant|tured)$/i.test(
+    t,
+  );
+}
+
 function isGarbledProse(text: string): boolean {
   const s = text.trim();
   if (!s) return true;
-  // Starts mid-word: "Nificant", "tion and", "tured prediction"
-  if (/^[a-z]{1,8}\b/.test(s) && !/^(whether|when|where|while|what|which|whose|how|why|for|and|but|yet|also|still|thus|hence|here|there|these|those|this|that|with|from|into|onto|over|under|after|before|about|above|below|such|each|both|most|many|some|more|less|only|even|just|not|no|yes)\b/i.test(s)) {
-    return true;
-  }
-  // Capitalized mid-word leftover after stripMetaOpener ("Nificant gap…")
-  if (/^[A-Z][a-z]{2,7}\b/.test(s)) {
-    const first = s.split(/\s+/)[0] ?? "";
-    // Common English starters are fine; broken syllables usually lack vowels in expected places
-    // or match known wrap suffixes.
-    if (/^(Nificant|Tured|Tion|Cating|Ment|Lizing|Ication|Tional|Sults|Ducing|Vided|Sented)$/i.test(first)) {
-      return true;
-    }
-  }
-  // Unrepaired wrap hyphen with a space: "sig- nificant", "sys- tems"
+  const first = (s.split(/\s+/)[0] ?? "").replace(/[^A-Za-z']/g, "");
+  // Starts mid-word: "Nificant", "tion and", "rmance on"
+  if (/^[a-z]/.test(s) && first.length <= 8 && !STOP_OPENERS.test(first)) return true;
+  if (looksLikeWordStump(first)) return true;
+  // Truncated metric labels: "…classification (80"
+  if (/\(\d+$/.test(s) || /\b\d+\s*[-–—]\s*$/.test(s)) return true;
+  // Unrepaired wrap hyphen with a space
   if (/[A-Za-z]-\s+[a-z]/.test(s)) return true;
-  // Citation smashed into body: "[Wei et al., 2023, Zhang The ZSEE"
+  // Citation smashed into body
   if (/\[[^\]]{0,40}\b(?:The|We|This|Our|In|A)\b/.test(s)) return true;
   if (/\b(?:et\s+al\.,?\s*){0,1}\d{4}\]\s*[A-Z][a-z]/.test(s)) return true;
-  // Sentence clearly cut at both ends without terminal punctuation and short
   if (wordCount(s) < 8 && !/[.!?]$/.test(s) && /^[a-z]/.test(s)) return true;
-  // Too many isolated short tokens from column shredding
   const words = s.split(/\s+/);
   const tiny = words.filter((w) => /^[A-Za-z]{1,2}$/.test(w)).length;
   if (words.length >= 8 && tiny / words.length > 0.35) return true;
+  return false;
+}
+
+function isGarbledLabel(label: string): boolean {
+  const s = label.trim();
+  if (!s || s.length < 3) return true;
+  if (/\(\d+$/.test(s) || /\b\d+\s*[-–—]\s*$/.test(s)) return true;
+  const first = (s.split(/\s+/)[0] ?? "").replace(/[^A-Za-z']/g, "");
+  if (looksLikeWordStump(first)) return true;
+  // "T role" / single-letter + noun from a cut
+  if (/^[A-Za-z]\s+\w+/.test(s)) return true;
+  if (/^[a-z]/.test(s) && !STOP_OPENERS.test(first)) return true;
   return false;
 }
 
@@ -273,32 +291,88 @@ function qualitativeFinding(sentence: string): string | null {
   return clamp(finding);
 }
 
+/**
+ * Build a metric label from text *before* a % value using words, never a
+ * fixed character window (that produced "rmance" / "t role" from long sentences).
+ */
+function metricLabelFromBefore(before: string): string {
+  let s = before.replace(/\s+/g, " ").trim();
+  s = s.replace(/[\s(\[:\-–—,;]+$/g, "").trim();
+  // Drop clause openers that aren't the measured thing.
+  s = s.replace(
+    /^(?:results?\s+)?(?:demonstrate|show|shows|showed|achieve|achieves|report|reports)\s+/i,
+    "",
+  );
+  s = s.replace(/^(?:strong|modest|weak|high|low|extreme)\s+/i, "");
+  s = s.replace(/\b(?:particularly|especially|namely)\s+/i, "");
+
+  const words = s.split(/\s+/).filter(Boolean);
+  while (words.length > 0) {
+    const head = words[0]!.replace(/[^A-Za-z]/g, "");
+    if (looksLikeWordStump(head) || (/^[a-z]/.test(words[0]!) && !STOP_OPENERS.test(words[0]!))) {
+      words.shift();
+      continue;
+    }
+    break;
+  }
+
+  // Prefer the noun phrase near the metric (last ~6 words).
+  const slice = words.slice(-6);
+  let label = slice.join(" ").replace(/\s*\(\s*$/g, "").trim();
+  // "on event type classification" → "Event type classification"
+  label = label.replace(/^(?:on|of|for|in|at|to|with)\s+/i, "").trim();
+  if (!label) return "Measured result";
+  if (!/^[A-Z]/.test(label)) label = label.charAt(0).toUpperCase() + label.slice(1);
+  if (isGarbledLabel(label)) return "Measured result";
+  return clamp(label, 72);
+}
+
 function extractMetrics(sentence: string): SignalEntry[] {
   const entries: SignalEntry[] = [];
-  const pct = [...sentence.matchAll(/([^.;:]{0,40}?)(\d+(?:\.\d+)?%)/gi)];
-  for (const m of pct.slice(0, 4)) {
-    const ctx = (m[1] ?? "").replace(/\s+/g, " ").trim().replace(/[:\-–—]+$/, "");
-    const value = m[2]!;
+  const seen = new Set<string>();
+  const push = (label: string, value: string) => {
+    const key = `${label.toLowerCase()}|${value}`;
+    if (seen.has(key)) return;
+    if (isGarbledLabel(label)) return;
+    seen.add(key);
     entries.push({
-      label: clamp(ctx || "Metric", 120),
+      label,
       value,
-      implication: clamp(sentence, 240),
+      implication: clamp(cleanResearchSentence(sentence), 220),
     });
+  };
+
+  // Ranges first: "event type classification (80-90% F1)" → one KPI, not two cut labels.
+  const rangeRe =
+    /(\d+(?:\.\d+)?)\s*[-–—]\s*(\d+(?:\.\d+)?)%\s*(F1|accuracy|recall|precision)?/gi;
+  const covered = new Set<number>();
+  for (const m of sentence.matchAll(rangeRe)) {
+    const idx = m.index ?? 0;
+    for (let i = idx; i < idx + m[0].length; i++) covered.add(i);
+    const unit = m[3] ? ` ${m[3]}` : "";
+    const value = `${m[1]}–${m[2]}%${unit}`.replace(/\s+/g, " ");
+    const label = metricLabelFromBefore(sentence.slice(0, idx));
+    push(label === "Measured result" && m[3] ? `${m[3]} range` : label, value);
+    if (entries.length >= 4) return entries;
   }
+
+  // Single percentages not already inside a range match.
+  const singleRe = /(\d+(?:\.\d+)?)%/gi;
+  for (const m of sentence.matchAll(singleRe)) {
+    const idx = m.index ?? 0;
+    if (covered.has(idx)) continue;
+    const label = metricLabelFromBefore(sentence.slice(0, idx));
+    push(label, m[0]!);
+    if (entries.length >= 4) return entries;
+  }
+
   const points = [...sentence.matchAll(/within\s+(\d+(?:\.\d+)?)\s*points?/gi)];
   for (const m of points.slice(0, 2)) {
-    entries.push({
-      label: "Gap vs baseline",
-      value: `${m[1]} points`,
-      implication: clamp(sentence, 240),
-    });
+    push("Gap vs baseline", `${m[1]} points`);
   }
   if (entries.length === 0 && METRIC_RE.test(sentence)) {
-    entries.push({
-      label: "Measured result",
-      value: (sentence.match(/\d+(?:\.\d+)?%?/) ?? ["see source"])[0]!,
-      implication: clamp(sentence, 240),
-    });
+    const raw = (sentence.match(/\d+(?:\.\d+)?%?/) ?? ["see source"])[0]!;
+    push("Measured result", raw);
   }
   return entries;
 }
@@ -435,37 +509,54 @@ function inferKeyFindings(summaries: readonly SectionSummary[]): TimelineEntry[]
 function inferEvidence(summaries: readonly SectionSummary[]): SignalEntry[] {
   const pool = textsOf(summaries, ["results", "method", "abstract", "hypothesis"]);
   const evidence: SignalEntry[] = [];
+  let setupCount = 0;
   for (const sentence of pool) {
     if (isGarbledProse(sentence)) continue;
     // Table rows → Evidence metrics (not Findings).
     if (isTableDump(sentence)) {
       for (const entry of extractMetrics(sentence)) {
-        if (isGarbledProse(entry.implication ?? "") || isGarbledProse(entry.label)) continue;
+        if (isGarbledLabel(entry.label) || isGarbledProse(entry.implication ?? "")) continue;
         if (evidence.some((e) => e.label === entry.label && e.value === entry.value)) continue;
         evidence.push({
           ...entry,
           label: clamp(entry.label.replace(/\|/g, " ").trim() || "Table metric", 120),
         });
-        if (evidence.length >= LIMITS.maxEntriesPerBlock) return evidence;
+        if (evidence.length >= 8) return evidence;
       }
       continue;
     }
-    if (!METRIC_RE.test(sentence) && !/\bdataset\b|\b\d+k[\s-]?token/i.test(sentence)) continue;
-    for (const entry of extractMetrics(sentence)) {
-      if (isGarbledProse(entry.implication ?? "")) continue;
-      if (evidence.some((e) => e.label === entry.label && e.value === entry.value)) continue;
-      evidence.push(entry);
-      if (evidence.length >= LIMITS.maxEntriesPerBlock) return evidence;
+    if (METRIC_RE.test(sentence)) {
+      for (const entry of extractMetrics(sentence)) {
+        if (isGarbledLabel(entry.label) || isGarbledProse(entry.implication ?? "")) continue;
+        if (evidence.some((e) => e.label === entry.label && e.value === entry.value)) continue;
+        // Prefer compact KPI tiles; skip near-duplicate implications.
+        if (
+          evidence.some(
+            (e) =>
+              e.implication &&
+              entry.implication &&
+              e.implication.toLowerCase().slice(0, 80) === entry.implication.toLowerCase().slice(0, 80),
+          )
+        ) {
+          continue;
+        }
+        evidence.push(entry);
+        if (evidence.length >= 8) return evidence;
+      }
     }
-    // Dataset / setup facts without percentages still support findings.
-    if (/\bdataset\b|\b\d+k[\s-]?token/i.test(sentence) && evidence.length < LIMITS.maxEntriesPerBlock) {
-      const implication = clamp(cleanResearchSentence(sentence), 240);
-      if (isGarbledProse(implication)) continue;
-      if (evidence.some((e) => (e.implication ?? "").toLowerCase() === implication.toLowerCase())) continue;
+    // One short setup card — not a wall of dataset prose.
+    if (
+      setupCount < 1 &&
+      /\bdataset\b|\b\d+k[\s-]?token|\bprompting strateg/i.test(sentence) &&
+      evidence.length < 8
+    ) {
+      const implication = clamp(cleanResearchSentence(sentence), 160);
+      if (isGarbledProse(implication) || wordCount(implication) < 6) continue;
       evidence.push({
         label: "Experimental setup",
         implication,
       });
+      setupCount++;
     }
   }
   return evidence;
@@ -537,26 +628,93 @@ function inferInsights(summaries: readonly SectionSummary[], findings: readonly 
   return insights.slice(0, LIMITS.maxEntriesPerBlock);
 }
 
+const LIMIT_INTRO =
+  /\b(several limitations|limitations that should|should be considered when interpreting|when interpreting results)\b/i;
+
+/**
+ * Synthesize Limitations into memorable themes — not every sentence as its own risk.
+ * Handles "Theme: claim…" clusters common in papers (Dataset Scope, Prompting Strategies, …).
+ */
 function inferLimitations(summaries: readonly SectionSummary[]): RiskEntry[] {
+  const limitSummaries = summaries.filter((s) => s.role === "limitations");
   const pool = [
-    ...textsOf(summaries, ["limitations"]),
+    ...limitSummaries.flatMap((s) => s.sentences),
     ...textsOf(summaries, ["discussion", "conclusion"]).filter((s) => EXPLICIT_LIMIT_RE.test(s)),
-  ];
-  const out: RiskEntry[] = [];
+  ].filter((s) => !isGarbledProse(s) && !LIMIT_INTRO.test(s));
+
+  type ThemeBucket = { theme: string; claims: string[] };
+  const buckets: ThemeBucket[] = [];
+  let current: ThemeBucket | null = null;
+
+  const themeRe = /^([A-Z][A-Za-z0-9][A-Za-z0-9 /-]{1,40}):\s*(.+)$/;
+
   for (const sentence of pool) {
-    const fromLimitSection = summaries.some(
-      (s) => s.role === "limitations" && s.sentences.includes(sentence),
-    );
+    const fromLimitSection = limitSummaries.some((s) => s.sentences.includes(sentence));
     if (!fromLimitSection && !EXPLICIT_LIMIT_RE.test(sentence)) continue;
-    // Skip hallucinated "weakness" language that isn't an author-stated limit.
     if (/\bhallucin/i.test(sentence) && !fromLimitSection) continue;
-    const risk = clamp(stripMetaOpener(sentence));
-    if (wordCount(risk) < 5) continue;
-    if (out.some((r) => r.risk.toLowerCase() === risk.toLowerCase())) continue;
-    out.push({ risk });
-    if (out.length >= LIMITS.maxEntriesPerBlock) break;
+
+    const themed = themeRe.exec(sentence.trim());
+    if (themed) {
+      current = { theme: themed[1]!.trim(), claims: [themed[2]!.trim()] };
+      buckets.push(current);
+      continue;
+    }
+    if (current && fromLimitSection) {
+      // Continuation under the open theme (skip pure restatement fluff).
+      if (wordCount(sentence) >= 5) current.claims.push(sentence.trim());
+      continue;
+    }
+    // Unthemed but explicit limit → own bucket from a short title guess.
+    const title = guessLimitationTheme(sentence);
+    current = { theme: title, claims: [stripMetaOpener(sentence)] };
+    buckets.push(current);
+  }
+
+  const out: RiskEntry[] = [];
+  for (const bucket of buckets) {
+    const synthesized = synthesizeLimitation(bucket.theme, bucket.claims);
+    if (!synthesized || isGarbledProse(synthesized) || wordCount(synthesized) < 4) continue;
+    if (out.some((r) => r.risk.toLowerCase() === synthesized.toLowerCase())) continue;
+    // Dedupe by theme prefix
+    if (out.some((r) => r.risk.toLowerCase().startsWith(bucket.theme.toLowerCase()))) continue;
+    out.push({ risk: synthesized });
+    if (out.length >= 6) break;
   }
   return out;
+}
+
+function guessLimitationTheme(sentence: string): string {
+  if (/\bdataset|single domain|one domain|generalization\b/i.test(sentence)) return "Dataset Scope";
+  if (/\bprompt/i.test(sentence)) return "Prompting Strategies";
+  if (/\btemperature|top-p|hyperparameter|default (?:api )?parameters?|sampling\b/i.test(sentence)) {
+    return "Model Configuration";
+  }
+  if (/\bcost|api|compute|budget|inference pass/i.test(sentence)) return "Computational Constraints";
+  if (/\blanguage|english|multilingual\b/i.test(sentence)) return "Language Coverage";
+  return "Limitation";
+}
+
+function synthesizeLimitation(theme: string, claims: readonly string[]): string {
+  const cleaned = claims
+    .map((c) => cleanResearchSentence(c))
+    .filter((c) => wordCount(c) >= 4 && !LIMIT_INTRO.test(c));
+  if (cleaned.length === 0) return "";
+
+  // One memorable line: Theme — core claim (+ short consequence if present).
+  const core = clamp(cleaned[0]!, 130).replace(/\.$/, "");
+  let detail = "";
+  if (cleaned[1]) {
+    detail = clamp(
+      cleaned[1]!.replace(/^(while|although|however|though|this)\s+/i, ""),
+      90,
+    ).replace(/\.$/, "");
+  }
+  const body = detail
+    ? `${core}; ${detail.charAt(0).toLowerCase()}${detail.slice(1)}`
+    : core;
+  if (theme === "Limitation") return clamp(`${body}.`, 220);
+  const rest = body.charAt(0).toLowerCase() + body.slice(1);
+  return clamp(`${theme} — ${rest}.`, 220);
 }
 
 function inferFutureDirections(summaries: readonly SectionSummary[]): ActionEntry[] {

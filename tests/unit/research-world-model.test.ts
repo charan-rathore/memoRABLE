@@ -111,7 +111,34 @@ describe("research world model", () => {
         {
           headingText: "Limitations",
           lines: [
-            { text: "Single dataset. Limited prompting strategies. Default model parameters. API cost constraints.", lineNo: 30 },
+            {
+              text: "Our study has several limitations that should be considered when interpreting results:",
+              lineNo: 29,
+            },
+            {
+              text: "Dataset Scope: We evaluate on a single dataset (ZSEE) from one domain (zeolite synthesis).",
+              lineNo: 30,
+            },
+            {
+              text: "While this provides a controlled evaluation, generalization to other scientific domains remains unclear.",
+              lineNo: 31,
+            },
+            {
+              text: "Prompting Strategies: We evaluate prompting approaches, but the space of possible prompt designs is vast.",
+              lineNo: 32,
+            },
+            {
+              text: "More sophisticated techniques like chain-of-thought might yield better results.",
+              lineNo: 33,
+            },
+            {
+              text: "Model Configuration: We use default API parameters (temperature, top-p) for all models.",
+              lineNo: 34,
+            },
+            {
+              text: "Computational Constraints: Full evaluation across 24 conditions required substantial API costs.",
+              lineNo: 35,
+            },
           ],
         },
         {
@@ -138,5 +165,44 @@ describe("research world model", () => {
 
     const insights = (model.get("decisions")!.payload as DecisionsPayload).entries.map((e) => e.text);
     expect(insights.some((t) => /localiz|semantics|bottleneck|grounding/i.test(t))).toBe(true);
+
+    const risks = (model.get("risks")!.payload as RisksPayload).entries.map((e) => e.risk);
+    // Thematic synthesis — not one row per raw sentence / intro boilerplate.
+    expect(risks.length).toBeGreaterThanOrEqual(3);
+    expect(risks.length).toBeLessThanOrEqual(6);
+    expect(risks.some((r) => /dataset scope/i.test(r))).toBe(true);
+    expect(risks.some((r) => /prompting strateg/i.test(r))).toBe(true);
+    expect(risks.some((r) => /model configuration/i.test(r))).toBe(true);
+    expect(risks.some((r) => /computational/i.test(r))).toBe(true);
+    expect(risks.every((r) => !/several limitations that should be considered/i.test(r))).toBe(true);
+
+    // Metric labels must be whole words — never char-window stumps.
+    expect(evidence.every((e) => !/\brmance\b/i.test(e.label))).toBe(true);
+    expect(evidence.every((e) => !/^t role/i.test(e.label))).toBe(true);
+    expect(evidence.every((e) => !/\(\d+$/.test(e.label))).toBe(true);
+  });
+
+  it("extracts range metrics with word-boundary labels", () => {
+    const model = buildResearchWorldModel({
+      title: "Metric Label Test",
+      label: "m.md",
+      sections: [
+        {
+          headingText: "Results",
+          lines: [
+            {
+              text: "Results demonstrate strong performance on event type classification (80-90% F1) but modest performance on fine-grained extraction tasks, particularly argument role and argument text extraction (50-65% F1).",
+              lineNo: 1,
+            },
+          ],
+        },
+      ],
+    });
+    const evidence = (model.get("signals")!.payload as SignalsPayload).entries;
+    expect(evidence.length).toBeGreaterThanOrEqual(1);
+    expect(evidence.some((e) => /80\s*[–-]\s*90%/i.test(String(e.value)))).toBe(true);
+    expect(evidence.every((e) => !/\brmance\b/i.test(e.label))).toBe(true);
+    expect(evidence.every((e) => !/^t\s/i.test(e.label))).toBe(true);
+    expect(evidence.some((e) => /event type classification/i.test(e.label))).toBe(true);
   });
 });

@@ -9,6 +9,7 @@ import { isDecorativeLine, isTableSeparator, plainContentOf, splitListItem } fro
 import { classifyArchetype, type ArchetypeResult } from "./archetype";
 import { extractConcepts, type Concept } from "./concepts";
 import { understandIntent, type Intent } from "./intent";
+import { deriveHeroInsights, type HeroInsight } from "./insights";
 import {
   inferDecisions,
   inferRisks,
@@ -123,6 +124,8 @@ export interface Understanding {
   signals: Array<Inferred<InferredSignal>>;
   decisions: Array<Inferred<InferredDecision>>;
   risks: Array<Inferred<InferredRisk>>;
+  /** Hero/aha moments synthesized from evidence for non-extractive docs. */
+  heroInsights: HeroInsight[];
   /** Snapshot heading, drawn from the title. */
   heading: string;
   /** The document's own opening paragraph, for when recall cannot compose. */
@@ -152,6 +155,12 @@ export function understand(input: UnderstandingInput & { sourceLabel?: string })
     (d) => d.value.text,
   );
   const risks = dedupeByMeaning(inferRisks(statements), (r) => r.value.risk);
+  const heroInsights = deriveHeroInsights({
+    archetype: archetype.archetype,
+    statements,
+    concepts,
+    existingSignals: signals.map((s) => s.value),
+  });
 
   return {
     intent,
@@ -162,6 +171,7 @@ export function understand(input: UnderstandingInput & { sourceLabel?: string })
     signals,
     decisions,
     risks,
+    heroInsights,
     heading: recallHeading(input.title, intent),
     opening: firstProseParagraph(input.sections),
     distilled: statements.length,

@@ -20,6 +20,12 @@ import {
   type InferredSignal,
   type Statement,
 } from "./inference";
+import {
+  inferActions,
+  inferTimeline,
+  type InferredAction,
+  type InferredTimeline,
+} from "./infer-events";
 import { dedupeByMeaning, normalizeKey, splitSentences, wordCount } from "./language";
 import { composeRecall, recallHeading, type Recall } from "./recall";
 import { findAnchorDate, type AnchorDate } from "./temporal";
@@ -34,6 +40,7 @@ export type {
   InferredSignal,
   Statement,
 } from "./inference";
+export type { InferredAction, InferredTimeline } from "./infer-events";
 export type { Recall } from "./recall";
 export type { ArchetypeResult, DocumentArchetype } from "./archetype";
 export type { AnchorDate } from "./temporal";
@@ -77,6 +84,7 @@ export {
   strongestCategory,
 } from "./projection";
 export { inferArtifact, inferReadiness } from "./inference";
+export { inferActions, inferTimeline } from "./infer-events";
 export { buildRelations, relationsFor, relationsFrom, relationsTo, parseRef } from "./graph";
 export { recallHeading } from "./recall";
 export {
@@ -89,17 +97,14 @@ export {
 } from "./segment";
 
 /**
- * The understanding layer.
+ * The understanding layer (primary extraction signal).
  *
- * Markdown -> understanding -> distillation -> candidate memories, run before
- * a single line is classified. Classification on raw paragraphs can only ever
- * preserve structure; running it after this stage means the six memories are
- * built from what the document *meant*, and the paragraph it happened to sit
- * in is demoted to provenance, which is all it was ever good for.
+ * Markdown -> distill -> infer (signals/decisions/risks/timeline/actions) ->
+ * structural parsers enrich and win on same-line authority.
  *
- * Everything produced here is conservative by construction. Each candidate
- * carries the exact sentence it was read from, so nothing can enter a memory
- * that was not in the source, and anything unclear is simply not produced.
+ * Structure preserves the author's filing; understanding recovers meaning from
+ * prose that no heading announced. Each candidate carries the exact sentence
+ * it was read from — no sentence, no memory.
  */
 
 export interface UnderstandingSection {
@@ -124,6 +129,10 @@ export interface Understanding {
   signals: Array<Inferred<InferredSignal>>;
   decisions: Array<Inferred<InferredDecision>>;
   risks: Array<Inferred<InferredRisk>>;
+  /** Calendar / ordinal / mid-sentence temporal candidates. */
+  timeline: Array<Inferred<InferredTimeline>>;
+  /** Outstanding work / todos inferred from prose. */
+  actions: Array<Inferred<InferredAction>>;
   /** Hero/aha moments synthesized from evidence for non-extractive docs. */
   heroInsights: HeroInsight[];
   /** Snapshot heading, drawn from the title. */
@@ -155,6 +164,12 @@ export function understand(input: UnderstandingInput & { sourceLabel?: string })
     (d) => d.value.text,
   );
   const risks = dedupeByMeaning(inferRisks(statements), (r) => r.value.risk);
+  // Timeline/Actions are first-class understanding outputs — not structure-only.
+  const timeline =
+    archetype.timelineMode === "none"
+      ? []
+      : dedupeByMeaning(inferTimeline(statements), (t) => `${t.value.date} ${t.value.title}`);
+  const actions = dedupeByMeaning(inferActions(statements), (a) => a.value.task);
   const heroInsights = deriveHeroInsights({
     archetype: archetype.archetype,
     statements,
@@ -171,6 +186,8 @@ export function understand(input: UnderstandingInput & { sourceLabel?: string })
     signals,
     decisions,
     risks,
+    timeline,
+    actions,
     heroInsights,
     heading: recallHeading(input.title, intent),
     opening: firstProseParagraph(input.sections),

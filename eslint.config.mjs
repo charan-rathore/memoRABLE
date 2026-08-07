@@ -20,8 +20,10 @@ const config = [
       // Python sidecars / local tooling — never lint vendored site-packages
       "services/**/.venv/**",
       "**/.venv/**",
+      "**/.venv-*/**",
       ".venv-manim/**",
       "manim/**",
+      "subtitle-work/**",
       "tmp/**",
     ],
   },

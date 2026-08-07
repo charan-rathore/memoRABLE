@@ -33,8 +33,8 @@ describe("projection rule 2 — Invoice Due Date confidence gate", () => {
   });
 });
 
-describe("projection rule 3 — Requirement > Risk > Action > Decision", () => {
-  it("never lets stronger categories fall through as Decisions", () => {
+describe("projection rule 3 — Risk/Action/Phase block Decisions; Requirements project in", () => {
+  it("blocks risk, action, and phase delivery structure", () => {
     expect(strongestCategory("Phase 1: Capture edit history schema — planned")).toBe("requirement");
     expect(blocksDecisionInference("Phase 1: Capture edit history schema — planned")).toBe(true);
 
@@ -46,6 +46,12 @@ describe("projection rule 3 — Requirement > Risk > Action > Decision", () => {
 
     // A settled decision line is not blocked by precedence.
     expect(blocksDecisionInference("D-001 Expand pricing tier - approved")).toBe(false);
+  });
+
+  it("lets pure requirements project into Decisions (must/shall/required)", () => {
+    expect(strongestCategory("Every PO edit must leave an audit trail")).toBe("requirement");
+    expect(blocksDecisionInference("Every PO edit must leave an audit trail")).toBe(false);
+    expect(blocksDecisionInference("Audit trail is mandatory on every change")).toBe(false);
   });
 });
 

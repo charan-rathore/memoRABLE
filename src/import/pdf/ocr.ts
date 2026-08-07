@@ -67,15 +67,24 @@ export async function ocrImages(
     }));
   }
 
-  const usable = images.filter((img) => img.png && img.png.length > 0);
+  const usable = images
+    .filter((img) => img.png && img.png.length > 0)
+    // Prefer large captures (tables/spreadsheets) over chrome/logos.
+    .slice()
+    .sort((a, b) => b.width * b.height - a.width * a.height);
+
   if (usable.length === 0) return [];
+
+  // Cap work so multi-image decks stay interactive in the browser.
+  const MAX_OCR_IMAGES = 6;
+  const selected = usable.slice(0, MAX_OCR_IMAGES);
 
   const worker = await getWorker();
   const blocks: OcrBlock[] = [];
 
-  for (let i = 0; i < usable.length; i++) {
-    const image = usable[i]!;
-    options.onProgress?.(Math.round(((i + 0.2) / usable.length) * 100));
+  for (let i = 0; i < selected.length; i++) {
+    const image = selected[i]!;
+    options.onProgress?.(Math.round(((i + 0.2) / selected.length) * 100));
     try {
       const png = Uint8Array.from(image.png!);
       const result = await worker.recognize(png);
@@ -91,7 +100,7 @@ export async function ocrImages(
     } catch {
       // OCR failure must not abort the text pipeline — image is skipped.
     }
-    options.onProgress?.(Math.round(((i + 1) / usable.length) * 100));
+    options.onProgress?.(Math.round(((i + 1) / selected.length) * 100));
   }
 
   return blocks;

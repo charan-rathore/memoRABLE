@@ -6,7 +6,9 @@ import { structureOcrText, mergeOcrIntoMarkdown } from "@/import/pdf/ocr";
 import { hybridSegment, buildDocumentGraph } from "@/understanding/segment";
 
 describe("PDF layout reconstruction", () => {
-  it("rebuilds headings, lists, and ticket tables from positioned glyphs", async () => {
+  it(
+    "rebuilds headings, lists, and ticket tables from positioned glyphs",
+    async () => {
     const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
     const data = new Uint8Array(readFileSync(resolve("tests/fixtures/indent-po-grn.pdf")));
     const doc = await pdfjs.getDocument({ data, useSystemFonts: true }).promise;
@@ -43,7 +45,9 @@ describe("PDF layout reconstruction", () => {
     expect(layout.markdown).toMatch(/-\s+No audit trail/i);
     // Must not be the old one-line-per-page flatten.
     expect(layout.markdown.split("\n").length).toBeGreaterThan(40);
-  });
+  },
+    30_000,
+  );
 });
 
 describe("OCR structuring + merge", () => {

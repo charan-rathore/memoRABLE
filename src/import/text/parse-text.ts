@@ -575,6 +575,11 @@ function understandingWarnings(understanding: Understanding): ImportWarning[] {
       `inferred ${inferred} memories from meaning (S${understanding.signals.length}/D${understanding.decisions.length}/R${understanding.risks.length}/T${understanding.timeline.length}/A${understanding.actions.length})`,
     );
   }
+  if (understanding.heroInsights.length > 0) {
+    parts.push(
+      `selected ${understanding.heroInsights.length} hero insight${understanding.heroInsights.length === 1 ? "" : "s"}`,
+    );
+  }
   if (inferred === 0 && understanding.redundant === 0 && understanding.distilled === 0) return [];
   return [{ code: "text.understood", message: `${parts.join(", ")}.` }];
 }
@@ -825,7 +830,20 @@ function alreadyUsed(lineNo: number, lineOf: ReadonlyArray<number | null>): bool
   return lineOf.includes(lineNo);
 }
 
+
+function mergeHeroInsights(built: Collected<SignalEntry>, ctx: BuildContext, notes: string[]): void {
+  for (const insight of ctx.understanding.heroInsights) {
+    if (built.entries.length >= LIMITS.maxEntriesPerBlock) break;
+    if (alreadyUsed(insight.evidence.lineNo, built.lineOf)) continue;
+    if (built.entries.some((e) => saysTheSame(`${e.label} ${e.implication ?? ""}`, `${insight.entry.label} ${insight.entry.implication ?? ""}`))) continue;
+    built.entries.unshift(insight.entry);
+    built.lineOf.unshift(insight.evidence.lineNo);
+    dropNote(notes, insight.evidence.text);
+  }
+}
+
 function mergeSignals(built: Collected<SignalEntry>, ctx: BuildContext, notes: string[]): void {
+  mergeHeroInsights(built, ctx, notes);
   let added = 0;
   for (const candidate of ctx.understanding.signals) {
     const { value, evidence } = candidate;

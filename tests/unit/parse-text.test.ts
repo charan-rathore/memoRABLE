@@ -261,3 +261,45 @@ describe("importSource routing", () => {
     if (text.ok) expect(text.value.sourceMethod).toBe("local-parser");
   });
 });
+
+describe("parseText — hero insights", () => {
+  it("turns generic knowledge into aha-moment signals instead of transcript-only notes", () => {
+    const text = [
+      "# Memory Engine Philosophy",
+      "",
+      "The old parser stores paragraphs, but the core failure is that storage without semantic projection makes every block repeat the same information.",
+      "The highest leverage fix is observation-first routing because the same sentence can be a decision, a risk, or a signal depending on what job it performs.",
+      "If a document is a resume or invoice, preserve the stated facts rather than adding interetation.",
+    ].join("\n");
+    const result = parseText({ text, label: "memory-engine.md" });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const signals = payloadOf<SignalsPayload>(result.value, "signals");
+    expect(signals.entries.length).toBeGreaterThan(0);
+    expect(signals.entries.some((entry) => /aha|important part|evidence/i.test(entry.implication ?? ""))).toBe(true);
+    expect(signals.entries.map((entry) => entry.implication).join(" ")).toContain("semantic projection");
+  });
+
+  it("keeps extractive resumes from receiving inferred hero statements", () => {
+    const text = [
+      "# Asha Rao",
+      "",
+      "Email: asha@example.com",
+      "",
+      "## Experience",
+      "- Senior Engineer at Atlas from 2022 to 2026.",
+      "",
+      "## Skills",
+      "- TypeScript, React, reliability engineering.",
+      "",
+      "## Education",
+      "- B.Tech Computer Science.",
+    ].join("\n");
+    const result = parseText({ text, label: "resume.md" });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.archetype?.id).toBe("resume");
+    const signals = payloadOf<SignalsPayload>(result.value, "signals");
+    expect(signals.entries.some((entry) => /aha|important part|evidence/i.test(entry.implication ?? ""))).toBe(false);
+  });
+});

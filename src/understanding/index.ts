@@ -9,6 +9,7 @@ import { isDecorativeLine, isTableSeparator, plainContentOf, splitListItem } fro
 import { classifyArchetype, type ArchetypeResult } from "./archetype";
 import { extractConcepts, type Concept } from "./concepts";
 import { understandIntent, type Intent } from "./intent";
+import { deriveHeroInsights, type HeroInsight } from "./insights";
 import {
   inferDecisions,
   inferRisks,
@@ -132,6 +133,8 @@ export interface Understanding {
   timeline: Array<Inferred<InferredTimeline>>;
   /** Outstanding work / todos inferred from prose. */
   actions: Array<Inferred<InferredAction>>;
+  /** Hero/aha moments synthesized from evidence for non-extractive docs. */
+  heroInsights: HeroInsight[];
   /** Snapshot heading, drawn from the title. */
   heading: string;
   /** The document's own opening paragraph, for when recall cannot compose. */
@@ -167,6 +170,12 @@ export function understand(input: UnderstandingInput & { sourceLabel?: string })
       ? []
       : dedupeByMeaning(inferTimeline(statements), (t) => `${t.value.date} ${t.value.title}`);
   const actions = dedupeByMeaning(inferActions(statements), (a) => a.value.task);
+  const heroInsights = deriveHeroInsights({
+    archetype: archetype.archetype,
+    statements,
+    concepts,
+    existingSignals: signals.map((s) => s.value),
+  });
 
   return {
     intent,
@@ -179,6 +188,7 @@ export function understand(input: UnderstandingInput & { sourceLabel?: string })
     risks,
     timeline,
     actions,
+    heroInsights,
     heading: recallHeading(input.title, intent),
     opening: firstProseParagraph(input.sections),
     distilled: statements.length,

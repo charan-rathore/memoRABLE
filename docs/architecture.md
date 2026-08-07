@@ -149,3 +149,15 @@ Escaping is deliberate and tested: `Table` cell text and `Heading` string childr
 ## Entry point
 
 `src/app/page.tsx` is a server component: it imports the Atlas fixture, renders all three outputs at build time, and hands them to the client workbench — so the very first paint already shows a remembered, published document (static prerender, no client round-trip). It throws loudly if the fixture ever drifts from the schema.
+
+
+## Document parsing strategy
+
+The production path is intentionally layered rather than parser-monolithic:
+
+1. **Layout extraction:** keep `pdfjs-dist` as the instant browser/server baseline, then allow the existing Docling sidecar to refine long, research-like, scanned, or table-heavy PDFs. Docling remains the preferred open-source parser to deepen because it exports structured Markdown/JSON, handles PDF layou OCR, tables, and reading order, and has an active GitHub ecosystem.
+2. **Semantic segmentation:** normalize parser output into stable sections and semantic chunks before any memory classification.
+3. **Observation-first projection:** classify each distilled statement by what job it performs in the document, then project it into the archetype's memory buckets.
+4. **Cognitive compression:** generic knowledge documents get hero insights/aha moments; extractive documents such as resumes and invoices preserve stated facts without extra interpretation.
+
+Unstructured remains a viable future adapter for broader enterprise file connectors and 64+ file types, but adding a second heavy parser now would increase operational surface area. The current architecture should therefore keep parser adapters behind the same normalized Markdown/knowledge-graph boundary so Docling, Unstructured, or another extractor can be swapped without rewriting memory projection.

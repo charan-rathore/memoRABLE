@@ -122,7 +122,7 @@ test.describe("home screen", () => {
 
     const tally = page.getByTestId("local-tally");
     await expect(tally).toContainText("1 document remembered · 6 memories");
-    await expect(tally).toContainText("counted in this browser, and nowhere else");
+    await expect(tally).toContainText("counted in this browser and nowhere else");
   });
 
   test("has no critical or serious accessibility violations", async ({ page }) => {

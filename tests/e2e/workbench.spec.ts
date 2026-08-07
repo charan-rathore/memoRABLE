@@ -102,7 +102,7 @@ test.describe("home screen", () => {
 
   test("the wordmark returns to the start", async ({ page }) => {
     await enterWorkbench(page);
-    await page.getByRole("button", { name: "memoRABLE: back to the start" }).click();
+    await page.getByRole("button", { name: "memoRABLE home" }).click();
     await page.getByTestId("brand-splash").waitFor({ state: "detached" });
     await expect(page.getByTestId("home-screen")).toBeVisible();
     await expect(page.locator(".shell")).toHaveCount(0);
@@ -117,7 +117,7 @@ test.describe("home screen", () => {
 
     await page.getByRole("button", { name: "Open a sample brief" }).click();
     await page.locator(".shell").waitFor();
-    await page.getByRole("button", { name: "memoRABLE: back to the start" }).click();
+    await page.getByRole("button", { name: "memoRABLE home" }).click();
     await page.getByTestId("brand-splash").waitFor({ state: "detached" });
 
     const tally = page.getByTestId("local-tally");

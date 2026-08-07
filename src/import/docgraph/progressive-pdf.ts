@@ -1,8 +1,10 @@
 /**
- * Hackathon PDF ingest:
- *   1) pdf.js parses in 1–3s → show memories immediately
- *   2) optional background Docling refine (selective, non-blocking)
- *   3) Graphify-schema KG is built in TypeScript on import — never waits on Docling
+ * Product PDF ingest:
+ *   1) pdf.js layout parse → memories quickly
+ *   2) Selective OCR for embedded images (spreadsheets/screenshots) — pure
+ *      text PDFs skip OCR work because no PNG payloads exist
+ *   3) optional background Docling refine (selective, non-blocking)
+ *   4) Graphify-schema KG is built in TypeScript on import — never waits on Docling
  */
 
 import { readPdfFile, pdfTruncationNote, type PdfReadResult } from "@/import/read-pdf";
@@ -19,19 +21,29 @@ export interface ProgressivePdfQuick {
   pages: number;
   truncated: boolean;
   note?: string;
+  /** Embedded images detected in the PDF (including those without OCR text). */
+  images?: number;
+  /** Successful OCR blocks merged into markdown. */
+  ocrBlocks?: number;
 }
 
 export async function readPdfQuick(
   file: File,
   onProgress?: (percent: number) => void,
+  options: { skipOcr?: boolean } = {},
 ): Promise<ProgressivePdfQuick> {
-  // Digital PDFs: skip OCR on the fast path (matches Docling OCR=OFF).
-  const result: PdfReadResult = await readPdfFile(file, onProgress, { skipOcr: true });
+  // Default: OCR on. Pure text PDFs pay nothing (no PNGs). Spreadsheet
+  // screenshots (Indent Cases sheet, etc.) become first-class evidence.
+  const result: PdfReadResult = await readPdfFile(file, onProgress, {
+    skipOcr: options.skipOcr === true,
+  });
   return {
     text: result.text,
     pages: result.truncated ? 40 : result.pages,
     truncated: result.truncated,
     note: result.truncated ? pdfTruncationNote(result.pages) : undefined,
+    images: result.images,
+    ocrBlocks: result.ocrBlocks,
   };
 }
 

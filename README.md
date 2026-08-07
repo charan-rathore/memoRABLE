@@ -77,16 +77,21 @@ npm install
 npm run dev             # → http://localhost:3000
 ```
 
+### PDF path (pdf.js + selective OCR)
+
+**pdf.js layout is always the default.** Embedded images (spreadsheets/screenshots)
+are OCR’d when present; pure text PDFs skip OCR and stay fast.
+
 ### Optional: Docling refine (experimental, research-only)
 
-**pdf.js is always the default.** Docling never blocks the UI.
+Docling never blocks the UI.
 
 ```bash
 npm run docgraph                              # sidecar → http://127.0.0.1:8765
 NEXT_PUBLIC_DOCGRAPH=1 npm run dev            # allow selective background refine
 ```
 
-With the flag on, uploads still parse via pdf.js in ~1–3s. Docling may refine in the background only for research-like / long / table-heavy PDFs, and only replaces memories when quality improves. SHA-256 parse cache avoids re-parsing. Graphify-schema graphs are built in TypeScript (not on the Docling critical path). See [services/docgraph/README.md](services/docgraph/README.md).
+With the flag on, uploads still parse via pdf.js first. Docling may refine in the background only for research-like / long / table-heavy PDFs, and only replaces memories when quality improves. SHA-256 parse cache avoids re-parsing. Graphify-schema graphs are built in TypeScript (not on the Docling critical path). See [services/docgraph/README.md](services/docgraph/README.md).
 
 | Command | What it does |
 | --- | --- |

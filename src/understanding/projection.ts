@@ -108,12 +108,19 @@ export function strongestCategory(text: string): PrecedenceKind | null {
 }
 
 /**
- * Decision inference is forbidden when a stronger category already matches.
- * Precedence: Requirement > Risk > Action > Decision.
+ * Decision inference is forbidden when a stronger *non-decision* category matches.
+ *
+ * Precedence for *routing away* from Decisions: Risk > Action > Decision.
+ * Requirements project *into* Decisions (Generic Knowledge furniture for
+ * "must/shall/required" product rules). Delivery phases stay on Timeline.
  */
 export function blocksDecisionInference(text: string): boolean {
+  const t = text.trim();
+  if (!t) return false;
+  // Phases are timeline delivery structure — never Decisions.
+  if (PHASE_SHAPE.test(t)) return true;
   const strong = strongestCategory(text);
-  return strong === "requirement" || strong === "risk" || strong === "action";
+  return strong === "risk" || strong === "action";
 }
 
 /** Explicit commitment verbs required for Slides (and problem sections). */

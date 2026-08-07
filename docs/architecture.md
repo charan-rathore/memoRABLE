@@ -8,13 +8,17 @@ memoRABLE is a single Next.js 15 (App Router) application. Everything interestin
 Upload PDF
       │
       ▼
-pdf.js (default, ~1–3s) ──► memories immediately
+pdf.js layout (+ selective OCR for embedded images)
+      │  pure text PDFs stay fast (no PNGs → no OCR)
       │
       ├─ Graphify-schema KG in TypeScript (research)
       │
       └─ optional background Docling refine
          (NEXT_PUBLIC_DOCGRAPH=1 + research/long/table-heavy)
          → SHA-256 cache → replace only if improved
+      │
+      ▼
+Hybrid segment + document graph
       │
       ▼
 Deterministic Archetype Scoring
@@ -27,10 +31,8 @@ Known Archetype   Generic Knowledge
       │              │
       └──────┬───────┘
              ▼
-Universal Cognitive Engine
-             │
-             ▼
-Universal Observations
+Understanding (primary: S/D/R/T/A from meaning)
+  + structural enrich (same-line authority)
              │
              ▼
 Semantic Compression
@@ -42,6 +44,8 @@ Adaptive Memory Projection
 Evidence-Linked Memory Cards
   (+ optional knowledgeGraph)
 ```
+
+See also [semantic-fix-plan.md](./semantic-fix-plan.md) for the ordered PR sequence.
 
 **Principle: Projection is adaptive, understanding is universal.**
 

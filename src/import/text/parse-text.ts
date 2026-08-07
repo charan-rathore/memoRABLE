@@ -78,28 +78,17 @@ import {
 /**
  * Lossless local Text/Markdown parser (reliability layer 2).
  *
- * The parser runs in two passes over the same sections, and the order matters.
+ * Primary path: hybrid segment → document graph → understand (all five list
+ * memories) → structural enrich. Structure still wins on the same source line
+ * (author filing is authority), but understanding is no longer a tiny gap-fill
+ * budget — it is how prose without memory headings becomes memories.
  *
- * First the document is *understood*: its intent is read, its recurring
- * concepts are found, its sentences are distilled with restatements removed,
- * and candidate memories are inferred from what those sentences mean. Nothing
- * has been classified yet at this point, which is deliberate. Classifying raw
- * paragraphs can only preserve the shape a document happened to be typed in.
+ * Section kinds come from: (1) heading synonyms, (2) content shape, (3) graph
+ * node type when still unknown.
  *
- * Then the structural pass runs as it always has: a section is assigned to a
- * memory by its heading when the heading names one ("Risks", "Implementation
- * Rules"), otherwise by the shape of its lines. Strict patterns run first;
- * only if they recognize nothing does a lenient pass record the remaining list
- * items, leaving every unstated field undefined.
- *
- * Finally the two are merged. Structural entries win, because a line the
- * author bulleted under "Risks" is a risk on their authority rather than ours.
- * Understanding fills the gaps: reasoning the structural pass had no way to
- * see, and memories stated in prose that no heading ever announced.
- *
- * Anything still unassigned is preserved verbatim as notes. The parser never
- * invents owners, dates, metrics, severities or statuses, never produces a
- * memory without the sentence it came from, and never calls the network or AI.
+ * Anything still unassigned is preserved as notes. The parser never invents
+ * owners/dates/metrics, never produces a memory without a source sentence, and
+ * never calls the network or AI.
  */
 
 export interface TextImportInput {
@@ -209,12 +198,13 @@ export function parseText(input: TextImportInput): Result<MemoryDocument> {
     }
   }
 
+  // Graph node types assign remaining unknown sections (RFC Stage 4 → extract).
+  assignKindsFromGraph(sections, graph);
+
   const warnings: ImportWarning[] = [];
   const leftovers = sections.filter((s) => s.kind === null);
 
-  // Understand before classifying. Every section is read, including the ones
-  // no heading claimed, because a document's most quotable sentence is rarely
-  // filed under a heading that names what it is.
+  // Understand every section (including unheaded prose) before structural merge.
   const understanding = understand({
     title,
     sourceLabel: label,
@@ -353,6 +343,49 @@ function graphWarnings(
   if (types.has("image")) parts.push("embedded visuals linked");
   if (types.has("requirement") || types.has("decision")) parts.push("requirements grounded");
   return [{ code: "text.understood", message: `${parts.join("; ")}.` }];
+}
+
+/**
+ * Map graph node types onto memory kinds when headings did not name one.
+ * Requirements project into Decisions (Generic Knowledge furniture).
+ */
+function graphTypeToKind(
+  type: ReturnType<typeof buildDocumentGraph>["nodes"][number]["type"],
+): BlockKind | null {
+  switch (type) {
+    case "requirement":
+    case "decision":
+      return "decisions";
+    case "risk":
+      return "risks";
+    case "metric":
+    case "question":
+      return "signals";
+    default:
+      return null;
+  }
+}
+
+function assignKindsFromGraph(
+  sections: Section[],
+  graph: ReturnType<typeof buildDocumentGraph>,
+): void {
+  if (graph.nodes.length === 0) return;
+  for (const section of sections) {
+    if (section.kind !== null) continue;
+    const title = section.headingText?.trim().toLowerCase() ?? "";
+    if (!title) continue;
+    const node = graph.nodes.find((n) => {
+      const nt = n.title?.trim().toLowerCase() ?? "";
+      if (!nt) return false;
+      return nt === title || title.includes(nt) || nt.includes(title);
+    });
+    if (!node) continue;
+    const kind = graphTypeToKind(node.type);
+    if (!kind) continue;
+    section.kind = kind;
+    section.assigned = true;
+  }
 }
 
 function entriesOf<T>(built: ReadonlyMap<BlockKind, BlockInput>, kind: BlockKind): T[] {
@@ -522,7 +555,11 @@ interface ActionLike {
 /** Say what understanding actually did, in counts the reader can check. */
 function understandingWarnings(understanding: Understanding): ImportWarning[] {
   const inferred =
-    understanding.signals.length + understanding.decisions.length + understanding.risks.length;
+    understanding.signals.length +
+    understanding.decisions.length +
+    understanding.risks.length +
+    understanding.timeline.length +
+    understanding.actions.length;
   const parts: string[] = [];
   parts.push(
     `Read ${understanding.distilled} distinct statements as a ${understanding.intent.kind} (${understanding.archetype.label}, timeline ${understanding.archetype.timelineMode})`,
@@ -533,7 +570,11 @@ function understandingWarnings(understanding: Understanding): ImportWarning[] {
     parts.push("no date anchor");
   }
   if (understanding.redundant > 0) parts.push(`set aside ${understanding.redundant} restatements`);
-  if (inferred > 0) parts.push(`inferred ${inferred} memories from what they mean`);
+  if (inferred > 0) {
+    parts.push(
+      `inferred ${inferred} memories from meaning (S${understanding.signals.length}/D${understanding.decisions.length}/R${understanding.risks.length}/T${understanding.timeline.length}/A${understanding.actions.length})`,
+    );
+  }
   if (inferred === 0 && understanding.redundant === 0 && understanding.distilled === 0) return [];
   return [{ code: "text.understood", message: `${parts.join(", ")}.` }];
 }
@@ -732,9 +773,15 @@ function buildEntriesPayload(
     }
     case "timeline": {
       const built = collect(parseTimelineLine, parseTimelineLineLenient);
+      mergeTimeline(built, ctx, notes);
       if (ctx.extraTimeline.length > 0) {
         const room = LIMITS.maxEntriesPerBlock - built.entries.length;
-        built.entries.push(...ctx.extraTimeline.slice(0, Math.max(0, room)));
+        for (const extra of ctx.extraTimeline.slice(0, Math.max(0, room))) {
+          if (built.entries.some((e) => e.date === extra.date && saysTheSame(e.title, extra.title))) {
+            continue;
+          }
+          built.entries.push(extra);
+        }
       }
       built.entries = dedupeByMeaning(built.entries, (e) => `${e.date} ${e.title}`);
       return finish(built);
@@ -756,6 +803,7 @@ function buildEntriesPayload(
         if (built.entries.length >= LIMITS.maxEntriesPerBlock) break;
         built.entries.unshift({ task, status: "pending" });
       }
+      mergeActions(built, ctx, notes);
       built.entries = dedupeByMeaning(built.entries, (e) => e.task);
       return finish(built);
     }
@@ -765,12 +813,12 @@ function buildEntriesPayload(
 /* ----------------------------- merging the passes --------------------------- */
 
 /**
- * How many inferred memories may join a structural list.
+ * How many inferred memories may join each structural list.
  *
- * Understanding is there to catch what the headings missed, not to bury them.
- * A block that arrives half-inferred stops reading like the author's document.
+ * Understanding is the primary recovery path for unheaded prose; the budget is
+ * high enough to fill empty blocks without drowning an already-rich section.
  */
-const INFERRED_BUDGET = 6;
+const INFERRED_BUDGET = 24;
 
 /** True when this line already became an entry somewhere, in any block. */
 function alreadyUsed(lineNo: number, lineOf: ReadonlyArray<number | null>): boolean {
@@ -857,6 +905,61 @@ function mergeRisks(built: Collected<RiskEntry>, ctx: BuildContext, notes: strin
       risk: value.risk,
       ...(value.because ? { because: value.because } : {}),
       ...(value.consequence ? { consequence: value.consequence } : {}),
+    });
+    built.lineOf.push(evidence.lineNo);
+    dropNote(notes, evidence.text);
+    added++;
+  }
+}
+
+function mergeTimeline(built: Collected<TimelineEntry>, ctx: BuildContext, notes: string[]): void {
+  if (ctx.understanding.archetype.timelineMode === "none") return;
+  let added = 0;
+  for (const candidate of ctx.understanding.timeline) {
+    const { value, evidence } = candidate;
+    const existing = built.entries.findIndex((_, i) => built.lineOf[i] === evidence.lineNo);
+    if (existing >= 0) continue;
+    if (added >= INFERRED_BUDGET) continue;
+    if (built.entries.length >= LIMITS.maxEntriesPerBlock) break;
+    if (alreadyUsed(evidence.lineNo, built.lineOf)) continue;
+    if (built.entries.some((e) => e.date === value.date && saysTheSame(e.title, value.title))) {
+      continue;
+    }
+    built.entries.push({
+      date: value.date,
+      title: value.title,
+      state: value.state ?? "planned",
+      ...(value.produces ? { produces: value.produces } : {}),
+      ...(value.requires ? { requires: value.requires } : {}),
+    });
+    built.lineOf.push(evidence.lineNo);
+    dropNote(notes, evidence.text);
+    added++;
+  }
+}
+
+function mergeActions(built: Collected<ActionEntry>, ctx: BuildContext, notes: string[]): void {
+  let added = 0;
+  for (const candidate of ctx.understanding.actions) {
+    const { value, evidence } = candidate;
+    const existing = built.entries.findIndex((_, i) => built.lineOf[i] === evidence.lineNo);
+    if (existing >= 0) {
+      const entry = built.entries[existing]!;
+      if (!entry.owner && value.owner) entry.owner = value.owner;
+      if (!entry.due && value.due) entry.due = value.due;
+      if (!entry.from && value.from) entry.from = value.from;
+      continue;
+    }
+    if (added >= INFERRED_BUDGET) continue;
+    if (built.entries.length >= LIMITS.maxEntriesPerBlock) break;
+    if (alreadyUsed(evidence.lineNo, built.lineOf)) continue;
+    if (built.entries.some((e) => saysTheSame(e.task, value.task))) continue;
+    built.entries.push({
+      task: value.task,
+      status: value.status ?? "pending",
+      ...(value.owner ? { owner: value.owner } : {}),
+      ...(value.due ? { due: value.due } : {}),
+      ...(value.from ? { from: value.from } : {}),
     });
     built.lineOf.push(evidence.lineNo);
     dropNote(notes, evidence.text);

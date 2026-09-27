@@ -42,6 +42,7 @@ export interface DocumentInput {
   archetype?: MemoryDocument["archetype"];
   /** Optional Graphify-schema paper/concept graph. */
   knowledgeGraph?: KnowledgeGraph;
+  evidenceReport?: MemoryDocument["evidenceReport"];
 }
 
 export function buildBlockId(kind: BlockKind, title: string, payload: unknown, locator: string): string {
@@ -73,6 +74,7 @@ export function finalizeDocument(input: DocumentInput): MemoryDocument {
     warnings: input.warnings,
     ...(input.archetype ? { archetype: input.archetype } : {}),
     ...(input.knowledgeGraph ? { knowledgeGraph: input.knowledgeGraph } : {}),
+    ...(input.evidenceReport ? { evidenceReport: input.evidenceReport } : {}),
   };
 
   const hash = contentHashOf(draft);

@@ -338,6 +338,13 @@ export function parseDecisionLine(raw: string): DecisionEntry | null {
   // explicit status, a decision has to read like a statement.
   if (!ref && !foundStatus && rest.split(/\s+/).length < 3 && !/[.!?]$/.test(rest)) return null;
   if (rest.length < 2) return null;
+  // A past-tense approval in the sentence body is a source-stated status,
+  // not the default "proposed". Negated approvals must never pass this gate.
+  if (status === "proposed" && !foundStatus &&
+      /\b(?:the board|the team|committee|leadership) approved\b/i.test(rest) &&
+      !/\b(?:did not|never|not) approve(?:d)?\b/i.test(rest)) {
+    status = "approved";
+  }
   // Status (proposed/approved/…) and commitment (committed/considered) are
   // both kept — compressing them into one field loses the cognitive layer.
   const commitment =
@@ -721,7 +728,10 @@ export function parseActionLine(raw: string): ActionEntry | null {
   const story = parseUserStoryLine(raw);
   if (story) return story;
   const cells = splitTableRow(raw);
-  if (cells && cells.length >= 3 && cells[0] && cells[1] && cells[2]) {
+  if (cells && cells.length >= 3 && cells[0] && cells[1] && cells[2] &&
+    !/^(task|action|item)$/i.test(cells[0]) &&
+    !/[$€£\d]/.test(cells[1]) &&
+    looksLikeDate(cells[2])) {
     const status = inferReadiness(cells.slice(3).join(" ") || cells[0]);
     return { task: cells[0], owner: cells[1], due: cells[2], status };
   }

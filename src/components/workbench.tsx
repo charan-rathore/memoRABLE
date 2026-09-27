@@ -470,13 +470,9 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
               blocks={state.document?.blocks ?? []}
               selectedBlockId={state.selectedBlockId}
               onSelect={(id) => {
+                // Selection keeps the rail usable for arranging memories.
+                // The inspector's "View source" button opens the modal on demand.
                 dispatch({ type: "blockSelected", blockId: id });
-                if (id && state.document) {
-                  const block = state.document.blocks.find((b) => b.id === id) ?? null;
-                  if (block) setSourceModal(block);
-                } else {
-                  setSourceModal(null);
-                }
               }}
               onHover={setHoveredBlockId}
               onMove={moveBlock}

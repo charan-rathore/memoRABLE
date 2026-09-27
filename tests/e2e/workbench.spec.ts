@@ -225,6 +225,10 @@ test.describe("remember + arrange", () => {
     await expect(inspector.getByText("Remembered from")).toBeVisible();
     await expect(inspector.getByText("Exact JSON")).toBeVisible();
     await expect(inspector.getByText(/blocks\[1\]/)).toBeVisible();
+    await inspector.getByRole("button", { name: "View source" }).click();
+    await expect(page.getByRole("dialog", { name: "Remembered from" })).toBeVisible();
+    await page.getByRole("button", { name: "Close source view" }).click();
+    await expect(page.getByRole("dialog", { name: "Remembered from" })).toHaveCount(0);
   });
 
   test("up/down buttons rearrange the memories and the new order sticks", async ({ page, isMobile }) => {
@@ -232,6 +236,9 @@ test.describe("remember + arrange", () => {
     await enterWorkbench(page);
 
     await page.getByRole("button", { name: "Signals: show details" }).click();
+    // Selecting a memory shows its inspector, not a modal that blocks the rail.
+    await expect(page.getByTestId("inspector")).toBeVisible();
+    await expect(page.getByRole("dialog", { name: "Remembered from" })).toHaveCount(0);
     await page.getByRole("button", { name: "Move Signals down" }).click();
 
     await expect(memNames(page)).toHaveText([

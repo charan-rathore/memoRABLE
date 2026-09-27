@@ -117,3 +117,17 @@ describe("product PDF path — OCR defaults on", () => {
     expect(src).toMatch(/skipOcr:\s*options\.skipOcr\s*===\s*true/);
   });
 });
+
+describe('semantic corpus regressions', () => {
+  it('does not create an action from a vendor-price table', () => {
+    const source = '# Vendor bids\n\n| Bidder | Price | Delivery |\n| --- | --- | --- |\n| Aster | $7,200 | 14 days |\n';
+    const result = importSource({raw: source,label:'bids.md'});
+    expect(result.ok).toBe(true);
+    if(result.ok) expect(payloadOf<ActionsPayload>(result.value,'actions').entries).toEqual([]);
+  });
+  it('does not present a denied loss as a risk', () => {
+    const result=importSource({raw:'# Incident\n\nNo messages were lost. Please audit the worker limit tomorrow.',label:'incident.txt'});
+    expect(result.ok).toBe(true);
+    if(result.ok) expect(result.value.blocks.find(b=>b.kind==='risks')?.payload).not.toMatchObject({entries:[{risk:'No messages were lost'}]});
+  });
+});

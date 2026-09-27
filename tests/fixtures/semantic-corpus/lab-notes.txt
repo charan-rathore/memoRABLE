@@ -1,0 +1,1 @@
+Trial A used 30 samples and found 12 failures. Trial B used 30 samples and found 4 failures. The batches came from different suppliers, so these figures do not establish a causal effect of the new method.

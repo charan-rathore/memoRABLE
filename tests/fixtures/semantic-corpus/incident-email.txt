@@ -1,0 +1,5 @@
+From: ops@sample.invalid
+To: team@sample.invalid
+Subject: Queue incident
+
+At 09:10 the queue backed up because the worker pool was capped at four. We restored service at 10:05 by raising the cap to eight. No messages were lost. Please audit the pool limit tomorrow.

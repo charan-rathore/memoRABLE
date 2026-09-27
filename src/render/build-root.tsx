@@ -19,6 +19,8 @@ import { resolveTheme } from "./themes";
 import { escapeHtml, inlineLink, inlineText } from "./safe-inline";
 import { renderBlockRows, type RenderedBlock } from "./block-registry";
 import { roman, type BlockRenderContext } from "./blocks/common";
+import { insightStoryRows } from "./insight-story";
+import { evidenceStoryRows } from "./evidence-story";
 
 /**
  * Root builders. Each returns the direct root element (<Email>/<Page>/
@@ -67,6 +69,9 @@ export function buildRoot(
   // `<a name="…">` — the empty-name form that survives Gmail, Outlook Windows
   // and Chrome's print-to-PDF. Item-level `_meta.htmlID` would not.
   const blockRows = renderedBlocks.flatMap((b) => anchoredRows(b));
+  const coverCount = coverRowCount(renderedBlocks);
+  const coverRows = blockRows.slice(0, coverCount);
+  const storyRows = doc.evidenceReport ? evidenceStoryRows(doc,theme) : insightStoryRows(doc, mode, theme);
 
   if (mode === "email") {
     return {
@@ -84,7 +89,9 @@ export function buildRoot(
         >
           {emailHeaderRows(doc, theme)}
           {theme.chrome.showConversation ? conversationRows(doc, theme) : null}
-          {blockRows}
+          {coverRows}
+          {storyRows}
+          {blockRows.slice(coverCount)}
           {emailFooterRows(doc, theme)}
         </Email>
       ),
@@ -104,10 +111,11 @@ export function buildRoot(
           linkStyle={{ linkColor: palette.accent, linkUnderline: false }}
           _meta={{ htmlID: "u_content_body_1" }}
         >
-          {blockRows.slice(0, coverRowCount(renderedBlocks))}
+          {coverRows}
+          {storyRows}
           {theme.chrome.showToc ? contentsRows(doc, theme) : null}
           {theme.chrome.showConversation ? conversationRows(doc, theme) : null}
-          {blockRows.slice(coverRowCount(renderedBlocks))}
+          {blockRows.slice(coverCount)}
           {documentFooterRows(doc, theme)}
         </Document>
       ),
@@ -128,7 +136,9 @@ export function buildRoot(
       >
         {theme.chrome.showNavMenu ? webNavRows(doc, theme) : null}
         {theme.chrome.showConversation ? conversationRows(doc, theme) : null}
-        {blockRows}
+        {coverRows}
+        {storyRows}
+        {blockRows.slice(coverCount)}
         {webFooterRows(doc, theme)}
       </Page>
     ),
@@ -151,7 +161,11 @@ function surfaceFor(mode: OutputMode, position: number, theme: PublishTheme = re
 }
 
 function coverRowCount(blocks: RenderedBlock[]): number {
-  return blocks[0]?.rows.length ?? 0;
+  const rows = blocks[0]?.rows ?? [];
+  // Keep source notes after the verified front report, not between the cover
+  // and the reader's first useful takeaway.
+  const notesAt = rows.findIndex((row) => String(row.key).endsWith("-notes-label"));
+  return notesAt >= 0 ? notesAt : rows.length;
 }
 
 function anchoredRows(block: RenderedBlock): ReactElement[] {
@@ -538,6 +552,8 @@ function provenanceLine(doc: MemoryDocument): string {
 }
 
 function previewTextOf(doc: MemoryDocument): string {
+  const verified = doc.evidenceReport?.takeaways[0]?.claim;
+  if (verified) return escapeHtml(verified.replace(/\s+/g, ' ').trim()).slice(0, 140);
   const snapshot = doc.blocks.find((b) => b.kind === "snapshot");
   const payload = snapshot && "summary" in snapshot.payload ? snapshot.payload : null;
   const lead =

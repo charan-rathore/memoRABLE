@@ -363,6 +363,9 @@ export function readRisk(text: string): InferredRisk | null {
   // A risk needs trouble somewhere in it, or a stated consequence that makes
   // the trouble explicit. Neither present means this is just a sentence.
   if (!TROUBLE.test(flat) && !consequenceMatch) return null;
+  // A denial of damage is not evidence of damage. A separate limitation
+  // (such as an untested condition) may still be a risk in its own sentence.
+  if (/^(?:no\s+.+?\s+(?:were|was|are|is)\s+(?:lost|damaged|missed)|(?:the\s+)?(?:test|trial|experiment)\s+did\s+not\s+find\s+(?:any\s+)?(?:failure|overheating|error|damage))\b/i.test(flat)) return null;
 
   let observation = flat;
   let consequence: string | undefined;

@@ -1,0 +1,5 @@
+import {readFileSync}from'node:fs';import{describe,it,expect}from'vitest';import{importSource}from'@/import/import-source';import{readPdfBytes}from'@/import/pdf/read-structured';import{buildEvidenceReport}from'@/understanding/evidence-engine';
+const corpus=JSON.parse(readFileSync('tests/fixtures/semantic-corpus/manifest.json','utf8')) as Array<{file:string;must:string[]}>;
+describe('28-document evidence gate',()=>{
+ for(const item of corpus)it(item.file,async()=>{const buf=readFileSync('tests/fixtures/semantic-corpus/'+item.file),raw=item.file.endsWith('.pdf')?(await readPdfBytes(new Uint8Array(buf),{skipOcr:true})).text:buf.toString('utf8');const r=importSource({raw,label:item.file});expect(r.ok).toBe(true);if(!r.ok)return;const report=buildEvidenceReport(raw,r.value);for(const claim of [...report.takeaways,...report.hidden])for(const premise of claim.premises){const line=raw.split('\n')[premise.line-1];expect(line?.slice(premise.start,premise.end)).toBe(premise.quote);expect(claim.kind==='stated'||claim.kind==='inferred').toBe(true)}expect(report.takeaways.length).toBeLessThanOrEqual(5);expect(report.hidden.length).toBeLessThanOrEqual(3)});
+});

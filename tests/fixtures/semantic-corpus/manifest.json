@@ -1,0 +1,388 @@
+[
+  {
+    "file": "launch-brief.md",
+    "format": "brief",
+    "must": [
+      "10 minutes",
+      "6 minutes",
+      "conference",
+      "Legal",
+      "Mira"
+    ],
+    "forbid": [
+      "3 minutes",
+      "October 18"
+    ]
+  },
+  {
+    "file": "engineering-readme.md",
+    "format": "README",
+    "must": [
+      "checksum",
+      "npm test",
+      "not shared",
+      "API token"
+    ],
+    "forbid": [
+      "cloud sync"
+    ]
+  },
+  {
+    "file": "incident-email.txt",
+    "format": "email",
+    "must": [
+      "09:10",
+      "four",
+      "10:05",
+      "eight",
+      "No messages were lost",
+      "audit"
+    ],
+    "forbid": [
+      "messages were lost"
+    ]
+  },
+  {
+    "file": "board-report.md",
+    "format": "report",
+    "must": [
+      "$2.4m",
+      "12%",
+      "38%",
+      "42%",
+      "hiring freeze",
+      "Support backlog"
+    ],
+    "forbid": [
+      "48%",
+      "hiring expansion"
+    ]
+  },
+  {
+    "file": "meeting-notes.md",
+    "format": "notes",
+    "must": [
+      "considered",
+      "did not approve",
+      "contrast",
+      "Anya",
+      "Friday"
+    ],
+    "forbid": [
+      "dark-mode approved"
+    ]
+  },
+  {
+    "file": "contract.md",
+    "format": "contract",
+    "must": [
+      "12 monthly reports",
+      "30 days",
+      "$900",
+      "No automatic renewal"
+    ],
+    "forbid": [
+      "automatic renewal",
+      "90 days"
+    ]
+  },
+  {
+    "file": "invoice.md",
+    "format": "invoice",
+    "must": [
+      "INV-042",
+      "$700",
+      "$300",
+      "$1,100",
+      "2026-10-01"
+    ],
+    "forbid": [
+      "$1,200"
+    ]
+  },
+  {
+    "file": "research-abstract.md",
+    "format": "research",
+    "must": [
+      "120 participants",
+      "54%",
+      "68%",
+      "long-term retention",
+      "one city"
+    ],
+    "forbid": [
+      "retention improved"
+    ]
+  },
+  {
+    "file": "policy.md",
+    "format": "policy",
+    "must": [
+      "$25",
+      "$500",
+      "before booking",
+      "not from receipt"
+    ],
+    "forbid": [
+      "medical travel needs no receipt"
+    ]
+  },
+  {
+    "file": "sprint-ticket.md",
+    "format": "ticket",
+    "must": [
+      "60 seconds",
+      "empty query",
+      "stale results",
+      "Leo",
+      "October 3"
+    ],
+    "forbid": [
+      "6 seconds"
+    ]
+  },
+  {
+    "file": "release-notes.md",
+    "format": "release",
+    "must": [
+      "preserves links",
+      "overflow",
+      "narrow screens",
+      "2.1.1"
+    ],
+    "forbid": [
+      "fixed large tables"
+    ]
+  },
+  {
+    "file": "customer-interview.txt",
+    "format": "interview",
+    "must": [
+      "copied into spreadsheets",
+      "no CSV export",
+      "suggested weekly reports",
+      "not a purchase commitment"
+    ],
+    "forbid": [
+      "weekly reports purchased"
+    ]
+  },
+  {
+    "file": "comparison.md",
+    "format": "comparison",
+    "must": [
+      "30ms",
+      "$0",
+      "80ms",
+      "$40",
+      "not made a final decision"
+    ],
+    "forbid": [
+      "Hosted selected"
+    ]
+  },
+  {
+    "file": "resume.md",
+    "format": "resume",
+    "must": [
+      "Oak Labs",
+      "2022-2025",
+      "Python",
+      "SQL",
+      "BSc"
+    ],
+    "forbid": [
+      "MSc"
+    ]
+  },
+  {
+    "file": "travel-itinerary.md",
+    "format": "itinerary",
+    "must": [
+      "October 10",
+      "08:00",
+      "10:30",
+      "October 11",
+      "13:00",
+      "October 8"
+    ],
+    "forbid": [
+      "October 12"
+    ]
+  },
+  {
+    "file": "grant-proposal.md",
+    "format": "proposal",
+    "must": [
+      "$18,000",
+      "six laptops",
+      "40 students",
+      "requested, not awarded",
+      "If approved"
+    ],
+    "forbid": [
+      "grant awarded"
+    ]
+  },
+  {
+    "file": "support-thread.txt",
+    "format": "thread",
+    "must": [
+      "403",
+      "mobile",
+      "desktop works",
+      "not reproduced",
+      "screen recording"
+    ],
+    "forbid": [
+      "resolved"
+    ]
+  },
+  {
+    "file": "lab-notes.txt",
+    "format": "lab",
+    "must": [
+      "30 samples",
+      "12 failures",
+      "4 failures",
+      "different suppliers",
+      "do not establish"
+    ],
+    "forbid": [
+      "causal effect established"
+    ]
+  },
+  {
+    "file": "mixed-language.md",
+    "format": "notes",
+    "must": [
+      "15 de octubre",
+      "\u20ac250",
+      "not been received"
+    ],
+    "forbid": [
+      "payment received"
+    ]
+  },
+  {
+    "file": "ambiguous-dates.md",
+    "format": "notes",
+    "must": [
+      "if the permit arrives",
+      "Nothing has been booked",
+      "draft target",
+      "not a deadline"
+    ],
+    "forbid": [
+      "booked",
+      "confirmed deadline"
+    ]
+  },
+  {
+    "file": "negation.md",
+    "format": "notes",
+    "must": [
+      "not approved",
+      "did not find overheating",
+      "no wet-condition test"
+    ],
+    "forbid": [
+      "approved near water",
+      "wet-condition safety proven"
+    ]
+  },
+  {
+    "file": "table-heavy.md",
+    "format": "report",
+    "must": [
+      "$7,200",
+      "14 days",
+      "$6,900",
+      "21 days",
+      "No vendor has been chosen"
+    ],
+    "forbid": [
+      "Birch chosen"
+    ]
+  },
+  {
+    "file": "multi-section.md",
+    "format": "spec",
+    "must": [
+      "queue edits",
+      "never silently overwritten",
+      "attachments",
+      "Measure conflict frequency"
+    ],
+    "forbid": [
+      "attachments approved to sync"
+    ]
+  },
+  {
+    "file": "press-brief.md",
+    "format": "brief",
+    "must": [
+      "plans",
+      "date has not been set",
+      "82%",
+      "95% target"
+    ],
+    "forbid": [
+      "launched",
+      "95% achieved"
+    ]
+  },
+  {
+    "file": "long-noisy.md",
+    "format": "report",
+    "must": [
+      "two of eight",
+      "replenishment order",
+      "October 14"
+    ],
+    "forbid": [
+      "eight of eight sites late"
+    ]
+  },
+  {
+    "file": "status.pdf",
+    "format": "PDF status",
+    "must": [
+      "24 teams",
+      "30",
+      "pending",
+      "defer",
+      "Jun"
+    ],
+    "forbid": [
+      "approval granted"
+    ]
+  },
+  {
+    "file": "letter.pdf",
+    "format": "PDF letter",
+    "must": [
+      "50",
+      "8",
+      "October 19",
+      "No offer"
+    ],
+    "forbid": [
+      "offer accepted"
+    ]
+  },
+  {
+    "file": "receipts.pdf",
+    "format": "PDF invoice",
+    "must": [
+      "REF-991",
+      "$240",
+      "$20",
+      "$260",
+      "October 12"
+    ],
+    "forbid": [
+      "$280"
+    ]
+  }
+]

@@ -1,0 +1,6 @@
+From: Lee
+Subject: Login issue
+The customer reports a 403 on mobile but says desktop works.
+
+From: Support
+We have not reproduced it. Please send a screen recording before engineering investigates.

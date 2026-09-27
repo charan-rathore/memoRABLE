@@ -70,6 +70,7 @@ export function canonicalDocumentProjection(doc: MemoryDocument): unknown {
     relations: doc.relations,
     ...(doc.archetype ? { archetype: doc.archetype } : {}),
     ...(doc.knowledgeGraph ? { knowledgeGraph: doc.knowledgeGraph } : {}),
+    ...(doc.evidenceReport ? { evidenceReport: doc.evidenceReport } : {}),
   };
 }
 

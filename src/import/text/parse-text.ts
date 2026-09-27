@@ -1,6 +1,7 @@
 import { ok, type Result } from "@/reliability/result";
 import type { Diagnostic } from "@/reliability/diagnostics";
 import { finalizeDocument, type BlockInput } from "@/domain/memory/normalize";
+import { contentHashOf, shortHash } from "@/domain/memory/canonicalize";
 import {
   BLOCK_KINDS,
   type ActionEntry,
@@ -9,6 +10,7 @@ import {
   type ImportWarning,
   type MemoryDocument,
   type RiskEntry,
+  type SnapshotPayload,
   type SignalEntry,
   type TimelineEntry,
 } from "@/domain/memory/schema";
@@ -24,6 +26,7 @@ import {
   type Understanding,
 } from "@/understanding";
 import { buildResearchWorldModel } from "@/understanding/research";
+import { buildEvidenceReport } from "@/understanding/evidence-engine";
 import {
   buildResearchKnowledgeGraph,
   mergeKnowledgeGraphs,
@@ -323,8 +326,23 @@ export function parseText(input: TextImportInput): Result<MemoryDocument> {
     },
     ...(researchGraph ? { knowledgeGraph: researchGraph } : {}),
   });
+  const evidenceReport = buildEvidenceReport(input.text, document);
+  // When section routing finds no synopsis, the cover must not pretend to
+  // summarize. Lead with an exact source-backed fact instead, if one exists.
+  const snapshot = document.blocks.find((block) => block.kind === "snapshot");
+  const cover = snapshot?.payload as SnapshotPayload | undefined;
+  if (cover &&
+      (cover.summary.startsWith("Nothing here reads as a summary yet") ||
+       /^\s*\|[^\n]+\|/.test(cover.summary))) {
+    const lead = evidenceReport.takeaways.find((item) =>
+      !/^\s*\|/.test(item.claim) && item.claim.length <= 240,
+    );
+    if (lead) cover.summary = lead.claim;
+  }
+  const withEvidence = { ...document, evidenceReport };
+  const contentHash = contentHashOf(withEvidence);
   return ok(
-    document,
+    { ...withEvidence, contentHash, documentId: `doc_${shortHash(contentHash)}` },
     warnings.map((w) => ({ code: w.code as Diagnostic["code"], message: w.message })),
   );
 }
@@ -879,6 +897,11 @@ function mergeDecisions(built: Collected<DecisionEntry>, ctx: BuildContext, note
       const entry = built.entries[existing]!;
       if (!entry.because && value.because) entry.because = value.because;
       entry.commitment = value.commitment;
+      if (entry.status === "proposed" &&
+          /\b(?:the board|the team|committee|leadership) approved\b/i.test(evidence.text) &&
+          !/\b(?:did not|never|not) approve(?:d)?\b/i.test(evidence.text)) {
+        entry.status = "approved";
+      }
       continue;
     }
     // A suggestion is not a decision. Only settled positions may join a list

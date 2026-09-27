@@ -446,6 +446,12 @@ export const importWarningSchema = z
   })
   .strict();
 
+/** Exact evidence coordinates and a conservative stated/inferred distinction. */
+export const evidenceSpanSchema = z.object({page:z.number().int().positive().nullable(),line:z.number().int().positive(),start:z.number().int().nonnegative(),end:z.number().int().nonnegative(),quote:z.string().min(1).max(2000)}).strict();
+export const evidenceInsightSchema = z.object({kind:z.enum(['stated','inferred']),title:z.string().min(1).max(100),claim:z.string().min(1).max(2000),premises:z.array(evidenceSpanSchema).min(1).max(4),rule:z.enum(['exact','difference','scope-gap','target-gap','tradeoff','mixed-metrics'])}).strict();
+export const evidenceReportSchema = z.object({takeaways:z.array(evidenceInsightSchema).max(5),hidden:z.array(evidenceInsightSchema).max(3),rejected:z.array(z.string().max(400)).max(30)}).strict();
+export type EvidenceReportData=z.infer<typeof evidenceReportSchema>;
+
 export const memoryDocumentSchema = z
   .object({
     schemaVersion: z.literal(1),
@@ -467,6 +473,8 @@ export const memoryDocumentSchema = z
      * Separate from `relations`, which link the six memory cards.
      */
     knowledgeGraph: knowledgeGraphSchema.optional(),
+    /** Optional source-verified insight layer for local text/PDF imports. */
+    evidenceReport: evidenceReportSchema.optional(),
   })
   .strict();
 

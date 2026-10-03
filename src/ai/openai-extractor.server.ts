@@ -41,6 +41,7 @@ export async function extractWithAi(
   candidate: MemorySource,
   requestId: string,
   filename?: string,
+  signal?: AbortSignal,
 ): Promise<AiCallOutcome> {
   const started = Date.now();
   const meta: AiCallMeta = { requestId, durationMs: 0, statusClass: "none" };
@@ -84,7 +85,7 @@ export async function extractWithAi(
         temperature: 0,
         response_format: { type: "json_object" },
       }),
-      signal: controller.signal,
+      signal: signal ? AbortSignal.any([signal, controller.signal]) : controller.signal,
     });
     meta.statusClass = `${Math.floor(response.status / 100)}xx`;
 

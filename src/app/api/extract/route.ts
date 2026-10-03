@@ -47,6 +47,8 @@ export async function POST(request: Request) {
     parsed.data.sourceText,
     parsed.data.candidate,
     requestId,
+    undefined,
+    request.signal,
   );
   console.info(
     `[ai] id=${meta.requestId} status=${meta.statusClass} ms=${meta.durationMs}` +

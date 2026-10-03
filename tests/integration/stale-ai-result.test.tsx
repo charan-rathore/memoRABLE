@@ -10,7 +10,7 @@ vi.mock("@/components/home/home-screen", () => ({ HomeScreen: ({ onImport }: { o
 vi.mock("@/components/import/import-stages", () => ({ IMPORT_STAGE_PERCENT: {}, IMPORT_STAGE_LABEL: {}, IMPORT_STAGE_VERB: {}, yieldFrame: async () => {} }));
 vi.mock("@/components/ui/brand-splash", () => ({ BrandSplash: () => null }));
 vi.mock("@/components/ui/demo-video", () => ({ DemoVideo: () => null }));
-vi.mock("@/components/topbar", () => ({ Topbar: ({ documentTitle }: { documentTitle: string }) => <h1>{documentTitle}</h1> }));
+vi.mock("@/components/topbar", () => ({ Topbar: ({ documentTitle, onReplay }: { documentTitle: string; onReplay: () => void }) => <><h1>{documentTitle}</h1><button onClick={onReplay}>Replay</button></> }));
 vi.mock("@/components/import/import-panel", () => ({ ImportPanel: ({ onImproveWithAi, onImport, onEditSource, aiBusy }: { onImproveWithAi: () => void; onImport: (s: string, l: string) => void; onEditSource: (s: string) => void; aiBusy: boolean }) => <><button disabled={aiBusy} onClick={onImproveWithAi}>Improve</button><button onClick={() => onImport(ATLAS_JSON_SOURCE, "B.json")}>Import B</button><button onClick={() => onEditSource("edited")}>Edit source</button></> }));
 vi.mock("@/components/preview/preview-pane", () => ({ PreviewPane: () => null }));
 vi.mock("@/components/blocks/blocks-panel", () => ({ BlocksPanel: () => null }));
@@ -59,4 +59,16 @@ describe("stale AI result ownership", () => {
     expect(signal.aborted).toBe(true);
     await act(async () => { resolve(Response.json({ ok: false })); });
   });
+});
+for (const elapsed of [0, 7100]) it(`new import owns state when replay has elapsed ${elapsed}ms`, async () => {
+  const { resolve } = await start();
+  await act(async () => resolve(Response.json({ ok: false })));
+  vi.useFakeTimers();
+  try {
+    fireEvent.click(screen.getByText("Replay"));
+    await act(async () => vi.advanceTimersByTimeAsync(elapsed));
+    fireEvent.click(screen.getByText("Import B"));
+    await act(async () => vi.advanceTimersByTimeAsync(25000));
+    expect(screen.getByRole("heading")).toHaveTextContent("Q3 Board Report");
+  } finally { vi.useRealTimers(); }
 });

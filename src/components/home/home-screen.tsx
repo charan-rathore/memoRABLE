@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createAsyncOperation } from "../async-operation";
 import type { Diagnostic } from "@/reliability/diagnostics";
 import { formatDiagnostic } from "@/reliability/diagnostics";
 import { detectFormat } from "@/import/import-source";
@@ -65,8 +66,11 @@ export function HomeScreen({
   const [tally, setTally] = useState<string | null>(null);
   useEffect(() => setTally(summarize(readStats())), []);
   const dragDepth = useRef(0);
+  const fileWork = useRef(createAsyncOperation());
+  useEffect(() => () => fileWork.current.cancel(), []);
 
   const openFile = async (file: File) => {
+    const operation = fileWork.current.begin();
     setReadError(null);
     setReadNote(null);
     if (!ACCEPTED.test(file.name) && !isPdfFile(file)) {
@@ -81,8 +85,9 @@ export function HomeScreen({
       if (isPdfFile(file)) {
         setReading({ name: file.name, size: file.size, percent: 4 });
         const quick = await readPdfQuick(file, (percent) => {
-          setReading({ name: file.name, size: file.size, percent });
+          if (operation.isCurrent()) setReading({ name: file.name, size: file.size, percent });
         });
+        if (!operation.isCurrent()) return;
         if (quick.note) setReadNote(quick.note);
         setReading({ name: file.name, size: file.size, percent: 100 });
         const fast = importSource({ raw: quick.text, label: file.name });
@@ -94,6 +99,7 @@ export function HomeScreen({
           pages: quick.pages,
           parseStatus: quick.truncated ? "first 40 pages remembered" : "understood",
         });
+        if (!operation.isCurrent()) return;
         setReading(null);
 
         const beforeArch = fast.ok ? fast.value.archetype?.id : null;
@@ -106,12 +112,14 @@ export function HomeScreen({
 
         scheduleDoclingRefine({
           file,
+          signal: operation.signal,
           quickText: quick.text,
           pages: quick.pages,
           archetype: beforeArch,
           beforeBlockCount: beforeBlocks,
           beforeEvidence,
           onRefine: async (refined) => {
+            if (!operation.isCurrent()) return;
             const candidate = importSource({
               raw: refined.markdown,
               label: file.name,
@@ -155,11 +163,12 @@ export function HomeScreen({
         return;
       }
       const { text } = await readTextFileWithProgress(file, ({ percent, visible }) => {
-        if (!visible) return;
+        if (!visible || !operation.isCurrent()) return;
         setReading((current) =>
           current ? { ...current, percent } : { name: file.name, size: file.size, percent },
         );
       });
+      if (!operation.isCurrent()) return;
       setReading({ name: file.name, size: file.size, percent: 100 });
       await onImport(text, file.name, {
         filename: file.name,
@@ -169,8 +178,9 @@ export function HomeScreen({
         pages: null,
         parseStatus: "understood",
       });
-      setReading(null);
+      if (operation.isCurrent()) setReading(null);
     } catch (error) {
+      if (!operation.isCurrent()) return;
       setReading(null);
       setReadError(error instanceof Error ? error.message : "The file could not be read.");
     }
@@ -234,7 +244,7 @@ export function HomeScreen({
                   type="button"
                   className="btn pri"
                   disabled={pasted.trim().length === 0}
-                  onClick={() => onImport(pasted, "Pasted notes")}
+                  onClick={() => { fileWork.current.cancel(); void onImport(pasted, "Pasted notes"); }}
                 >
                   Remember this
                 </button>
@@ -283,7 +293,7 @@ export function HomeScreen({
               </span>
             </button>
 
-            <button type="button" className="home-card paste-choice" onClick={() => setMode("paste")}>
+            <button type="button" className="home-card paste-choice" onClick={() => { fileWork.current.cancel(); setMode("paste"); }}>
               <span className="hc-icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
                   <rect x="5" y="3" width="14" height="18" rx="2" />

@@ -266,7 +266,7 @@ export function ImportPanel({
                     type="button"
                     className="btn pri"
                     style={{ flex: 1 }}
-                    onClick={() => onImport(sourceText, sourceLabel || "Pasted notes")}
+                    onClick={() => { fileWork.current.cancel(); void onImport(sourceText, sourceLabel || "Pasted notes"); }}
                     disabled={sourceText.trim().length === 0}
                   >
                     Remember this information
@@ -292,7 +292,7 @@ export function ImportPanel({
                   key={example.id}
                   type="button"
                   className="sample-row"
-                  onClick={() => onUseExample(example.id)}
+                  onClick={() => { fileWork.current.cancel(); onUseExample(example.id); }}
                 >
                   <span className="sr-name">{example.description}</span>
                   <span className="sr-file">{example.label}</span>
@@ -302,7 +302,7 @@ export function ImportPanel({
 
             {hasVerified && (
               <div className="import-actions">
-                <button type="button" className="mini-btn" onClick={onUseVerified}>
+                <button type="button" className="mini-btn" onClick={() => { fileWork.current.cancel(); onUseVerified(); }}>
                   Use verified example extraction
                 </button>
               </div>

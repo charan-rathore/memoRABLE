@@ -72,7 +72,9 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
   useEffect(() => () => { if (announcementTimer.current) clearTimeout(announcementTimer.current); }, []);
   const operations = useRef(createAsyncOperation());
   useEffect(() => () => operations.current.cancel(), []);
+  const stopReplay = useRef<() => void>(() => {});
   const invalidateWork = useCallback(() => {
+    stopReplay.current();
     operations.current.cancel();
     setAiBusy(false);
     setImportProgress(null);
@@ -111,6 +113,7 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
         quiet?: boolean;
       },
     ) => {
+      stopReplay.current();
       const operation = operations.current.begin();
       setAiBusy(false);
       const quiet = !!meta?.quiet;
@@ -211,6 +214,7 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
 
   const improveWithAi = useCallback(async () => {
     if (!state.document || aiBusy) return;
+    stopReplay.current();
     const operation = operations.current.begin();
     setAiBusy(true);
     try {
@@ -269,6 +273,7 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
   const moveBlock = useCallback(
     (blockId: string, direction: -1 | 1) => {
       const block = state.document?.blocks.find((b) => b.id === blockId);
+      stopReplay.current();
       dispatch({ type: "reordered", blockId, direction });
       if (block) announce(`${block.title} moved ${direction === -1 ? "up" : "down"}.`);
       // Reorder renders only the active mode synchronously (~60-100ms) . 
@@ -279,6 +284,7 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
 
   const setMode = useCallback(
     (mode: OutputMode) => {
+      stopReplay.current();
       dispatch({ type: "modeChanged", mode });
     },
     [],
@@ -327,6 +333,7 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
   );
 
   const replay = useReplay(replayCallbacks, reducedMotion);
+  stopReplay.current = () => { if (replay.active) replay.cancel(); };
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -437,7 +444,7 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
         onOpenRecent={(text, label) => void runImport(text, label, { filename: label, parseStatus: "reopened from library" })}
         aiEnabled={aiEnabled}
         replayActive={replay.active}
-        onReplay={() => (replay.active ? replay.cancel() : replay.start())}
+        onReplay={() => { invalidateWork(); if (!replay.active) replay.start(); }}
         onPublish={publish}
         canPublish={state.document !== null}
         onNewDoc={openNewDoc}

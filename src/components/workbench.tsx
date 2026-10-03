@@ -70,11 +70,14 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
   const [regenerateBusy, setRegenerateBusy] = useState(false);
   const announcementTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => () => { if (announcementTimer.current) clearTimeout(announcementTimer.current); }, []);
+  const homeFileWork = useRef(createAsyncOperation());
+  useEffect(() => () => homeFileWork.current.cancel(), []);
   const operations = useRef(createAsyncOperation());
   useEffect(() => () => operations.current.cancel(), []);
   const stopReplay = useRef<() => void>(() => {});
   const invalidateWork = useCallback(() => {
     stopReplay.current();
+    homeFileWork.current.cancel();
     operations.current.cancel();
     setAiBusy(false);
     setImportProgress(null);
@@ -112,7 +115,9 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
         parsedByDocling?: boolean;
         quiet?: boolean;
       },
+      preserveHomeFileWork = false,
     ) => {
+      if (!preserveHomeFileWork) homeFileWork.current.cancel();
       stopReplay.current();
       const operation = operations.current.begin();
       setAiBusy(false);
@@ -214,6 +219,7 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
 
   const improveWithAi = useCallback(async () => {
     if (!state.document || aiBusy) return;
+    homeFileWork.current.cancel();
     stopReplay.current();
     const operation = operations.current.begin();
     setAiBusy(true);
@@ -272,6 +278,8 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
 
   const moveBlock = useCallback(
     (blockId: string, direction: -1 | 1) => {
+      // Demo IDs are not user IDs. Stop the story without claiming a reorder.
+      if (snapshotRef.current) { stopReplay.current(); return; }
       const block = state.document?.blocks.find((b) => b.id === blockId);
       stopReplay.current();
       dispatch({ type: "reordered", blockId, direction });
@@ -374,13 +382,14 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
   }, [announce]);
 
   const regenerate = useCallback(async () => {
-    if (!state.document || regenerateBusy) return;
+    const source = snapshotRef.current ?? { document: state.document, sourceText: state.sourceText, sourceLabel: state.sourceLabel };
+    if (!source.document || regenerateBusy) return;
     setRegenerateBusy(true);
     announce("Reading again — looking harder at dates and timelines…");
     try {
-      await runImport(state.sourceText, state.sourceLabel, {
+      await runImport(source.sourceText, source.sourceLabel, {
         ...(sourceMeta ?? {}),
-        filename: sourceMeta?.filename ?? state.sourceLabel,
+        filename: sourceMeta?.filename ?? source.sourceLabel,
         fileType: sourceMeta?.fileType,
         parseStatus: "regenerated — dates and timelines re-read",
       });
@@ -409,7 +418,8 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
         <div className={splash ? "app-behind" : undefined}>
           <HomeScreen
             errors={[...state.errors]}
-            onImport={(text, label, meta) => runImport(text, label, meta)}
+            fileOperations={homeFileWork.current}
+            onImport={(text, label, meta) => runImport(text, label, meta, true)}
             onUseExample={loadExample}
             onReplayBrand={() => setSplash(true)}
             onWatchDemo={() => setDemoOpen(true)}

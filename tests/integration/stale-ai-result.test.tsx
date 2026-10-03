@@ -10,10 +10,10 @@ vi.mock("@/components/home/home-screen", () => ({ HomeScreen: ({ onImport }: { o
 vi.mock("@/components/import/import-stages", () => ({ IMPORT_STAGE_PERCENT: {}, IMPORT_STAGE_LABEL: {}, IMPORT_STAGE_VERB: {}, yieldFrame: async () => {} }));
 vi.mock("@/components/ui/brand-splash", () => ({ BrandSplash: () => null }));
 vi.mock("@/components/ui/demo-video", () => ({ DemoVideo: () => null }));
-vi.mock("@/components/topbar", () => ({ Topbar: ({ documentTitle, onReplay }: { documentTitle: string; onReplay: () => void }) => <><h1>{documentTitle}</h1><button onClick={onReplay}>Replay</button></> }));
+vi.mock("@/components/topbar", () => ({ Topbar: ({ documentTitle, onReplay, onRegenerate }: { documentTitle: string; onReplay: () => void; onRegenerate: () => void }) => <><h1>{documentTitle}</h1><button onClick={onReplay}>Replay</button><button onClick={onRegenerate}>Regenerate</button></> }));
 vi.mock("@/components/import/import-panel", () => ({ ImportPanel: ({ onImproveWithAi, onImport, onEditSource, aiBusy }: { onImproveWithAi: () => void; onImport: (s: string, l: string) => void; onEditSource: (s: string) => void; aiBusy: boolean }) => <><button disabled={aiBusy} onClick={onImproveWithAi}>Improve</button><button onClick={() => onImport(ATLAS_JSON_SOURCE, "B.json")}>Import B</button><button onClick={() => onEditSource("edited")}>Edit source</button></> }));
 vi.mock("@/components/preview/preview-pane", () => ({ PreviewPane: () => null }));
-vi.mock("@/components/blocks/blocks-panel", () => ({ BlocksPanel: () => null }));
+vi.mock("@/components/blocks/blocks-panel", () => ({ BlocksPanel: ({ blocks, onMove }: { blocks: {id:string;title:string}[]; onMove:(id:string,direction:-1|1)=>void }) => <div data-testid="block-order">{blocks.map(b=><button key={b.id} onClick={()=>onMove(b.id,1)}>{b.title}</button>)}</div> }));
 vi.mock("@/components/blocks/inspector", () => ({ Inspector: () => null }));
 vi.mock("@/components/journey-strip", () => ({ JourneyStrip: () => null }));
 afterEach(() => vi.unstubAllGlobals());
@@ -71,4 +71,29 @@ for (const elapsed of [0, 7100]) it(`new import owns state when replay has elaps
     await act(async () => vi.advanceTimersByTimeAsync(25000));
     expect(screen.getByRole("heading")).toHaveTextContent("Q3 Board Report");
   } finally { vi.useRealTimers(); }
+});
+
+for(const action of ["regenerate","move"]) it(`${action} after replay tick does not operate on demo state`,async()=>{
+ const {resolve}=await start(); await act(async()=>resolve(Response.json({ok:false})));
+ const title=screen.getByRole("heading").textContent;
+ const order=screen.getByTestId("block-order").textContent;
+ vi.useFakeTimers();
+ try {
+  fireEvent.click(screen.getByText("Replay")); await act(async()=>vi.advanceTimersByTimeAsync(7100));
+  if(action==="regenerate") fireEvent.click(screen.getByText("Regenerate"));
+  else fireEvent.click(screen.getByTestId("block-order").querySelector('button')!);
+  await act(async()=>vi.advanceTimersByTimeAsync(25000));
+  expect(screen.getByRole("heading").textContent).toBe(title);
+  if(action==="move") {
+   expect(screen.getByTestId("block-order").textContent).toBe(order);
+   expect(screen.queryByText(/moved down/)).not.toBeInTheDocument();
+  }
+ }finally{vi.useRealTimers()}
+});
+it("normal move outside replay still reorders the user's document",async()=>{
+ const {resolve}=await start();await act(async()=>resolve(Response.json({ok:false})));
+ const before=Array.from(screen.getByTestId("block-order").querySelectorAll("button")).map(b=>b.textContent);
+ fireEvent.click(screen.getByTestId("block-order").querySelector("button")!);
+ const after=Array.from(screen.getByTestId("block-order").querySelectorAll("button")).map(b=>b.textContent);
+ expect(after).toEqual([before[1],before[0],...before.slice(2)]);
 });

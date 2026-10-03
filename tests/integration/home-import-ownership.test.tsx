@@ -33,3 +33,11 @@ describe("all entry-point ownership",()=>{
   });
  }
 });
+
+it("HomeScreen sample cancels a pending initial PDF read", async()=>{
+ let finish!:(x:unknown)=>void; hooks.quick.mockImplementation(()=>new Promise(r=>{finish=r}));
+ const onImport=vi.fn(),onUseExample=vi.fn();const view=render(<HomeScreen errors={[]} onImport={onImport} onUseExample={onUseExample}/>);
+ upload(view.container);fireEvent.click(view.container.querySelector('.linkish')!);
+ await act(async()=>finish({text:ATLAS_NOTES_SOURCE,pages:1}));
+ expect(onUseExample).toHaveBeenCalledWith("atlas-json");expect(onImport).not.toHaveBeenCalled();
+});

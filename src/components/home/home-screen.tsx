@@ -40,6 +40,7 @@ export function HomeScreen({
   onReplayBrand,
   onWatchDemo,
   understanding,
+  fileOperations,
 }: {
   errors: Diagnostic[];
   onImport: (
@@ -55,6 +56,8 @@ export function HomeScreen({
   onReplayBrand?: () => void;
   onWatchDemo?: () => void;
   understanding?: { stage: ImportStage; percent: number } | null;
+  /** Workbench owns PDF refinement across the home-to-workbench transition. */
+  fileOperations?: ReturnType<typeof createAsyncOperation>;
 }) {
   const [mode, setMode] = useState<"choose" | "paste">("choose");
   const [drag, setDrag] = useState<"none" | "over" | "reject">("none");
@@ -66,11 +69,17 @@ export function HomeScreen({
   const [tally, setTally] = useState<string | null>(null);
   useEffect(() => setTally(summarize(readStats())), []);
   const dragDepth = useRef(0);
-  const fileWork = useRef(createAsyncOperation());
-  useEffect(() => () => fileWork.current.cancel(), []);
+  const localFileWork = useRef(createAsyncOperation());
+  const fileWork = fileOperations ?? localFileWork.current;
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    const local = localFileWork.current;
+    return () => { mounted.current = false; if (!fileOperations) local.cancel(); };
+  }, [fileOperations]);
 
   const openFile = async (file: File) => {
-    const operation = fileWork.current.begin();
+    const operation = fileWork.begin();
     setReadError(null);
     setReadNote(null);
     if (!ACCEPTED.test(file.name) && !isPdfFile(file)) {
@@ -100,7 +109,7 @@ export function HomeScreen({
           parseStatus: quick.truncated ? "first 40 pages remembered" : "understood",
         });
         if (!operation.isCurrent()) return;
-        setReading(null);
+        if (mounted.current) setReading(null);
 
         const beforeArch = fast.ok ? fast.value.archetype?.id : null;
         const beforeBlocks = fast.ok ? fast.value.blocks.length : 0;
@@ -143,7 +152,7 @@ export function HomeScreen({
             ) {
               return;
             }
-            setReadNote(
+            if (mounted.current) setReadNote(
               refined.cache === "hit"
                 ? "Refined with Docling (cached)."
                 : "Refined with Docling in the background.",
@@ -244,7 +253,7 @@ export function HomeScreen({
                   type="button"
                   className="btn pri"
                   disabled={pasted.trim().length === 0}
-                  onClick={() => { fileWork.current.cancel(); void onImport(pasted, "Pasted notes"); }}
+                  onClick={() => { fileWork.cancel(); void onImport(pasted, "Pasted notes"); }}
                 >
                   Remember this
                 </button>
@@ -293,7 +302,7 @@ export function HomeScreen({
               </span>
             </button>
 
-            <button type="button" className="home-card paste-choice" onClick={() => { fileWork.current.cancel(); setMode("paste"); }}>
+            <button type="button" className="home-card paste-choice" onClick={() => { fileWork.cancel(); setMode("paste"); }}>
               <span className="hc-icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
                   <rect x="5" y="3" width="14" height="18" rx="2" />
@@ -351,7 +360,7 @@ export function HomeScreen({
 
         <p className="home-footnote">
           Nothing to hand?{" "}
-          <button type="button" className="linkish" onClick={() => onUseExample("atlas-json")}>
+          <button type="button" className="linkish" onClick={() => { fileWork.cancel(); onUseExample("atlas-json"); }}>
             Open a sample brief
           </button>
           {onWatchDemo ? (

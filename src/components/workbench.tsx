@@ -280,6 +280,7 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
     (blockId: string, direction: -1 | 1) => {
       // Demo IDs are not user IDs. Stop the story without claiming a reorder.
       if (snapshotRef.current) { stopReplay.current(); return; }
+      homeFileWork.current.cancel();
       const block = state.document?.blocks.find((b) => b.id === blockId);
       stopReplay.current();
       dispatch({ type: "reordered", blockId, direction });
@@ -292,6 +293,7 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
 
   const setMode = useCallback(
     (mode: OutputMode) => {
+      homeFileWork.current.cancel();
       stopReplay.current();
       dispatch({ type: "modeChanged", mode });
     },
@@ -358,6 +360,7 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
   const hasVerified = hasVerifiedExtraction(state.sourceText) && state.document?.sourceMethod !== "verified-example";
 
   const publish = useCallback(() => {
+    homeFileWork.current.cancel();
     dispatch({ type: "published", at: nowLabel() });
     recordPublished();
     setPublishOpen(true);
@@ -513,6 +516,7 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
               blocks={state.document?.blocks ?? []}
               selectedBlockId={state.selectedBlockId}
               onSelect={(id) => {
+                homeFileWork.current.cancel();
                 dispatch({ type: "blockSelected", blockId: id });
                 if (id && state.document) {
                   const block = state.document.blocks.find((b) => b.id === id) ?? null;

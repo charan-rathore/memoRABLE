@@ -11,12 +11,14 @@ vi.mock("@/render/render-bundle",()=>({renderMode:()=>({html:"preview",error:nul
 vi.mock("@/components/import/import-stages",()=>({IMPORT_STAGE_PERCENT:{},IMPORT_STAGE_LABEL:{},IMPORT_STAGE_VERB:{},yieldFrame:async()=>{}}));
 vi.mock("@/components/ui/brand-splash",()=>({BrandSplash:()=>null}));
 vi.mock("@/components/ui/demo-video",()=>({DemoVideo:()=>null}));
-vi.mock("@/components/topbar",()=>({Topbar:({documentTitle}:{documentTitle:string})=><h1>{documentTitle}</h1>}));
+vi.mock("@/components/topbar",()=>({Topbar:({documentTitle,onPublish,onModeChange}:{documentTitle:string;onPublish:()=>void;onModeChange:(mode:"email")=>void})=><><h1>{documentTitle}</h1><button onClick={onPublish}>Publish action</button><button onClick={()=>onModeChange("email")}>Email mode</button></>}));
 vi.mock("@/components/import/import-panel",()=>({ImportPanel:({onImport}:{onImport:(s:string,l:string)=>void})=><button onClick={()=>onImport(ATLAS_JSON_SOURCE,"B.json")}>Import B</button>}));
 vi.mock("@/components/preview/preview-pane",()=>({PreviewPane:()=>null}));
-vi.mock("@/components/blocks/blocks-panel",()=>({BlocksPanel:()=>null}));
+vi.mock("@/components/blocks/blocks-panel",()=>({BlocksPanel:({blocks,onMove,onSelect}:{blocks:{id:string;title:string}[];onMove:(id:string,d:-1|1)=>void;onSelect:(id:string)=>void})=><div data-testid="order">{blocks.map(b=><span key={b.id}><button onClick={()=>onMove(b.id,1)}>{b.title}</button><button onClick={()=>onSelect(b.id)}>Select {b.title}</button></span>)}</div>}));
 vi.mock("@/components/blocks/inspector",()=>({Inspector:()=>null}));
-vi.mock("@/components/journey-strip",()=>({JourneyStrip:()=>null}));
+vi.mock("@/components/journey-strip",()=>({JourneyStrip:({state}:{state:{publishedAt:string|null;mode:string;selectedBlockId:string|null}})=><div data-testid="state">{JSON.stringify({publishedAt:state.publishedAt,mode:state.mode,selectedBlockId:state.selectedBlockId})}</div>}));
+vi.mock("@/components/preview/source-modal",()=>({SourceModal:()=>null}));
+vi.mock("@/components/export/publish-panel",()=>({PublishPanel:()=>null}));
 afterEach(()=>vi.unstubAllGlobals());
 async function start(){
  hooks.schedule.mockClear();vi.stubGlobal("fetch",vi.fn(async()=>Response.json({enabled:false})));vi.stubGlobal("matchMedia",()=>({matches:false}));
@@ -37,4 +39,18 @@ for(const stop of ["new-document","unmount"])it(`handed-off PDF refinement is ca
  expect(request.signal.aborted).toBe(true);
  await act(async()=>request.onRefine({markdown:ATLAS_NOTES_SOURCE}));
  if(stop!=="unmount")expect(screen.getByRole("heading")).toHaveTextContent("Q3 Board Report");
+});
+
+for(const mutation of ["move","publish","mode","select"])it(`late home PDF refinement cannot reset ${mutation}`,async()=>{
+ const {request}=await start();const title=screen.getByRole("heading").textContent;
+ if(mutation==="move")fireEvent.click(screen.getByTestId("order").querySelector("button")!);
+ if(mutation==="publish")fireEvent.click(screen.getByText("Publish action"));
+ if(mutation==="mode")fireEvent.click(screen.getByText("Email mode"));
+ if(mutation==="select")fireEvent.click(screen.getByTestId("order").querySelectorAll("button")[1]!);
+ const order=screen.getByTestId("order").textContent, state=screen.getByTestId("state").textContent;
+ await act(async()=>request.onRefine({markdown:ATLAS_JSON_SOURCE,pages:1}));
+ expect(screen.getByRole("heading").textContent).toBe(title);
+ expect(screen.getByTestId("order").textContent).toBe(order);
+ expect(screen.getByTestId("state").textContent).toBe(state);
+ expect(request.signal.aborted).toBe(true);
 });

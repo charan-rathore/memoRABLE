@@ -65,7 +65,7 @@ export async function POST(req: Request) {
       method: "POST",
       body: upstream,
       // Background refine may be slow on cold models; UI already showed pdf.js memories.
-      signal: AbortSignal.timeout(300_000),
+      signal: AbortSignal.any([req.signal, AbortSignal.timeout(300_000)]),
     });
     const text = await res.text();
     let json: unknown = null;
@@ -100,7 +100,7 @@ export async function PUT(req: Request) {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(body),
-      signal: AbortSignal.timeout(60_000),
+      signal: AbortSignal.any([req.signal, AbortSignal.timeout(60_000)]),
     });
     const json = await res.json();
     return NextResponse.json(json, { status: res.status });

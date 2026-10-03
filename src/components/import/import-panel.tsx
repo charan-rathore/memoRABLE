@@ -1,5 +1,6 @@
 "use client";
 
+import { createAsyncOperation } from "../async-operation";
 import { useEffect, useRef, useState } from "react";
 import type { Diagnostic } from "@/reliability/diagnostics";
 import { formatDiagnostic } from "@/reliability/diagnostics";
@@ -79,6 +80,12 @@ export function ImportPanel({
   // remembered, bringing another is a deliberate act behind a deliberate door.
   const [bringOpen, setBringOpen] = useState(!sourceOk);
   const fileInput = useRef<HTMLInputElement>(null);
+  const fileWork = useRef(createAsyncOperation());
+  const currentLabel = useRef(sourceLabel);
+  currentLabel.current = sourceLabel;
+  const currentSource = useRef(sourceText);
+  currentSource.current = sourceText;
+  useEffect(() => () => fileWork.current.cancel(), []);
   const format = detectFormat(sourceText);
 
   useEffect(() => {
@@ -86,10 +93,12 @@ export function ImportPanel({
   }, [openBringRequest]);
 
   const openFile = async (file: File) => {
+    const operation = fileWork.current.begin();
     try {
       if (isPdfFile(file)) {
         // Always pdf.js first — never block the UI on Docling.
         const quick = await readPdfQuick(file);
+        if (!operation.isCurrent()) return;
         onEditSource(quick.text);
         const fast = importSource({ raw: quick.text, label: file.name });
         await onImport(quick.text, file.name, {
@@ -101,6 +110,7 @@ export function ImportPanel({
           parseStatus: quick.truncated ? "first 40 pages remembered" : "understood",
         });
 
+        if (!operation.isCurrent()) return;
         const beforeArch = fast.ok ? fast.value.archetype?.id : null;
         const beforeBlocks = fast.ok ? fast.value.blocks.length : 0;
         const beforeEvidence =
@@ -111,12 +121,14 @@ export function ImportPanel({
 
         scheduleDoclingRefine({
           file,
+          signal: operation.signal,
           quickText: quick.text,
           pages: quick.pages,
           archetype: beforeArch,
           beforeBlockCount: beforeBlocks,
           beforeEvidence,
           onRefine: async (refined) => {
+            if (!operation.isCurrent() || currentSource.current !== quick.text || currentLabel.current !== file.name) return;
             const candidate = importSource({
               raw: refined.markdown,
               label: file.name,
@@ -156,6 +168,7 @@ export function ImportPanel({
         return;
       }
       const { text } = await readTextFileWithProgress(file, () => {});
+      if (!operation.isCurrent()) return;
       onEditSource(text);
       await onImport(text, file.name, {
         filename: file.name,
@@ -166,7 +179,7 @@ export function ImportPanel({
         parseStatus: "understood",
       });
     } catch {
-      onEditSource("");
+      if (operation.isCurrent()) onEditSource("");
     }
   };
 
@@ -245,7 +258,7 @@ export function ImportPanel({
                   aria-label="Paste JSON, Markdown or plain text"
                   placeholder={'{\"version\": 1, \"title\": \"…\", \"blocks\": [ … ]}\n\nor\n\n# Notes\n\n## Signals\n- ARR: $4.2M (+18%)'}
                   value={sourceText}
-                  onChange={(e) => onEditSource(e.target.value)}
+                  onChange={(e) => { fileWork.current.cancel(); onEditSource(e.target.value); }}
                   spellCheck={false}
                 />
                 <div className="import-actions">

@@ -53,6 +53,7 @@ export async function readPdfQuick(
  */
 export function scheduleDoclingRefine(input: {
   file: File;
+  signal?: AbortSignal;
   quickText: string;
   pages: number;
   archetype?: string | null;
@@ -80,7 +81,8 @@ export function scheduleDoclingRefine(input: {
   void (async () => {
     try {
       // Parse only — Graphify stays on the TS import path / optional /graph.
-      const refined = await parseWithDocGraph(input.file, { graph: false });
+      const refined = await parseWithDocGraph(input.file, { graph: false, signal: input.signal });
+      if (input.signal?.aborted) return;
       if (!refined?.markdown) {
         input.onSkip?.("Docling unavailable");
         return;

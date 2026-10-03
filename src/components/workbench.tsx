@@ -32,6 +32,7 @@ import {
   type ImportStage,
   yieldFrame,
 } from "./import/import-stages";
+import { createAsyncOperation } from "./async-operation";
 import { highlightRange } from "./preview/source-modal";
 
 export interface WorkbenchInitial {
@@ -67,6 +68,19 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
   const [sourceMeta, setSourceMeta] = useState<SourceMeta | null>(null);
   const [bringOpenRequest, setBringOpenRequest] = useState(0);
   const [regenerateBusy, setRegenerateBusy] = useState(false);
+  const announcementTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (announcementTimer.current) clearTimeout(announcementTimer.current); }, []);
+  const operations = useRef(createAsyncOperation());
+  useEffect(() => () => operations.current.cancel(), []);
+  const invalidateWork = useCallback(() => {
+    operations.current.cancel();
+    setAiBusy(false);
+    setImportProgress(null);
+  }, []);
+  const editSource = useCallback((text: string) => {
+    invalidateWork();
+    dispatch({ type: "sourceEdited", sourceText: text });
+  }, [invalidateWork]);
   const themeRef = useRef<PublishThemeId>("editorial");
   themeRef.current = state?.theme ?? "editorial";
 
@@ -81,7 +95,8 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
   const announce = useCallback((message: string) => {
     setAnnouncement("");
     // Re-set on the next tick so identical messages are re-announced.
-    setTimeout(() => setAnnouncement(message), 30);
+    if (announcementTimer.current) clearTimeout(announcementTimer.current);
+    announcementTimer.current = setTimeout(() => setAnnouncement(message), 30);
   }, []);
 
   /* ------------------------------- import flow ------------------------------- */
@@ -96,9 +111,11 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
         quiet?: boolean;
       },
     ) => {
+      const operation = operations.current.begin();
+      setAiBusy(false);
       const quiet = !!meta?.quiet;
       const mark = async (stage: ImportStage) => {
-        if (quiet) return;
+        if (quiet || !operation.isCurrent()) return;
         setImportProgress({ stage, percent: IMPORT_STAGE_PERCENT[stage] });
         announce(IMPORT_STAGE_LABEL[stage]);
         await yieldFrame(stage === "publishing" ? 160 : 56);
@@ -121,6 +138,7 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
       await mark("reading");
       await mark("understanding");
       await mark("remembering");
+      if (!operation.isCurrent()) return;
       const result = importSource({
         raw: text,
         label,
@@ -129,6 +147,7 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
       });
       if (result.ok) {
         await mark("arranging");
+        if (!operation.isCurrent()) return;
         setSourceMeta({
           filename: meta?.filename ?? label,
           fileType,
@@ -147,6 +166,7 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
         setView("workbench");
         setMobileTab("publish");
         await mark("publishing");
+        if (!operation.isCurrent()) return;
         scheduleLazyRenders(result.value, [], "document", themeRef.current, dispatch);
         announce(
           quiet
@@ -167,7 +187,7 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
           `We couldn't understand this. Nothing was changed. ${result.errors.length} ${result.errors.length === 1 ? "error" : "errors"}.`,
         );
       }
-      if (!quiet) setImportProgress(null);
+      if (!quiet && operation.isCurrent()) setImportProgress(null);
     },
     [announce],
   );
@@ -183,17 +203,20 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
   const applyVerified = useCallback(() => {
     const doc = verifiedExtractionFor(state.sourceText, state.sourceLabel);
     if (doc) {
+      invalidateWork();
       dispatch({ type: "imported", sourceText: state.sourceText, sourceLabel: state.sourceLabel, document: doc, at: nowLabel() });
       announce("Verified example extraction applied. 6 memories.");
     }
-  }, [state.sourceText, state.sourceLabel, announce]);
+  }, [state.sourceText, state.sourceLabel, announce, invalidateWork]);
 
   const improveWithAi = useCallback(async () => {
     if (!state.document || aiBusy) return;
+    const operation = operations.current.begin();
     setAiBusy(true);
     try {
       const response = await fetch("/api/extract", {
         method: "POST",
+        signal: operation.signal,
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           sourceText: state.sourceText.slice(0, 51_200),
@@ -205,6 +228,7 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
         }),
       });
       const body = (await response.json()) as { ok?: boolean; improved?: unknown; message?: string };
+      if (!operation.isCurrent()) return;
       if (response.ok && body.ok && body.improved) {
         const improved = importJson({ text: JSON.stringify(body.improved), label: state.sourceLabel });
         if (improved.ok) {
@@ -233,9 +257,10 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
         announce(body.message ?? "AI is unavailable. the local result is unchanged.");
       }
     } catch {
+      if (!operation.isCurrent()) return;
       announce("AI could not be reached. the local result is unchanged.");
     } finally {
-      setAiBusy(false);
+      if (operation.isCurrent()) setAiBusy(false);
     }
   }, [state.document, state.sourceText, state.sourceLabel, aiBusy, announce]);
 
@@ -325,6 +350,7 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
   }, [announce]);
 
   const goHome = useCallback(() => {
+    invalidateWork();
     if (replay.active) replay.cancel();
     setPublishOpen(false);
     setSourceModal(null);
@@ -332,7 +358,7 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
     setSplash(true);
     setView("home");
     announce("Back to the start. Your memories are kept.");
-  }, [replay, announce]);
+  }, [replay, announce, invalidateWork]);
 
   const openNewDoc = useCallback(() => {
     setMobileTab("bring");
@@ -458,7 +484,7 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
               aiEnabled={aiEnabled && state.document?.sourceMethod === "local-parser"}
               aiBusy={aiBusy}
               openBringRequest={bringOpenRequest}
-              onEditSource={(text) => dispatch({ type: "sourceEdited", sourceText: text })}
+              onEditSource={editSource}
               onImport={runImport}
               onUseExample={loadExample}
               onUseVerified={applyVerified}

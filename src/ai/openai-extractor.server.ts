@@ -97,13 +97,17 @@ export async function extractWithAi(
     }
 
     const body = (await response.json()) as {
-      choices?: { message?: { content?: string } }[];
+      choices?: { finish_reason?: string; error?: unknown; message?: { content?: string } }[];
       usage?: { prompt_tokens?: number; completion_tokens?: number };
     };
     meta.promptTokens = body.usage?.prompt_tokens;
     meta.completionTokens = body.usage?.completion_tokens;
 
-    const content = body.choices?.[0]?.message?.content;
+    const choice = body.choices?.[0];
+    if (choice?.error || choice?.finish_reason !== "stop") {
+      return finish(aiFailure("invalid-output", "AI returned nothing usable. The local result is unchanged."));
+    }
+    const content = choice.message?.content;
     if (typeof content !== "string") {
       return finish(aiFailure("invalid-output", "AI returned nothing usable. The local result is unchanged."));
     }

@@ -45,7 +45,7 @@ export async function parseWithDocGraph(
     const res = await fetch(`/api/docgraph${qs}`, {
       method: "POST",
       body,
-      signal: options.signal ?? AbortSignal.timeout(300_000),
+      signal: options.signal ? AbortSignal.any([options.signal, AbortSignal.timeout(300_000)]) : AbortSignal.timeout(300_000),
     });
     if (!res.ok) return null;
     const json = (await res.json()) as DocGraphParseResult & { ok?: boolean; markdown?: string };

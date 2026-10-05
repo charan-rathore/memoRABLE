@@ -16,3 +16,8 @@ it("accepts normal-stop schema-valid output",async()=>{
  vi.stubEnv("OPENAI_API_KEY","test");vi.stubGlobal("fetch",vi.fn(async()=>Response.json({choices:[{finish_reason:"stop",message:{content:JSON.stringify(candidate)}}]})));
  expect((await extractWithAi("source",candidate,"test-request")).result.ok).toBe(true);
 });
+it("ignores a successful provider response arriving after owner cancellation",async()=>{
+ vi.stubEnv("OPENAI_API_KEY","test");const owner=new AbortController();
+ vi.stubGlobal("fetch",vi.fn(async()=>{owner.abort();return Response.json({choices:[{finish_reason:"stop",message:{content:JSON.stringify(candidate)}}]})}));
+ expect((await extractWithAi("source",candidate,"test",undefined,owner.signal)).result.ok).toBe(false);
+});

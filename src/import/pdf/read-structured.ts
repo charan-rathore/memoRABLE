@@ -50,6 +50,7 @@ export async function readPdfBytes(
   const pageItems: Array<{ page: number; items: PdfTextItem[] }> = [];
   const images: ExtractedPdfImage[] = [];
 
+  try {
   for (let i = 1; i <= limit; i++) {
     const page = await doc.getPage(i);
     const content = await page.getTextContent();
@@ -76,7 +77,9 @@ export async function readPdfBytes(
     onProgress?.(4 + Math.round((i / limit) * (options.skipOcr ? 90 : 55)));
   }
 
-  await doc.destroy();
+  } finally {
+    await doc.destroy();
+  }
 
   const layout = buildLayoutDocument(pageItems);
   let markdown = layout.markdown;

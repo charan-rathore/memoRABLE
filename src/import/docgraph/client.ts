@@ -49,7 +49,7 @@ export async function parseWithDocGraph(
     });
     if (!res.ok) return null;
     const json = (await res.json()) as DocGraphParseResult & { ok?: boolean; markdown?: string };
-    if (!json?.markdown) return null;
+    if (typeof json?.markdown !== "string" || !json.markdown.trim()) return null;
     return json as DocGraphParseResult;
   } catch {
     return null;

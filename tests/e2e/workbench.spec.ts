@@ -232,6 +232,7 @@ test.describe("remember + arrange", () => {
     await enterWorkbench(page);
 
     await page.getByRole("button", { name: "Signals: show details" }).click();
+    await page.getByRole("button", { name: "Close source view" }).click();
     await page.getByRole("button", { name: "Move Signals down" }).click();
 
     await expect(memNames(page)).toHaveText([
@@ -246,6 +247,7 @@ test.describe("remember + arrange", () => {
     // Edge controls: the first memory cannot move up, the last cannot move down.
     await page.getByRole("button", { name: "Snapshot: show details" }).click();
     await expect(page.getByRole("button", { name: "Move Snapshot up" })).toBeDisabled();
+    await page.getByRole("button", { name: "Close source view" }).click();
     await page.getByRole("button", { name: "Actions: show details" }).click();
     await expect(page.getByRole("button", { name: "Move Actions down" })).toBeDisabled();
   });

@@ -74,7 +74,7 @@ export function rememberLibraryDoc(input: {
   sourceText: string;
 }): LibraryDoc {
   const docs = listLibraryDocs().filter(
-    (d) => d.label !== input.label && d.sourceText !== input.sourceText,
+    (d) => d.sourceText !== input.sourceText,
   );
   const entry: LibraryDoc = {
     id: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,

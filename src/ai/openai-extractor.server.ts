@@ -63,6 +63,7 @@ export async function extractWithAi(
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), LIMITS.aiTimeoutMs);
   try {
+    signal?.throwIfAborted();
     const response = await fetch(`${baseUrl}/chat/completions`, {
       method: "POST",
       headers: {
@@ -87,6 +88,7 @@ export async function extractWithAi(
       }),
       signal: signal ? AbortSignal.any([signal, controller.signal]) : controller.signal,
     });
+    signal?.throwIfAborted();
     meta.statusClass = `${Math.floor(response.status / 100)}xx`;
 
     if (response.status === 429) {
@@ -100,6 +102,7 @@ export async function extractWithAi(
       choices?: { finish_reason?: string; error?: unknown; message?: { content?: string } }[];
       usage?: { prompt_tokens?: number; completion_tokens?: number };
     };
+    signal?.throwIfAborted();
     meta.promptTokens = body.usage?.prompt_tokens;
     meta.completionTokens = body.usage?.completion_tokens;
 

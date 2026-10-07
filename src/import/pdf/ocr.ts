@@ -33,6 +33,11 @@ async function getWorker(): Promise<TesseractWorker> {
       const { createWorker } = await import("tesseract.js");
       return (await createWorker("eng", 1, { logger: () => {} })) as unknown as TesseractWorker;
     })();
+    const pending = workerPromise;
+    void pending.catch(() => {
+      // A failed startup is not a reusable worker. Only clear our own attempt.
+      if (workerPromise === pending) workerPromise = null;
+    });
   }
   return workerPromise;
 }

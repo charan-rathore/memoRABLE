@@ -21,9 +21,16 @@ export function sanitizeFilename(name: string): string {
     .replace(/[\x00-\x1f<>:"|?*]/g, "")
     .replace(/\s+/g, "-")
     .replace(/[^A-Za-z0-9._-]/g, "")
-    .replace(/^[.]+/, "")
-    .slice(0, 80);
-  return cleaned.length > 0 ? cleaned : "memorable-output";
+    .replace(/^[.]+/, "");
+  if (cleaned.length === 0) return "memorable-output";
+  if (cleaned.length <= 80) return cleaned;
+  // Cap the stem, not the name: chopping at 80 chars across the board would
+  // cut a long title's extension off and leave a file the OS cannot open.
+  const dot = cleaned.lastIndexOf(".");
+  const hasExtension = dot > 0 && dot >= cleaned.length - 10;
+  if (!hasExtension) return cleaned.slice(0, 80);
+  const extension = cleaned.slice(dot);
+  return cleaned.slice(0, 80 - extension.length) + extension;
 }
 
 export function downloadTextFile(request: DownloadRequest): DownloadOutcome {

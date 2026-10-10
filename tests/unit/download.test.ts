@@ -19,6 +19,18 @@ describe("sanitizeFilename", () => {
     expect(sanitizeFilename("")).toBe("memorable-output");
     expect(sanitizeFilename(".hidden")).toBe("hidden");
   });
+
+  it("keeps the extension when a long name hits the length cap", () => {
+    const longTitle = `${"quarterly-board-contracts-review-".repeat(4)}final`;
+    const result = sanitizeFilename(`${longTitle}.html`);
+    expect(result.length).toBeLessThanOrEqual(80);
+    expect(result.endsWith(".html")).toBe(true);
+  });
+
+  it("caps extensionless long names at the same length", () => {
+    const result = sanitizeFilename("a".repeat(120));
+    expect(result).toBe("a".repeat(80));
+  });
 });
 
 describe("downloadTextFile", () => {

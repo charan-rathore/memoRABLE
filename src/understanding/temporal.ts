@@ -30,6 +30,21 @@ const WEAK_MONTH_ONLY =
 const TICKET_ID = /^[A-Z]{2,}-\d+/i;
 const PHASE_ORDINAL = /^(?:Phase|Step|Stage|Task)\s+[A-Z0-9]+$/i;
 
+const DAYS_IN_MONTH = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+
+function isRealCalendarDate(value: string): boolean {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!m) return false;
+  const year = Number(m[1]);
+  const month = Number(m[2]);
+  const day = Number(m[3]);
+  if (year < 1990 || year > 2100) return false;
+  if (month < 1 || month > 12) return false;
+  const isLeap = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
+  const maxDay = month === 2 && isLeap ? 29 : DAYS_IN_MONTH[month - 1];
+  return maxDay !== undefined && day >= 1 && day <= maxDay;
+}
+
 export function findAnchorDate(text: string, filename?: string): AnchorDate {
   const explicit = EXPLICIT_ANCHOR.exec(text);
   if (explicit?.[1]) {
@@ -41,7 +56,12 @@ export function findAnchorDate(text: string, filename?: string): AnchorDate {
     const raw = fileDate[1];
     const value =
       raw.length === 8 ? `${raw.slice(0, 4)}-${raw.slice(4, 6)}-${raw.slice(6, 8)}` : raw;
-    return { value, confidence: "medium", source: "filename" };
+    // Only trust the filename when it is a real calendar date - an 8-digit
+    // run like "report-12345678" or an impossible "2026-13-45" must not
+    // fabricate an anchor for the temporal-honesty gate.
+    if (isRealCalendarDate(value)) {
+      return { value, confidence: "medium", source: "filename" };
+    }
   }
 
   const body = ISO_OR_FULL.exec(text);

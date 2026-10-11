@@ -55,6 +55,30 @@ export async function disposeOcrWorker(): Promise<void> {
   }
 }
 
+const OCR_RECOGNIZE_TIMEOUT_MS = 30_000;
+const OCR_RECOGNIZE_TIMEOUT_ERROR = "OCR recognize timed out";
+
+/** Race one recognize against a hard cap so a wedged worker cannot stall the import. */
+async function recognizeWithTimeout(
+  worker: TesseractWorker,
+  png: BufferSource,
+): Promise<{ data: { text: string; confidence: number } }> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      worker.recognize(png),
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(
+          () => reject(new Error(OCR_RECOGNIZE_TIMEOUT_ERROR)),
+          OCR_RECOGNIZE_TIMEOUT_MS,
+        );
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 /**
  * OCR image bytes into cleaned Markdown suitable for merging beside the
  * surrounding section ("Cases – Sheet", etc.).
@@ -84,15 +108,17 @@ export async function ocrImages(
   const MAX_OCR_IMAGES = 6;
   const selected = usable.slice(0, MAX_OCR_IMAGES);
 
-  const worker = await getWorker();
   const blocks: OcrBlock[] = [];
 
   for (let i = 0; i < selected.length; i++) {
     const image = selected[i]!;
     options.onProgress?.(Math.round(((i + 0.2) / selected.length) * 100));
+    // Fetched per image: a hung recognize retires the worker below, and the
+    // next image must get a fresh one instead of queueing behind the wedge.
+    const worker = await getWorker();
     try {
       const png = Uint8Array.from(image.png!);
-      const result = await worker.recognize(png);
+      const result = await recognizeWithTimeout(worker, png);
       const text = structureOcrText(result.data.text || "");
       if (text.trim()) {
         blocks.push({
@@ -102,8 +128,16 @@ export async function ocrImages(
           confidence: result.data.confidence ?? 0,
         });
       }
-    } catch {
+    } catch (err) {
       // OCR failure must not abort the text pipeline — image is skipped.
+      if (err instanceof Error && err.message === OCR_RECOGNIZE_TIMEOUT_ERROR) {
+        // A wedged worker never finishes later images either. Retire it so
+        // the next image spins up a fresh worker, and reap it in the
+        // background (its terminate may itself never settle).
+        const stuck = workerPromise;
+        workerPromise = null;
+        void stuck?.then((w) => w.terminate()).catch(() => {});
+      }
     }
     options.onProgress?.(Math.round(((i + 1) / selected.length) * 100));
   }

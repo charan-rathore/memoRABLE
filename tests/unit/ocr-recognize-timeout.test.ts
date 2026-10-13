@@ -14,8 +14,9 @@ it("a hung recognize is timed out and later images still OCR",async()=>{
  // instead of a fixed hop count: a loaded CI box can need many more turns
  // for the import to settle, and a blind count flakes there.
  vi.useFakeTimers({toFake:["setTimeout","clearTimeout"]});
- const flushUntil=async(cond:()=>boolean,tries=400)=>{
-  for(let i=0;i<tries&&!cond();i++)await new Promise(r=>setImmediate(r));
+ const flushUntil=async(cond:()=>boolean,deadlineMs=5000)=>{
+  const end=Date.now()+deadlineMs;
+  while(!cond()&&Date.now()<end)await new Promise(r=>setImmediate(r));
  };
  let firstRecognizeCalls=0;
  const good={recognize:async()=>({data:{text:"Useful recovered text",confidence:91}}),terminate:async()=>{}};

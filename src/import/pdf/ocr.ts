@@ -115,7 +115,9 @@ export async function ocrImages(
     options.onProgress?.(Math.round(((i + 0.2) / selected.length) * 100));
     // Fetched per image: a hung recognize retires the worker below, and the
     // next image must get a fresh one instead of queueing behind the wedge.
-    const worker = await getWorker();
+    const pending = getWorker();
+    const attempt = workerPromise;
+    const worker = await pending;
     try {
       const png = Uint8Array.from(image.png!);
       const result = await recognizeWithTimeout(worker, png);
@@ -134,9 +136,10 @@ export async function ocrImages(
         // A wedged worker never finishes later images either. Retire it so
         // the next image spins up a fresh worker, and reap it in the
         // background (its terminate may itself never settle).
-        const stuck = workerPromise;
-        workerPromise = null;
-        void stuck?.then((w) => w.terminate()).catch(() => {});
+        if (workerPromise === attempt) {
+          workerPromise = null;
+          void worker.terminate().catch(() => {});
+        }
       }
     }
     options.onProgress?.(Math.round(((i + 1) / selected.length) * 100));

@@ -39,6 +39,7 @@ export async function readPdfBytes(
   data: Uint8Array,
   options: ReadPdfOptions = {},
 ): Promise<StructuredPdfResult> {
+  const bytes = data.byteLength; // pdf.js may transfer and detach the supplied buffer.
   const onProgress = options.onProgress;
   const maxPages = options.maxPages ?? PDF_MAX_PAGES;
   onProgress?.(4);
@@ -104,7 +105,7 @@ export async function readPdfBytes(
     text,
     pages,
     truncated: pages > maxPages,
-    bytes: data.byteLength,
+    bytes,
     images: images.length,
     ocrBlocks,
   };

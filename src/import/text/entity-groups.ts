@@ -46,6 +46,8 @@ export interface DateRange {
   /** Span of the whole range expression inside the original text. */
   index: number;
   length: number;
+  /** True for "January 2024 – Present": the entity is still active. */
+  open?: boolean;
 }
 
 const MONTH_INDEX: Record<string, number> = {
@@ -84,13 +86,15 @@ export function findDateRange(text: string): DateRange | null {
   // Open-ended range: "January 2024 – Present". The end is not a date, so the
   // entry is ongoing - never read it as past, and span the marker so it does
   // not leak into the title.
-  const openEnded = /^(?:present|current|now|ongoing)\b/i.exec(tail.trim());
-  if (openEnded) {
+  const openEnded = /^(present|current|now|ongoing)(?![\w-])/i.exec(tail.trim());
+  const openEnd = openEnded?.[1];
+  if (openEnd) {
     return {
       start: first.date,
-      end: openEnded[0],
+      end: openEnd,
       index: first.index,
-      length: first.length + joiner[0].length + tail.indexOf(openEnded[0]) + openEnded[0].length,
+      length: first.length + joiner[0].length + tail.indexOf(openEnd) + openEnd.length,
+      open: true,
     };
   }
   const second = findDateToken(tail) ?? (/^\d{4}\b/.test(tail.trim()) ? { date: tail.trim().slice(0, 4), index: tail.indexOf(tail.trim().slice(0, 4)), length: 4 } : null);
@@ -204,6 +208,9 @@ export function buildActionFromGroup(group: EntityGroup, now: Date = new Date())
   if (range && isPastRange(range, now)) {
     status = "done";
   } else if (
+    // An explicit "Present"/"Current" says the entity is still active; that is
+    // stronger evidence than past-tense detail lines are of finished work.
+    !range?.open &&
     status === "pending" &&
     details.length > 0 &&
     details.every((d) => inferReadiness(d) === "done")
@@ -234,7 +241,22 @@ export function buildTimelineFromGroup(
   if (!range && !single) return null;
 
   const date = (range ? range.start : single!.date).slice(0, 80);
-  const span = range ?? { index: single!.index, length: single!.length };
+  const rawSpan = range ?? { index: single!.index, length: single!.length };
+  // Swallow the wrapper the range leaves behind: "(<range>)" loses both
+  // parens, and a terminal period right after the range goes with it, so the
+  // title never reads "Engineer ( )" or "Engineer .".
+  let spanStart = rawSpan.index;
+  let spanEnd = rawSpan.index + rawSpan.length;
+  const openParen = /\(\s*$/.exec(plain.slice(0, spanStart));
+  const closeParen = /^\s*\)/.exec(plain.slice(spanEnd));
+  if (openParen && closeParen) {
+    spanStart -= openParen[0].length;
+    spanEnd += closeParen[0].length;
+  } else {
+    const terminalDot = /^\s*\.(?=\s|$)/.exec(plain.slice(spanEnd));
+    if (terminalDot) spanEnd += terminalDot[0].length;
+  }
+  const span = { index: spanStart, length: spanEnd - spanStart };
   let title = `${plain.slice(0, span.index)} ${plain.slice(span.index + span.length)}`
     .replace(/\s+/g, " ")
     .replace(/^[\s,;·:—–-]+|[\s,;·:—–-]+$/g, "")

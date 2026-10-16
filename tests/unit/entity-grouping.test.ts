@@ -181,3 +181,56 @@ describe("entity grouping: open-ended date ranges", () => {
     expect(role!.title).not.toContain("Current");
   });
 });
+
+describe("open-ended ranges: follow-up edges", () => {
+  it("keeps an ongoing action pending even when every bullet reads completed", () => {
+    const raw = `## Projects
+
+Platform Migration January 2024 – Present
+- Built the dual-write layer across both stores
+- Deployed the shadow-read comparison to production
+`;
+    const result = importSource({ raw, label: "ongoing-action.md" });
+    if (!result.ok) throw new Error(`import failed: ${JSON.stringify(result.errors)}`);
+    const { entries } = blockEntries<ActionEntry>(result.value, "actions");
+
+    const action = entries.find((e) => /Platform Migration/.test(e.task));
+    expect(action).toBeDefined();
+    // The explicit open end is stronger evidence than past-tense bullets.
+    expect(action!.status).not.toBe("done");
+  });
+
+  it("does not treat a hyphenated word after the dash as an open-ended marker", () => {
+    const raw = `## Experience
+
+**2024 – Current-state architecture**
+- Mapped every ingestion path into one diagram
+`;
+    const result = importSource({ raw, label: "current-state.md" });
+    if (!result.ok) throw new Error(`import failed: ${JSON.stringify(result.errors)}`);
+    const { entries } = blockEntries<TimelineEntry>(result.value, "timeline");
+
+    const row = entries.find((e) => /architecture/.test(e.title));
+    expect(row).toBeDefined();
+    // The whole word stays in the title; "Current" is not a range end here.
+    expect(row!.title).toContain("Current-state architecture");
+  });
+
+  it("removes wrappers and terminal punctuation around a range", () => {
+    const raw = `## Experience
+
+**Engineer, Acme** (January 2024 – Present)
+- Own the ingestion pipeline
+`;
+    const result = importSource({ raw, label: "wrapped-range.md" });
+    if (!result.ok) throw new Error(`import failed: ${JSON.stringify(result.errors)}`);
+    const { entries } = blockEntries<TimelineEntry>(result.value, "timeline");
+
+    const row = entries.find((e) => /Engineer/.test(e.title));
+    expect(row).toBeDefined();
+    expect(row!.title).not.toContain("(");
+    expect(row!.title).not.toContain(")");
+    expect(row!.title).not.toContain("Present");
+    expect(row!.state).not.toBe("done");
+  });
+});

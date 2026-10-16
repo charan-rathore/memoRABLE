@@ -742,7 +742,9 @@ export function parseActionLine(raw: string): ActionEntry | null {
     const due = segments[segments.length - 1]!;
     const owner = segments[segments.length - 2]!;
     const task = segments.slice(0, -2).join(", ");
-    if (looksLikeDate(due) && owner.length <= 60 && task.length >= 3) {
+    // An "owner" that is itself a date is a date range, not a person:
+    // "Role — January 2024 – June 2025" is an entity title, not a todo.
+    if (looksLikeDate(due) && !looksLikeDate(owner) && owner.length <= 60 && task.length >= 3) {
       return { task, owner, due, status };
     }
   }

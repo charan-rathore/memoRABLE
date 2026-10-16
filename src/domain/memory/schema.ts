@@ -83,6 +83,8 @@ export const timelineEntrySchema = z
     state: z.enum(["shipped", "on-track", "planned", "done"]),
     produces: textField(240).optional(),
     requires: textField(240).optional(),
+    /** Detail lines the source filed under this entry, verbatim. */
+    details: z.array(textField(LIMITS.maxFieldLength)).max(LIMITS.maxEntriesPerBlock).optional(),
   })
   .strict();
 
@@ -126,6 +128,12 @@ export const actionEntrySchema = z
     status: actionStatusSchema,
     /** The decision this action carries out, by `ref` or by its exact text. */
     from: textField(LIMITS.maxFieldLength).optional(),
+    /**
+     * Detail lines the source filed under this entity (a project's
+     * accomplishment bullets, a workstream's todos). Verbatim evidence, never
+     * invented; absent when the entry stood alone.
+     */
+    details: z.array(textField(LIMITS.maxFieldLength)).max(LIMITS.maxEntriesPerBlock).optional(),
   })
   .strict();
 

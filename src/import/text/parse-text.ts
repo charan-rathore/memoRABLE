@@ -1,3 +1,9 @@
+import {
+  buildActionFromGroup,
+  buildTimelineFromGroup,
+  detectEntityGroups,
+  groupLineNumbers,
+} from "./entity-groups";
 import { ok, type Result } from "@/reliability/result";
 import type { Diagnostic } from "@/reliability/diagnostics";
 import { finalizeDocument, type BlockInput } from "@/domain/memory/normalize";
@@ -114,6 +120,8 @@ interface Section {
   assigned: boolean;
   headingText: string | null;
   headingLine: number | null;
+  /** True when an unnamed sub-heading inherited its parent section's kind. */
+  inherited: boolean;
   lines: SourceLine[];
 }
 
@@ -149,11 +157,26 @@ export function parseText(input: TextImportInput): Result<MemoryDocument> {
     kind: BlockKind | null,
     headingText: string | null,
     headingLine: number | null,
+    inherited = false,
   ): Section => {
-    const section: Section = { kind, assigned: kind !== null, headingText, headingLine, lines: [] };
+    const section: Section = {
+      kind,
+      assigned: kind !== null,
+      headingText,
+      headingLine,
+      inherited,
+      lines: [],
+    };
     sections.push(section);
     return section;
   };
+
+  /**
+   * Heading stack for kind inheritance: a sub-heading that names no memory
+   * ("### memoRABLE — …" under "## Projects") belongs to the nearest
+   * enclosing claimed section — the heading owns its bullets.
+   */
+  const claimedStack: Array<{ level: number; kind: BlockKind }> = [];
 
   for (let i = 0; i < rawLines.length; i++) {
     if (i === titleConsumedLine) continue;
@@ -171,7 +194,21 @@ export function parseText(input: TextImportInput): Result<MemoryDocument> {
         continue;
       }
       if (pendingOrdinal && !pendingOrdinal.title) pendingOrdinal.title = heading.text;
-      current = startSection(classifyHeading(heading.text), heading.text, i + 1);
+      let kind = classifyHeading(heading.text);
+      let inherited = false;
+      if (kind !== null) {
+        while (claimedStack.length > 0 && claimedStack[claimedStack.length - 1]!.level >= heading.level) {
+          claimedStack.pop();
+        }
+        claimedStack.push({ level: heading.level, kind });
+      } else {
+        const parent = [...claimedStack].reverse().find((c) => c.level < heading.level);
+        if (parent) {
+          kind = parent.kind;
+          inherited = true;
+        }
+      }
+      current = startSection(kind, heading.text, i + 1, inherited);
       // Persona headings are evidence — keep them inside the section body too.
       if (/^as an?\s+/i.test(heading.text)) {
         current.lines.push({ text: `- Persona: ${heading.text}`, lineNo: i + 1 });
@@ -684,6 +721,8 @@ interface Collected<T> {
   notes?: string[];
   /** Source line for each entry, by index, so understanding can enrich it. */
   lineOf: Array<number | null>;
+  /** Every line already turned into an entry or an entry's details. */
+  used: Set<number>;
 }
 
 function buildEntriesPayload(
@@ -694,7 +733,8 @@ function buildEntriesPayload(
   ctx: BuildContext,
   matched: readonly Section[] = [],
 ): BlockInput["payload"] {
-  const collect = <T,>(
+  const collectOver = <T,>(
+    lines: readonly SourceLine[],
     strict: LineParser<T>,
     lenient: LineParser<T>,
     options: {
@@ -702,24 +742,29 @@ function buildEntriesPayload(
       salvageProse?: boolean;
       /** Used when the section already has entries — high-confidence only. */
       salvage?: LineParser<T>;
+      /** Lines an entity group already owns — never parsed flat or noted. */
+      skip?: Set<number>;
     } = {},
   ): Collected<T> => {
     const entries: T[] = [];
     const lineOf: Array<number | null> = [];
+    const used = new Set<number>(options.skip ?? []);
     const unmatched: SourceLine[] = [];
 
-    for (let i = 0; i < contentLines.length; i++) {
-      const line = contentLines[i]!;
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i]!;
+      if (used.has(line.lineNo)) continue;
       if (isDecorativeLine(line.text)) continue;
       // Markdown table chrome is structural: separators are skipped, and a
       // row directly followed by a separator is the table's header.
       if (isTableSeparator(line.text)) continue;
-      const next = contentLines[i + 1];
+      const next = lines[i + 1];
       if (splitTableRow(line.text) && next && isTableSeparator(next.text)) continue;
       const entry = strict(line.text);
       if (entry) {
         entries.push(entry);
         lineOf.push(line.lineNo);
+        used.add(line.lineNo);
       } else {
         unmatched.push(line);
       }
@@ -743,13 +788,20 @@ function buildEntriesPayload(
         if (entry) {
           entries.push(entry);
           lineOf.push(line.lineNo);
+          used.add(line.lineNo);
           continue;
         }
       }
       if (notes.length < LIMITS.maxNotesPerBlock) notes.push(stripListMarker(line.text));
     }
-    return { entries, lineOf, ...(notes.length > 0 ? { notes } : {}) };
+    return { entries, lineOf, used, ...(notes.length > 0 ? { notes } : {}) };
   };
+
+  const collect = <T,>(
+    strict: LineParser<T>,
+    lenient: LineParser<T>,
+    options: Parameters<typeof collectOver<T>>[3] = {},
+  ): Collected<T> => collectOver(contentLines, strict, lenient, options);
 
   const finish = <T,>(built: Collected<T>): BlockInput["payload"] =>
     ({ entries: built.entries, ...(built.notes ? { notes: built.notes } : {}) }) as BlockInput["payload"];
@@ -777,7 +829,23 @@ function buildEntriesPayload(
       return finish(built);
     }
     case "timeline": {
-      const built = collect(parseTimelineLine, parseTimelineLineLenient);
+      // Entity grouping first: a dated / emphasized title line owns its
+      // bullets ("Role — 2024–2025" + highlights), so details stay with the
+      // entry instead of becoming flat rows or "unrecognized" notes.
+      const lines = groupingLines(matched, contentLines);
+      const groups = detectEntityGroups(lines);
+      const grouped = groups
+        .map((g) => ({ entry: buildTimelineFromGroup(g), lineNo: g.titleLine.lineNo, group: g }))
+        .filter((g): g is { entry: TimelineEntry; lineNo: number; group: (typeof groups)[number] } =>
+          g.entry !== null,
+        );
+      const skip = new Set(grouped.flatMap((g) => groupLineNumbers(g.group)));
+      const built = collectOver(lines, parseTimelineLine, parseTimelineLineLenient, { skip });
+      for (const g of grouped) {
+        built.entries.push(g.entry);
+        built.lineOf.push(g.lineNo);
+      }
+      sortByLine(built);
       mergeTimeline(built, ctx, notes);
       if (ctx.extraTimeline.length > 0) {
         const room = LIMITS.maxEntriesPerBlock - built.entries.length;
@@ -798,7 +866,22 @@ function buildEntriesPayload(
       return finish(built);
     }
     case "actions": {
-      const built = collect(parseActionLine, parseActionLineLenient);
+      // Entity grouping first: one card per project / workstream, bullets as
+      // its details — never one flat pending todo per bullet.
+      const lines = groupingLines(matched, contentLines);
+      const groups = detectEntityGroups(lines);
+      const grouped = groups.map((g) => ({
+        entry: buildActionFromGroup(g),
+        lineNo: g.titleLine.lineNo,
+        group: g,
+      }));
+      const skip = new Set(grouped.flatMap((g) => groupLineNumbers(g.group)));
+      const built = collectOver(lines, parseActionLine, parseActionLineLenient, { skip });
+      for (const g of grouped) {
+        built.entries.push(g.entry);
+        built.lineOf.push(g.lineNo);
+      }
+      sortByLine(built);
       // Persona headings ("As a Purchase Manager") are first-class observations.
       for (const section of matched) {
         const heading = section.headingText?.replace(/^\d+(\.\d+)*\.?\s*/, "").trim() ?? "";
@@ -815,6 +898,39 @@ function buildEntriesPayload(
   }
 }
 
+/**
+ * Content lines for entity grouping: an inherited sub-heading ("### Project X"
+ * under "## Projects") seeds its own emphasized title line so its bullets file
+ * under it. Done here, not on the Section, so understanding never re-reads the
+ * heading as an extra statement.
+ */
+function groupingLines(matched: readonly Section[], contentLines: SourceLine[]): SourceLine[] {
+  if (!matched.some((s) => s.inherited && s.headingText !== null && s.headingLine !== null)) {
+    return contentLines;
+  }
+  const out: SourceLine[] = [];
+  for (const section of matched) {
+    if (section.inherited && section.headingText !== null && section.headingLine !== null) {
+      out.push({ text: `**${section.headingText}**`, lineNo: section.headingLine });
+    }
+    for (const line of section.lines) {
+      if (line.text.trim() !== "") out.push(line);
+    }
+  }
+  return out;
+}
+
+/** Restore document order after grouped entries join flat-parsed ones. */
+function sortByLine<T>(built: { entries: T[]; lineOf: Array<number | null> }): void {
+  const order = built.entries.map((_, i) => i);
+  order.sort(
+    (a, b) =>
+      (built.lineOf[a] ?? Number.MAX_SAFE_INTEGER) - (built.lineOf[b] ?? Number.MAX_SAFE_INTEGER),
+  );
+  built.entries = order.map((i) => built.entries[i]!);
+  built.lineOf = order.map((i) => built.lineOf[i] ?? null);
+}
+
 /* ----------------------------- merging the passes --------------------------- */
 
 /**
@@ -825,16 +941,19 @@ function buildEntriesPayload(
  */
 const INFERRED_BUDGET = 24;
 
-/** True when this line already became an entry somewhere, in any block. */
-function alreadyUsed(lineNo: number, lineOf: ReadonlyArray<number | null>): boolean {
-  return lineOf.includes(lineNo);
+/** True when this line already became an entry (or an entry's details) in this block. */
+function alreadyUsed(
+  lineNo: number,
+  built: { used: Set<number>; lineOf: ReadonlyArray<number | null> },
+): boolean {
+  return built.used.has(lineNo) || built.lineOf.includes(lineNo);
 }
 
 
 function mergeHeroInsights(built: Collected<SignalEntry>, ctx: BuildContext, notes: string[]): void {
   for (const insight of ctx.understanding.heroInsights) {
     if (built.entries.length >= LIMITS.maxEntriesPerBlock) break;
-    if (alreadyUsed(insight.evidence.lineNo, built.lineOf)) continue;
+    if (alreadyUsed(insight.evidence.lineNo, built)) continue;
     if (built.entries.some((e) => saysTheSame(`${e.label} ${e.implication ?? ""}`, `${insight.entry.label} ${insight.entry.implication ?? ""}`))) continue;
     built.entries.unshift(insight.entry);
     built.lineOf.unshift(insight.evidence.lineNo);
@@ -857,7 +976,7 @@ function mergeSignals(built: Collected<SignalEntry>, ctx: BuildContext, notes: s
     }
     if (added >= INFERRED_BUDGET) continue;
     if (built.entries.length >= LIMITS.maxEntriesPerBlock) break;
-    if (alreadyUsed(evidence.lineNo, built.lineOf)) continue;
+    if (alreadyUsed(evidence.lineNo, built)) continue;
     if (built.entries.some((e) => saysTheSame(e.label, value.label))) continue;
     built.entries.push({
       label: value.label,
@@ -888,7 +1007,7 @@ function mergeDecisions(built: Collected<DecisionEntry>, ctx: BuildContext, note
     if (blocksDecisionInference(evidence.text) || blocksDecisionInference(value.text)) continue;
     if (added >= INFERRED_BUDGET) continue;
     if (built.entries.length >= LIMITS.maxEntriesPerBlock) break;
-    if (alreadyUsed(evidence.lineNo, built.lineOf)) continue;
+    if (alreadyUsed(evidence.lineNo, built)) continue;
     if (isDecisionChrome(value.text)) continue;
     if (built.entries.some((e) => sameDecision(e.text, value.text))) continue;
     // Preserve commitment as metadata; status stays honest to the source.
@@ -917,7 +1036,7 @@ function mergeRisks(built: Collected<RiskEntry>, ctx: BuildContext, notes: strin
     }
     if (added >= INFERRED_BUDGET) continue;
     if (built.entries.length >= LIMITS.maxEntriesPerBlock) break;
-    if (alreadyUsed(evidence.lineNo, built.lineOf)) continue;
+    if (alreadyUsed(evidence.lineNo, built)) continue;
     if (built.entries.some((e) => saysTheSame(e.risk, value.risk))) continue;
     built.entries.push({
       risk: value.risk,
@@ -939,7 +1058,7 @@ function mergeTimeline(built: Collected<TimelineEntry>, ctx: BuildContext, notes
     if (existing >= 0) continue;
     if (added >= INFERRED_BUDGET) continue;
     if (built.entries.length >= LIMITS.maxEntriesPerBlock) break;
-    if (alreadyUsed(evidence.lineNo, built.lineOf)) continue;
+    if (alreadyUsed(evidence.lineNo, built)) continue;
     if (built.entries.some((e) => e.date === value.date && saysTheSame(e.title, value.title))) {
       continue;
     }
@@ -970,7 +1089,7 @@ function mergeActions(built: Collected<ActionEntry>, ctx: BuildContext, notes: s
     }
     if (added >= INFERRED_BUDGET) continue;
     if (built.entries.length >= LIMITS.maxEntriesPerBlock) break;
-    if (alreadyUsed(evidence.lineNo, built.lineOf)) continue;
+    if (alreadyUsed(evidence.lineNo, built)) continue;
     if (built.entries.some((e) => saysTheSame(e.task, value.task))) continue;
     built.entries.push({
       task: value.task,

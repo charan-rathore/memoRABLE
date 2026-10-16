@@ -442,6 +442,33 @@ export function inferArtifact(text: string): InferredArtifact {
 
 /** Work that is finished. */
 const FINISHED = /\b(done|complete|completed|closed|shipped|delivered|finished|landed)\b/i;
+
+/**
+ * A statement that *leads* with a past-tense completion verb is a record of
+ * finished work ("Delivered the analysis", "Improved recall from 36.7% to
+ * 70%"), wherever it appears — resume, retro, release notes. Only lead
+ * position counts: an imperative like "Ship the next release" is a todo, and
+ * a past-tense verb buried mid-sentence proves nothing about the task itself.
+ */
+const ACCOMPLISHED_WORDS = new Set(
+  ("delivered built improved reached awarded increased reduced cut flagged took preserved " +
+    "launched led drove achieved won created designed developed ran grew raised earned ranked " +
+    "placed published mentored automated eliminated lifted benchmarked implemented introduced " +
+    "spearheaded orchestrated migrated streamlined scaled negotiated secured co-founded founded " +
+    "established executed made gained attained exceeded surpassed generated saved accelerated " +
+    "modernized refactored optimized optimised organized organised taught trained presented " +
+    "authored co-authored coordinated managed directed owned maintained rewrote revamped " +
+    "deployed released piloted tested validated analyzed analysed researched evaluated " +
+    "diagnosed identified resolved solved fixed documented").split(" "),
+);
+const FIRST_WORD = /^([\w-]+)/i;
+function leadsWithAccomplishedVerb(text: string): boolean {
+  const first = FIRST_WORD.exec(text)?.[1]?.toLowerCase();
+  if (first && ACCOMPLISHED_WORDS.has(first)) return true;
+  // Two-word leads: "rolled out", "co founded".
+  const two = /^([\w-]+\s+[\w-]+)/i.exec(text)?.[1]?.toLowerCase().replace(/\s+/g, " ");
+  return two === "rolled out";
+}
 /** Work whose prerequisites are stated as met. */
 const READY = /\b(ready|ready to (?:go|start|ship)|good to go|unblocked|approved to start|cleared)\b/i;
 
@@ -457,6 +484,7 @@ export function inferReadiness(
 ): "pending" | "suggested" | "ready" | "done" {
   if (options.checked === true) return "done";
   if (FINISHED.test(text)) return "done";
+  if (leadsWithAccomplishedVerb(text.trim())) return "done";
   if (READY.test(text)) return "ready";
   if (CONSIDERED.test(text)) return "suggested";
   return "pending";

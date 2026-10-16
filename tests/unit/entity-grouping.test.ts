@@ -142,3 +142,42 @@ describe("entity grouping through markdown sub-headings", () => {
     expect(analyst!.details!.length).toBeGreaterThan(0);
   });
 });
+
+describe("entity grouping: open-ended date ranges", () => {
+  it("does not mark an ongoing role done or leave the open end in the title", () => {
+    const raw = `## Experience
+
+**Platform Engineer, Acme** January 2024 – Present
+- Own the ingestion pipeline serving 40M daily events
+- Cut p95 ingest latency by 38% through batch compaction
+`;
+    const result = importSource({ raw, label: "resume-present.md" });
+    if (!result.ok) throw new Error(`import failed: ${JSON.stringify(result.errors)}`);
+    const { entries } = blockEntries<TimelineEntry>(result.value, "timeline");
+
+    const role = entries.find((e) => /Platform Engineer/.test(e.title));
+    expect(role).toBeDefined();
+    // An ongoing role is not finished work...
+    expect(role!.state).not.toBe("done");
+    // ...and its title does not carry the open-ended marker.
+    expect(role!.title).not.toContain("Present");
+    expect(role!.title).not.toContain("January 2024");
+    expect(role!.details).toHaveLength(2);
+  });
+
+  it("treats Current and Ongoing the same way", () => {
+    const raw = `## Experience
+
+**Staff Engineer, Beta** March 2022 – Current
+- Run the storage guild across four teams
+`;
+    const result = importSource({ raw, label: "resume-current.md" });
+    if (!result.ok) throw new Error(`import failed: ${JSON.stringify(result.errors)}`);
+    const { entries } = blockEntries<TimelineEntry>(result.value, "timeline");
+
+    const role = entries.find((e) => /Staff Engineer/.test(e.title));
+    expect(role).toBeDefined();
+    expect(role!.state).not.toBe("done");
+    expect(role!.title).not.toContain("Current");
+  });
+});

@@ -81,6 +81,18 @@ export function findDateRange(text: string): DateRange | null {
   const joiner = /^\s*[-–—]\s*/.exec(rest);
   if (!joiner) return null;
   const tail = rest.slice(joiner[0].length);
+  // Open-ended range: "January 2024 – Present". The end is not a date, so the
+  // entry is ongoing - never read it as past, and span the marker so it does
+  // not leak into the title.
+  const openEnded = /^(?:present|current|now|ongoing)\b/i.exec(tail.trim());
+  if (openEnded) {
+    return {
+      start: first.date,
+      end: openEnded[0],
+      index: first.index,
+      length: first.length + joiner[0].length + tail.indexOf(openEnded[0]) + openEnded[0].length,
+    };
+  }
   const second = findDateToken(tail) ?? (/^\d{4}\b/.test(tail.trim()) ? { date: tail.trim().slice(0, 4), index: tail.indexOf(tail.trim().slice(0, 4)), length: 4 } : null);
   if (!second) return null;
   return {

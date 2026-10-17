@@ -459,7 +459,8 @@ const ACCOMPLISHED_WORDS = new Set(
     "modernized refactored optimized optimised organized organised taught trained presented " +
     "authored co-authored coordinated managed directed owned maintained rewrote revamped " +
     "deployed released piloted tested validated analyzed analysed researched evaluated " +
-    "diagnosed identified resolved solved fixed documented").split(" "),
+    "diagnosed identified resolved solved fixed documented added changed removed dropped " +
+    "deprecated upgraded downgraded bumped reverted").split(" "),
 );
 const FIRST_WORD = /^([\w-]+)/i;
 function leadsWithAccomplishedVerb(text: string): boolean {

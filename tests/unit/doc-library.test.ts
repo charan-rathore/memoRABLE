@@ -31,9 +31,22 @@ describe("recent document library promises",()=>{
   expect(docs[0]?.title).toBe("Document 24");
   expect(docs.some((doc)=>doc.title==="Document 0")).toBe(false);
  });
+ it("keeps a document just under seven days old but expires one at the boundary",()=>{
+  localStorage.setItem("memorable.library.v1",JSON.stringify([
+   {id:"fresh",title:"Almost seven days",label:"fresh.txt",sourceText:"text",savedAt:Date.now()-(7*24*60*60*1000-1)},
+   {id:"edge",title:"Exactly seven days",label:"edge.txt",sourceText:"text",savedAt:Date.now()-7*24*60*60*1000},
+  ]));
+  expect(listLibraryDocs().map((doc)=>doc.title)).toEqual(["Almost seven days"]);
+ });
  it("caps remembered source text at 1,048,576 UTF-16 units",()=>{
   const doc=rememberLibraryDoc({title:"Large document",label:"large.txt",sourceText:"x".repeat(1_048_580)});
   expect(doc.sourceText).toHaveLength(1_048_576);
   expect(listLibraryDocs()[0]?.sourceText).toHaveLength(1_048_576);
+ });
+ it("counts the excerpt cap in UTF-16 units, not code points",()=>{
+  const doc=rememberLibraryDoc({title:"Astral document",label:"astral.txt",sourceText:"\u{1F600}".repeat(524_289)});
+  expect(doc.sourceText).toHaveLength(1_048_576);
+  expect([...doc.sourceText]).toHaveLength(524_288);
+  expect([...doc.sourceText].at(-1)).toBe("\u{1F600}");
  });
 });

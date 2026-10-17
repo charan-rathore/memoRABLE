@@ -34,7 +34,13 @@ describe("architecture guide", () => {
     const preview = readFileSync(resolve(root, "src/components/preview/preview-pane.tsx"), "utf8");
     expect(preview).toContain('sandbox="allow-same-origin"');
     expect(html).toContain("sandboxed iframe without script execution");
-    expect(html).toContain("not the full source or a durable backup");
+    expect(html).toContain("recent-document library writes source text");
+    expect(html).toContain("1,048,576 UTF-16 code units");
+    expect(html).toContain("24 entries");
+    expect(html).toContain("older than seven days");
+    expect(html).toContain("not deleted by a background timer");
+    expect(html).toContain("src/stats/doc-library.ts");
+    expect(html).not.toMatch(/only a reference|not the full source|local-storage reference/);
     expect(html).toContain("not an automatic email send or remote website deployment");
     expect(html).toContain("Preserved locators do not prove new AI claims");
     expect(html + svg).not.toMatch(/jev|typesafe/i);

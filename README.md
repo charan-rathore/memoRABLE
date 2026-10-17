@@ -60,7 +60,7 @@ Document → Memory Extraction → Memory Graph (6 blocks) → Unlayer Elements 
 - Recent documents expire after 7 days and the library keeps at most 24 entries.
 - A saved source excerpt is limited to 1,048,576 UTF-16 units.
 
-The expiry, entry limit, and excerpt limit are covered in [tests/unit/doc-library.test.ts](tests/unit/doc-library.test.ts); local storage behavior is implemented in [src/stats/doc-library.ts](src/stats/doc-library.ts).
+The local-library limits are covered in [tests/unit/doc-library.test.ts](tests/unit/doc-library.test.ts). The optional reference-storage helpers are tested in [tests/unit/storage.test.ts](tests/unit/storage.test.ts) and implemented in [src/reliability/storage.ts](src/reliability/storage.ts). These helpers are not wired into the reader; the tests cover helper roundtrip and error handling, not reader restoration after reload.
 
 ## Try it
 

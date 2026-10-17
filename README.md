@@ -54,6 +54,14 @@ Document → Memory Extraction → Memory Graph (6 blocks) → Unlayer Elements 
 
 ---
 
+## Promises that must never break
+
+- Recent-document source text stays in this browser and is not uploaded by the local library.
+- Recent documents expire after 7 days and the library keeps at most 24 entries.
+- A saved source excerpt is limited to 1,048,576 UTF-16 units.
+
+The expiry, entry limit, and excerpt limit are covered in [tests/unit/doc-library.test.ts](tests/unit/doc-library.test.ts); local storage behavior is implemented in [src/stats/doc-library.ts](src/stats/doc-library.ts).
+
 ## Try it
 
 1. Open **[memo-rable.vercel.app](https://memo-rable.vercel.app)**.

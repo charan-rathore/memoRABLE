@@ -227,6 +227,34 @@ export function parseText(input: TextImportInput): Result<MemoryDocument> {
     current.lines.push(sourceLine);
   }
 
+  // Changelog routing is context-bound: "Added" / "Fixed" / "Security" only own
+  // the Actions memory inside a changelog-shaped document (a release-notes
+  // title or version-number headings). In an RFC or report a "Security"
+  // section is prose, not finished work.
+  const CHANGELOG_SECTIONS: Record<string, BlockKind> = {
+    added: "actions",
+    changed: "actions",
+    fixed: "actions",
+    removed: "actions",
+    deprecated: "actions",
+    security: "actions",
+    "breaking changes": "actions",
+    "bug fixes": "actions",
+  };
+  const looksLikeChangelog =
+    /change\s?log|release notes|what'?s new/i.test(title) ||
+    sections.some((sec) => sec.headingText && /^v?\d+\.\d+(\.\d+)?\b/.test(sec.headingText.trim()));
+  if (looksLikeChangelog) {
+    for (const section of sections) {
+      if (section.kind !== null || !section.headingText) continue;
+      const kind = CHANGELOG_SECTIONS[section.headingText.trim().toLowerCase()];
+      if (kind) {
+        section.kind = kind;
+        section.assigned = true;
+      }
+    }
+  }
+
   // Unknown headings get a second chance from the shape of their content.
   for (const section of sections) {
     if (section.kind !== null) continue;
@@ -252,9 +280,13 @@ export function parseText(input: TextImportInput): Result<MemoryDocument> {
 
   // Ordinal phases are timeline-worthy only when the archetype has a real
   // timeline mode. Menus/glossaries must not invent a schedule from "Phase 1".
-  // An ordinal ("Week 1", "Phase 2") owns its section: the lines under it are
-  // the phase's content, not unrecognized text. Carry them as entry details
-  // and keep them out of the snapshot leftovers.
+  // A schedule ordinal ("Week 1", "Phase 2") owns its section: the lines under
+  // it are the phase's content, not unrecognized text. Carry them as entry
+  // details and keep them out of the snapshot leftovers. Document-structure
+  // markers ("Chapter 3", "Part II") are not phases — their sections stay
+  // untouched. And ownership is all-or-nothing: if the lines exceed the
+  // details limit, the section stays in leftovers rather than losing lines.
+  const SCHEDULE_ORDINAL = /^(phase|task|step|stage|milestone|sprint|iteration|week|day|quarter|month)\b/i;
   const consumedOrdinalSections = new Set<ReturnType<typeof startSection>>();
   const timelineExtras =
     understanding.archetype.timelineMode === "none"
@@ -264,13 +296,16 @@ export function parseText(input: TextImportInput): Result<MemoryDocument> {
           .slice(0, LIMITS.maxEntriesPerBlock)
           .map<TimelineEntry>((o) => {
             const section = ordinalSections.get(o);
-            const details = section
+            const ownable = section && SCHEDULE_ORDINAL.test(o.marker);
+            const details = ownable
               ? section.lines
                   .map((l) => plainContentOf(l.text).trim())
                   .filter((t) => t.length > 0 && t !== o.title)
-                  .slice(0, 10)
               : [];
-            if (section && section.kind === null) consumedOrdinalSections.add(section);
+            if (details.length > LIMITS.maxEntriesPerBlock) {
+              return { date: o.marker, title: o.title!, state: "planned" };
+            }
+            if (section && ownable && section.kind === null) consumedOrdinalSections.add(section);
             return {
               date: o.marker,
               title: o.title!,
@@ -905,6 +940,20 @@ function buildEntriesPayload(
         built.lineOf.push(g.lineNo);
       }
       sortByLine(built);
+      // Changelog sections name the completion state in the heading itself: a
+      // terse bullet under "### Added" is shipped work, not a pending todo.
+      const DONE_CHANGELOG_HEADINGS = new Set([
+        "added", "changed", "fixed", "removed", "deprecated", "security",
+        "breaking changes", "bug fixes",
+      ]);
+      for (const section of matched) {
+        const h = section.headingText?.trim().toLowerCase() ?? "";
+        if (!DONE_CHANGELOG_HEADINGS.has(h)) continue;
+        const sectionLines = new Set(section.lines.map((l) => l.lineNo));
+        built.entries.forEach((e, idx) => {
+          if (e.status === "pending" && sectionLines.has(built.lineOf[idx]!)) e.status = "done";
+        });
+      }
       // Persona headings ("As a Purchase Manager") are first-class observations.
       for (const section of matched) {
         const heading = section.headingText?.replace(/^\d+(\.\d+)*\.?\s*/, "").trim() ?? "";

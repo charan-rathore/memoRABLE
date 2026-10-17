@@ -97,3 +97,88 @@ describe("changelog sections produce finished work, not empty memories", () => {
     expect(entries.every((e) => e.status === "done")).toBe(true);
   });
 });
+
+describe("codex review regressions (PR #45)", () => {
+  it("does not route a generic 'Security' heading to Actions outside changelogs", () => {
+    const doc = `# Cache Invalidation RFC
+
+## Proposal
+- Invalidate product entries on every price write
+
+## Security
+- Write-through invalidation must not leak tenant ids in cache keys
+- Signed URLs expire after 15 minutes
+`;
+    const result = importSource({ raw: doc, label: "rfc-cache.md" });
+    if (!result.ok) throw new Error("import failed");
+    // Without wholesale heading routing, plain security prose has no path to
+    // Actions. (The "must not leak" line still promotes via the pre-existing
+    // TODO_HINT "must" rule in understanding — unchanged by this PR.)
+    const actions = result.value.blocks.find((b) => b.kind === "actions");
+    const entries = (actions?.payload as { entries?: Array<{ task: string }> }).entries ?? [];
+    expect(entries.some((e) => /Signed URLs expire/.test(e.task))).toBe(false);
+    // The section stays unclaimed, so its lines survive in snapshot leftovers.
+    const snapshot = result.value.blocks.find((b) => b.kind === "snapshot");
+    const notes = (snapshot?.payload as { notes?: string[] }).notes ?? [];
+    expect(notes.some((n) => /tenant ids/.test(n))).toBe(true);
+    expect(notes.some((n) => /Signed URLs expire/.test(n))).toBe(true);
+  });
+
+  it("keeps every checklist line when an ordinal section has many items", () => {
+    const items = Array.from({ length: 12 }, (_, i) => `- [ ] Task number ${i + 1} for the week`).join("\n");
+    const doc = `# Onboarding Plan\n\n## Week 1\n${items}\n`;
+    const result = importSource({ raw: doc, label: "onboarding.md" });
+    if (!result.ok) throw new Error("import failed");
+    const timeline = result.value.blocks.find((b) => b.kind === "timeline");
+    const entries = (timeline?.payload as { entries: Array<{ date: string; details?: string[] }> }).entries;
+    const week1 = entries.find((e) => e.date === "Week 1");
+    const kept = (week1?.details ?? []).join("\n") + "\n" + JSON.stringify(result.value.blocks.map((b) => b.payload));
+    for (let i = 2; i <= 12; i++) {
+      expect(kept).toContain(`Task number ${i} for the week`);
+    }
+  });
+
+  it("keeps a preposition that governs text after the date", () => {
+    const out = inferTimeline([stmt("Move to March 2026 pricing")]);
+    expect(out.length).toBeGreaterThan(0);
+    expect(out[0]!.value.title).toMatch(/to pricing/i);
+    expect(out[0]!.value.title).not.toMatch(/^Move pricing/i);
+  });
+
+  it("marks terse changelog bullets done from their section heading", () => {
+    const doc = `# Acme CLI — Release Notes
+
+## v2.5.0 — October 10, 2026
+
+### Added
+- New watch mode for builds
+- TOML config support
+`;
+    const result = importSource({ raw: doc, label: "release-notes.md" });
+    if (!result.ok) throw new Error("import failed");
+    const actions = result.value.blocks.find((b) => b.kind === "actions");
+    const entries = (actions?.payload as { entries: Array<{ task: string; status: string }> }).entries;
+    expect(entries.some((e) => /New watch mode/.test(e.task))).toBe(true);
+    const watch = entries.find((e) => /New watch mode/.test(e.task));
+    expect(watch!.status).toBe("done");
+    const toml = entries.find((e) => /TOML config support/.test(e.task));
+    expect(toml!.status).toBe("done");
+  });
+
+  it("does not consume chapter sections as timeline phases", () => {
+    const doc = `# Thinking in Systems — Book Notes
+
+## Chapter 1: Basics
+- A stock is the memory of the history of changing flows
+- Feedback loops regulate the system
+`;
+    const result = importSource({ raw: doc, label: "book-notes.md" });
+    if (!result.ok) throw new Error("import failed");
+    const timeline = result.value.blocks.find((b) => b.kind === "timeline");
+    const entries = (timeline?.payload as { entries?: Array<{ date: string; details?: string[] }> }).entries ?? [];
+    const chapter = entries.find((e) => /^Chapter/.test(e.date));
+    expect(chapter?.details ?? []).toEqual([]);
+    const all = JSON.stringify(result.value.blocks.map((b) => b.payload));
+    expect(all).toContain("changing flows");
+  });
+});

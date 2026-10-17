@@ -506,10 +506,22 @@ const LEG_LABEL = /^(departure|arrival|depart(?:s|ing)?|arriv(?:e|es|al|ing)?)\s
  * stranded punctuation are left behind.
  */
 export function titleAroundRemovedDate(text: string, index: number, length: number): string {
-  const before = text
-    .slice(0, index)
-    .replace(/\s+(?:on|by|from|at|in|before|after|until|to)\s*$/i, "");
   const after = text.slice(index + length);
+  // Drop the date's lead-in preposition only when it cannot govern what
+  // follows: end of text, punctuation, or another preposition ("21:05 on
+  // December 20, arrive…", "pilot … by November 15", "House on December 18
+  // after 14:00"). Otherwise it heads the phrase the date sat inside —
+  // "Move to March 2026 pricing" must not lose its "to".
+  const rest = after.trimStart();
+  const strippable =
+    rest === "" ||
+    /^[,;.]/.test(rest) ||
+    /^(?:on|by|from|at|in|before|after|until|to|for|with)\b/i.test(rest);
+  const before = strippable
+    ? text
+        .slice(0, index)
+        .replace(/\s+(?:on|by|from|at|in|before|after|until|to)\s*$/i, "")
+    : text.slice(0, index);
   return `${before} ${after}`
     .replace(/\s+/g, " ")
     .replace(/\s+([,;:])/g, "$1")

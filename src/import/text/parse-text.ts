@@ -150,6 +150,7 @@ export function parseText(input: TextImportInput): Result<MemoryDocument> {
 
   const sections: Section[] = [];
   const ordinals: OrdinalMark[] = [];
+  const ordinalSections = new Map<OrdinalMark, ReturnType<typeof startSection>>();
   let current: Section | null = null;
   let pendingOrdinal: OrdinalMark | null = null;
 
@@ -191,6 +192,7 @@ export function parseText(input: TextImportInput): Result<MemoryDocument> {
         pendingOrdinal = { marker: ordinal.marker, title: ordinal.rest || null, line: i + 1 };
         ordinals.push(pendingOrdinal);
         current = startSection(null, heading.text, i + 1);
+        ordinalSections.set(pendingOrdinal, current);
         continue;
       }
       if (pendingOrdinal && !pendingOrdinal.title) pendingOrdinal.title = heading.text;
@@ -239,7 +241,7 @@ export function parseText(input: TextImportInput): Result<MemoryDocument> {
   assignKindsFromGraph(sections, graph);
 
   const warnings: ImportWarning[] = [];
-  const leftovers = sections.filter((s) => s.kind === null);
+  let leftovers = sections.filter((s) => s.kind === null);
 
   // Understand every section (including unheaded prose) before structural merge.
   const understanding = understand({
@@ -250,13 +252,34 @@ export function parseText(input: TextImportInput): Result<MemoryDocument> {
 
   // Ordinal phases are timeline-worthy only when the archetype has a real
   // timeline mode. Menus/glossaries must not invent a schedule from "Phase 1".
+  // An ordinal ("Week 1", "Phase 2") owns its section: the lines under it are
+  // the phase's content, not unrecognized text. Carry them as entry details
+  // and keep them out of the snapshot leftovers.
+  const consumedOrdinalSections = new Set<ReturnType<typeof startSection>>();
   const timelineExtras =
     understanding.archetype.timelineMode === "none"
       ? []
       : ordinals
           .filter((o) => o.title)
           .slice(0, LIMITS.maxEntriesPerBlock)
-          .map<TimelineEntry>((o) => ({ date: o.marker, title: o.title!, state: "planned" }));
+          .map<TimelineEntry>((o) => {
+            const section = ordinalSections.get(o);
+            const details = section
+              ? section.lines
+                  .map((l) => plainContentOf(l.text).trim())
+                  .filter((t) => t.length > 0 && t !== o.title)
+                  .slice(0, 10)
+              : [];
+            if (section && section.kind === null) consumedOrdinalSections.add(section);
+            return {
+              date: o.marker,
+              title: o.title!,
+              state: "planned",
+              ...(details.length > 0 ? { details } : {}),
+            };
+          });
+
+  leftovers = leftovers.filter((s) => !consumedOrdinalSections.has(s));
 
   const ctx: BuildContext = {
     title,

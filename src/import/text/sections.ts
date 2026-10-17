@@ -37,6 +37,16 @@ const HEADING_KEYWORDS: Record<string, BlockKind> = {
   vision: "snapshot",
   premise: "snapshot",
 
+  // changelog sections (keep-a-changelog conventions) — finished work
+  added: "actions",
+  changed: "actions",
+  fixed: "actions",
+  removed: "actions",
+  deprecated: "actions",
+  security: "actions",
+  "breaking changes": "actions",
+  "bug fixes": "actions",
+
   // signals — indicators, measured or qualitative
   signals: "signals",
   metrics: "signals",

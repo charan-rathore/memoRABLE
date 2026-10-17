@@ -500,6 +500,24 @@ const OBLIGATION_DATE_LABEL =
 /** Ticket / itinerary leg labels. */
 const LEG_LABEL = /^(departure|arrival|depart(?:s|ing)?|arriv(?:e|es|al|ing)?)\s*[:—–-]?\s*(.+)$/i;
 
+/**
+ * Title remainder once a mid-sentence date is lifted out. The date's lead-in
+ * preposition ("on", "by", "in"…) goes with it, and no doubled commas or
+ * stranded punctuation are left behind.
+ */
+export function titleAroundRemovedDate(text: string, index: number, length: number): string {
+  const before = text
+    .slice(0, index)
+    .replace(/\s+(?:on|by|from|at|in|before|after|until|to)\s*$/i, "");
+  const after = text.slice(index + length);
+  return `${before} ${after}`
+    .replace(/\s+/g, " ")
+    .replace(/\s+([,;:])/g, "$1")
+    .replace(/,\s*,+/g, ",")
+    .replace(/^\s*[:—–-]\s*|\s*[:—–-]\s*$/g, "")
+    .trim();
+}
+
 export function parseTimelineLine(raw: string): TimelineEntry | null {
   const item = splitListItem(raw);
   const cells = splitTableRow(raw);
@@ -550,10 +568,7 @@ export function parseTimelineLine(raw: string): TimelineEntry | null {
     const found = findDateToken(text);
     if (!found) return null;
     date = found.date;
-    rest = `${text.slice(0, found.index)} ${text.slice(found.index + found.length)}`
-      .replace(/\s+/g, " ")
-      .replace(/^\s*[:—–-]\s*|\s*[:—–-]\s*$/g, "")
-      .trim();
+    rest = titleAroundRemovedDate(text, found.index, found.length);
   }
   if (rest.length < 2) return null;
   let state: TimelineEntry["state"] | undefined;

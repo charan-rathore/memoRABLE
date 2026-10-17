@@ -11,6 +11,7 @@ import {
   parseActionLine,
   parseTimelineLine,
   parseUserStoryLine,
+  titleAroundRemovedDate,
 } from "@/import/text/patterns";
 import type { ActionEntry, TimelineEntry } from "@/domain/memory/schema";
 import type { Inferred, Statement } from "./inference";
@@ -83,10 +84,9 @@ export function inferTimeline(
     const found = findDateToken(text);
     if (!found) continue;
     if (!underTimeline && !DELIVERY.test(text)) continue;
-    const title = `${text.slice(0, found.index)} ${text.slice(found.index + found.length)}`
-      .replace(/\s+/g, " ")
-      .replace(/^\s*[:—–-]\s*|\s*[:—–-]\s*$/g, "")
-      .trim();
+    // Removing the date must not leave its lead-in preposition dangling
+    // ("launch ... by", "arrive on ,", "check in on after 14:00").
+    const title = titleAroundRemovedDate(text, found.index, found.length);
     if (title.length < 3 || wordCount(title) < 2) continue;
     out.push({
       value: {

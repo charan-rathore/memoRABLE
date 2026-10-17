@@ -104,6 +104,10 @@ With the flag on, uploads still parse via pdf.js first. Docling may refine in th
 
 ## Architecture
 
+![memoRABLE document-to-memory architecture](docs/architecture/document-to-memory.svg)
+
+[Interactive architecture guide](docs/architecture/interactive.html) - open any stage for code links and failure boundaries. GitHub displays HTML source; clone or download the repository and open the HTML locally to preserve its code links. This guide does not change the application UI.
+
 ```mermaid
 flowchart LR
   D[Document] --> X[Memory Extraction]

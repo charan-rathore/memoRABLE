@@ -27,7 +27,13 @@ describe("architecture guide", () => {
   it("keeps format routing, optional disclosures and failure limits explicit", () => {
     expect(html).toContain("JSON never falls through to text");
     expect(html).toContain("first 40 pages");
-    expect(html).toContain("8-second deadline, no automatic retries");
+    const limits = readFileSync(resolve(root, "src/domain/memory/limits.ts"), "utf8");
+    const timeoutMs = Number(limits.match(/aiTimeoutMs:\s*([\d_]+)/)?.[1]?.replaceAll("_", ""));
+    expect(timeoutMs).toBeGreaterThan(0);
+    expect(html).toContain(`${timeoutMs / 1000}-second deadline, no automatic retries`);
+    const preview = readFileSync(resolve(root, "src/components/preview/preview-pane.tsx"), "utf8");
+    expect(preview).toContain('sandbox="allow-same-origin"');
+    expect(html).toContain("sandboxed iframe without script execution");
     expect(html).toContain("not the full source or a durable backup");
     expect(html).toContain("not an automatic email send or remote website deployment");
     expect(html).toContain("Preserved locators do not prove new AI claims");

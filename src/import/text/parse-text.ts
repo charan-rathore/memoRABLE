@@ -268,6 +268,23 @@ export function parseText(input: TextImportInput): Result<MemoryDocument> {
   // Graph node types assign remaining unknown sections (RFC Stage 4 → extract).
   assignKindsFromGraph(sections, graph);
 
+  // A "Results" section full of measurement rows is a signals table (lab
+  // report, benchmark sheet), not research-prose findings on a timeline. The
+  // "results" keyword claims timeline for the research case; re-route only
+  // when the section body is genuinely table-shaped measurements.
+  for (const section of sections) {
+    if (section.kind !== "timeline" || section.inherited) continue;
+    if ((section.headingText ?? "").trim().toLowerCase() !== "results") continue;
+    const rows = section.lines
+      .map((l) => l.text)
+      .filter((t) => !isTableSeparator(t))
+      .map((t) => splitTableRow(t))
+      .filter((c): c is string[] => c !== null && c.length >= 2);
+    if (rows.length < 2) continue;
+    const measurements = rows.filter((cells) => /[0-9]/.test(cells[1]!));
+    if (measurements.length >= 2) section.kind = "signals";
+  }
+
   const warnings: ImportWarning[] = [];
   let leftovers = sections.filter((s) => s.kind === null);
 
@@ -1308,4 +1325,4 @@ function buildSnapshotPayload(
     ...(byline ? { byline } : {}),
     ...(notes.length > 0 ? { notes } : {}),
   };
-}
+                    }

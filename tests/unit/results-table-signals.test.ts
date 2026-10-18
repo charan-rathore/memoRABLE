@@ -19,6 +19,7 @@ Report date: October 10, 2026. Fasting glucose is above the reference range.
 
 ## Results
 | Test | Value | Reference |
+| --- | --- | --- |
 | Hemoglobin | 14.2 g/dL | 13.0 - 17.0 |
 | Fasting glucose | 108 mg/dL | 70 - 99 |
 | Vitamin D | 22 ng/mL | 30 - 100 |

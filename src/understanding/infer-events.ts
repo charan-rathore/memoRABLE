@@ -29,6 +29,13 @@ const DECIDED =
 const TODO_HINT =
   /\b(should|need to|needs to|have to|todo|to-do|follow[- ]?up|action item|please\s+\w+|someone (?:should|must|needs to)|we need to|let'?s)\b/i;
 
+/**
+ * Schedule ordinals own their section's lines; document-structure markers
+ * ("Chapter 3", "Part II") do not. Mirrors SCHEDULE_ORDINAL in
+ * import/text/parse-text.ts - keep the two lists in step.
+ */
+const SCHEDULE_ORDINAL_MARKER = /^(phase|task|step|stage|milestone|sprint|iteration|week|day)\b/i;
+
 const WORK_LEAD =
   /^(?:draft|chase|send|write|implement|build|create|fix|review|schedule|call|email|prepare|ship|deploy|spec|document|measure|track|fix|add|remove|fix|contact|follow up)\b/i;
 
@@ -67,7 +74,8 @@ export function inferTimeline(
     // them reads a reference ("60% of Week 2 weights") as a schedule FOR a
     // phase the document never had — and the phantom then dedupes the real
     // phase entry out of existence.
-    if (statement.sectionTitle && matchOrdinalHeading(statement.sectionTitle)) continue;
+    const ordinal = statement.sectionTitle ? matchOrdinalHeading(statement.sectionTitle) : null;
+    if (ordinal && SCHEDULE_ORDINAL_MARKER.test(ordinal.marker)) continue;
 
     const text = unpunctuated(statement.text);
     if (wordCount(text) < 3) continue;

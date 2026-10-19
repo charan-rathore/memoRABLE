@@ -90,7 +90,10 @@ export function findDateRange(text: string): DateRange | null {
   // The marker must END the range: "January 2024 – Present" and
   // "… – Present)." are open-ended, but "– Current status" is a date followed
   // by prose, not an ongoing marker.
-  const openEnded = /^(present|current|now|ongoing)(?=\s*[.,;:!?)\]]*\s*$)/i.exec(tail.trim());
+  // The marker must end the range, but a clearly delimited metadata tail
+  // ("Present | Remote", "Present (contract)") still counts - prose
+  // continuations ("Current status") do not.
+  const openEnded = /^(present|current|now|ongoing)(?=\s*[.,;:!?)\]]*\s*(?:[|·(].*)?$)/i.exec(tail.trim());
   const openEnd = openEnded?.[1];
   if (openEnd) {
     return {
@@ -146,6 +149,15 @@ const MONTH_WORD = /\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\b/
 /** Formatting labels that carry a section's bullets, not an entity: bold
  * time/status words ("**This week**", "**Backlog**") must not swallow the
  * real actions under them into one card. */
+/** A bold completion bucket ("**Done**", "**Shipped**"): not an entity, but
+ * the bullets under it are finished work. */
+const COMPLETION_LABEL =
+  /^\s*\*\*\s*(done|completed?|shipped|landed|finished|released|launched)\s*\*\*\s*[:.—–-]?\s*$/i;
+
+export function isCompletionLabelLine(text: string): boolean {
+  return COMPLETION_LABEL.test(text);
+}
+
 const GROUP_LABEL =
   /^\s*\*\*\s*(?:(?:this|last|next)\s+(?:week|month|quarter|year|sprint)|today|tomorrow|later|someday|backlog|todo|to-do|doing|in progress|ongoing|done|completed|up next|next up)\s*\*\*\s*[:.—–-]?\s*$/i;
 

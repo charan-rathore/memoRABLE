@@ -5,7 +5,7 @@
  * import/text/patterns (which already imports decision/risk helpers).
  */
 
-import { kindClaimedByHeading } from "@/import/text/sections";
+import { kindClaimedByHeading, matchOrdinalHeading } from "@/import/text/sections";
 import {
   findDateToken,
   parseActionLine,
@@ -28,6 +28,13 @@ const DECIDED =
 /** Soft work language that marks a todo without a list marker. */
 const TODO_HINT =
   /\b(should|need to|needs to|have to|todo|to-do|follow[- ]?up|action item|please\s+\w+|someone (?:should|must|needs to)|we need to|let'?s)\b/i;
+
+/**
+ * Schedule ordinals own their section's lines; document-structure markers
+ * ("Chapter 3", "Part II") do not. Mirrors SCHEDULE_ORDINAL in
+ * import/text/parse-text.ts - keep the two lists in step.
+ */
+const SCHEDULE_ORDINAL_MARKER = /^(phase|task|step|stage|milestone|sprint|iteration|week|day)\b/i;
 
 const WORK_LEAD =
   /^(?:draft|chase|send|write|implement|build|create|fix|review|schedule|call|email|prepare|ship|deploy|spec|document|measure|track|fix|add|remove|fix|contact|follow up)\b/i;
@@ -62,6 +69,13 @@ export function inferTimeline(
     const claimed = kindClaimedByHeading(statement.sectionTitle);
     // Only unheaded prose, snapshot framing, or an explicit Timeline section.
     if (claimed && claimed !== "timeline" && claimed !== "snapshot") continue;
+    // An ordinal heading ("Week 3") owns its lines as phase content, carried
+    // on the phase's own timeline entry. Inferring standalone entries from
+    // them reads a reference ("60% of Week 2 weights") as a schedule FOR a
+    // phase the document never had — and the phantom then dedupes the real
+    // phase entry out of existence.
+    const ordinal = statement.sectionTitle ? matchOrdinalHeading(statement.sectionTitle) : null;
+    if (ordinal && SCHEDULE_ORDINAL_MARKER.test(ordinal.marker)) continue;
 
     const text = unpunctuated(statement.text);
     if (wordCount(text) < 3) continue;

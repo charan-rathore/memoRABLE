@@ -10,6 +10,7 @@
  */
 import { describe, expect, it } from "vitest";
 import { importSource } from "@/import/import-source";
+import { inferTimeline } from "@/understanding/infer-events";
 
 const plan = `# 4-Week Strength Plan — Beginner
 
@@ -50,5 +51,34 @@ describe("phantom phase entries from ordinal references", () => {
     const timeline = result.value.blocks.find((b) => b.kind === "timeline");
     const entries = (timeline?.payload as { entries: Array<{ date: string }> }).entries;
     expect(entries.some((e) => e.date === "Week 1")).toBe(true);
+  });
+});
+
+describe("document-structure ordinals still get timeline inference", () => {
+  // Codex review on #52: "Part"/"Chapter" headings are document structure,
+  // not phases - parse-text.ts excludes them from ordinal ownership, so
+  // their lines must still reach standalone timeline inference.
+  it("infers a deadline under a Chapter heading", () => {
+    const out = inferTimeline([
+      {
+        text: "Deadline: November 15, 2026 for final manuscript delivery",
+        sectionTitle: "Chapter 2: Production",
+        lineNo: 1,
+        listItem: true,
+      },
+    ]);
+    expect(out.length).toBeGreaterThan(0);
+  });
+
+  it("still skips schedule ordinals like Week", () => {
+    const out = inferTimeline([
+      {
+        text: "Deload: 60% of Week 2 weights, same sets",
+        sectionTitle: "Week 3",
+        lineNo: 1,
+        listItem: true,
+      },
+    ]);
+    expect(out.length).toBe(0);
   });
 });

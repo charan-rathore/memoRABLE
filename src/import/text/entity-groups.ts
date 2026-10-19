@@ -158,6 +158,15 @@ export function isCompletionLabelLine(text: string): boolean {
   return COMPLETION_LABEL.test(text);
 }
 
+/** A bold readiness bucket ("**Ready**"): not an entity, but the bullets
+ * under it are agreed and waiting to start. */
+const READINESS_LABEL =
+  /^\s*\*\*\s*ready\s*\*\*\s*[:.—–-]?\s*$/i;
+
+export function isReadinessLabelLine(text: string): boolean {
+  return READINESS_LABEL.test(text);
+}
+
 const GROUP_LABEL =
   /^\s*\*\*\s*(?:(?:this|last|next)\s+(?:week|month|quarter|year|sprint)|today|tomorrow|later|someday|backlog|todo|to-do|doing|in progress|ongoing|done|completed|up next|next up|blocked|pending|ready|in[ -]review|on[ -]hold|waiting|stalled|paused|wip)\s*\*\*\s*[:.—–-]?\s*$/i;
 

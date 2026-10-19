@@ -5,7 +5,7 @@
  * import/text/patterns (which already imports decision/risk helpers).
  */
 
-import { kindClaimedByHeading } from "@/import/text/sections";
+import { kindClaimedByHeading, matchOrdinalHeading } from "@/import/text/sections";
 import {
   findDateToken,
   parseActionLine,
@@ -62,6 +62,12 @@ export function inferTimeline(
     const claimed = kindClaimedByHeading(statement.sectionTitle);
     // Only unheaded prose, snapshot framing, or an explicit Timeline section.
     if (claimed && claimed !== "timeline" && claimed !== "snapshot") continue;
+    // An ordinal heading ("Week 3") owns its lines as phase content, carried
+    // on the phase's own timeline entry. Inferring standalone entries from
+    // them reads a reference ("60% of Week 2 weights") as a schedule FOR a
+    // phase the document never had — and the phantom then dedupes the real
+    // phase entry out of existence.
+    if (statement.sectionTitle && matchOrdinalHeading(statement.sectionTitle)) continue;
 
     const text = unpunctuated(statement.text);
     if (wordCount(text) < 3) continue;

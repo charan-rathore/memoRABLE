@@ -1001,6 +1001,19 @@ function buildEntriesPayload(
           });
         }
       }
+      // A readiness heading ("### Ready") names the same state as the bold
+      // label: the parser keeps it in section.headingText, never a content
+      // line, so the label scan above cannot see it - propagate from the
+      // heading directly, the same way changelog headings do.
+      const READY_HEADINGS = new Set(["ready", "ready to go", "ready to ship", "ready to start"]);
+      for (const section of matched) {
+        const h = section.headingText?.trim().toLowerCase() ?? "";
+        if (!READY_HEADINGS.has(h)) continue;
+        const sectionLines = new Set(section.lines.map((l) => l.lineNo));
+        built.entries.forEach((e, idx) => {
+          if (e.status === "pending" && sectionLines.has(built.lineOf[idx]!)) e.status = "ready";
+        });
+      }
       // Persona headings ("As a Purchase Manager") are first-class observations.
       for (const section of matched) {
         const heading = section.headingText?.replace(/^\d+(\.\d+)*\.?\s*/, "").trim() ?? "";

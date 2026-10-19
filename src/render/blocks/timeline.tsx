@@ -78,6 +78,9 @@ function timelineRow(
           color={c.ink}
           lineHeight="150%"
         />
+        {(entry.details ?? []).map((line, i) =>
+          asideParagraph(line, `${block.id}-detail-${index}-${i}`, ctx.theme),
+        )}
         {chain.map((line, i) => asideParagraph(line, `${block.id}-chain-${index}-${i}`, ctx.theme))}
       </Column>
       <Column padding="12px 0px 12px 12px" border={cellBorder}>

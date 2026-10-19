@@ -74,6 +74,9 @@ function actionRow(
             lineHeight="150%"
           />
         ) : null}
+        {(entry.details ?? []).map((line, i) =>
+          asideParagraph(line, `${block.id}-detail-${index}-${i}`, ctx.theme),
+        )}
         {entry.from ? asideParagraph(`Carries out ${entry.from}`, `${block.id}-from-${index}`, ctx.theme) : null}
       </Column>
       <Column padding="12px 0px 12px 12px" border={cellBorder}>

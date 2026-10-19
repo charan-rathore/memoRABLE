@@ -451,7 +451,7 @@ const FINISHED = /\b(done|complete|completed|closed|shipped|delivered|finished|l
  * a past-tense verb buried mid-sentence proves nothing about the task itself.
  */
 const ACCOMPLISHED_WORDS = new Set(
-  ("delivered built improved reached awarded increased reduced cut flagged took preserved " +
+  ("delivered built improved reached awarded increased reduced flagged took preserved " +
     "launched led drove achieved won created designed developed ran grew raised earned ranked " +
     "placed published mentored automated eliminated lifted benchmarked implemented introduced " +
     "spearheaded orchestrated migrated streamlined scaled negotiated secured co-founded founded " +
@@ -463,8 +463,22 @@ const ACCOMPLISHED_WORDS = new Set(
     "deprecated upgraded downgraded bumped reverted").split(" "),
 );
 const FIRST_WORD = /^([\w-]+)/i;
+/** Evidence that frames "cut" as a completed action, not an imperative. */
+const PAST_CONTEXT =
+  /\b(last\s+(?:week|month|quarter|year|sprint)|past\s+(?:week|month|quarter|year)|ago|yesterday)\b/i;
+/** A bare calendar year is not inherently retrospective: "Cut cloud spend
+ * in 2099" is a plan, so only a year before the current one counts. */
+const IN_YEAR = /\bin\s+(20\d\d)\b/;
+function hasPastContext(text: string): boolean {
+  if (PAST_CONTEXT.test(text)) return true;
+  const year = IN_YEAR.exec(text)?.[1];
+  return year !== undefined && Number.parseInt(year, 10) < new Date().getFullYear();
+}
 function leadsWithAccomplishedVerb(text: string): boolean {
   const first = FIRST_WORD.exec(text)?.[1]?.toLowerCase();
+  // "cut" is both imperative and past tense; only explicit past context
+  // ("Cut cloud spend by 20% last quarter") marks the work finished.
+  if (first === "cut") return hasPastContext(text);
   if (first && ACCOMPLISHED_WORDS.has(first)) return true;
   // Two-word leads: "rolled out", "co founded".
   const two = /^([\w-]+\s+[\w-]+)/i.exec(text)?.[1]?.toLowerCase().replace(/\s+/g, " ");

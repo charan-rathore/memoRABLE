@@ -3,6 +3,8 @@ import {
   buildTimelineFromGroup,
   detectEntityGroups,
   groupLineNumbers,
+  isCompletionLabelLine,
+  isReadinessLabelLine,
 } from "./entity-groups";
 import { ok, type Result } from "@/reliability/result";
 import type { Diagnostic } from "@/reliability/diagnostics";
@@ -952,6 +954,64 @@ function buildEntriesPayload(
         const sectionLines = new Set(section.lines.map((l) => l.lineNo));
         built.entries.forEach((e, idx) => {
           if (e.status === "pending" && sectionLines.has(built.lineOf[idx]!)) e.status = "done";
+        });
+      }
+      // Bold completion buckets ("**Done**") are not entities, but their
+      // bullets ARE finished work - propagate the label's state, the same way
+      // changelog headings do above.
+      {
+        // Scan each matched section independently: groupingLines can
+        // concatenate sections without a boundary marker, so a bucket at one
+        // section's end must not mark the next section's bullets done.
+        const doneLines = new Set<number>();
+        for (const section of matched) {
+          const secLines = section.lines;
+          for (let li = 0; li < secLines.length; li++) {
+            if (!isCompletionLabelLine(secLines[li]!.text)) continue;
+            let lj = li + 1;
+            while (lj < secLines.length && isListLike(secLines[lj]!.text)) {
+              doneLines.add(secLines[lj]!.lineNo);
+              lj++;
+            }
+          }
+        }
+        if (doneLines.size > 0) {
+          built.entries.forEach((e, idx) => {
+            if (doneLines.has(built.lineOf[idx]!)) e.status = "done";
+          });
+        }
+        // Bold readiness buckets ("**Ready**") propagate the same way: the
+        // bullets are agreed and waiting, not guessed pending - but never
+        // downgrade a bullet already known done.
+        const readyLines = new Set<number>();
+        for (const section of matched) {
+          const secLines = section.lines;
+          for (let li = 0; li < secLines.length; li++) {
+            if (!isReadinessLabelLine(secLines[li]!.text)) continue;
+            let lj = li + 1;
+            while (lj < secLines.length && isListLike(secLines[lj]!.text)) {
+              readyLines.add(secLines[lj]!.lineNo);
+              lj++;
+            }
+          }
+        }
+        if (readyLines.size > 0) {
+          built.entries.forEach((e, idx) => {
+            if (e.status === "pending" && readyLines.has(built.lineOf[idx]!)) e.status = "ready";
+          });
+        }
+      }
+      // A readiness heading ("### Ready") names the same state as the bold
+      // label: the parser keeps it in section.headingText, never a content
+      // line, so the label scan above cannot see it - propagate from the
+      // heading directly, the same way changelog headings do.
+      const READY_HEADINGS = new Set(["ready", "ready to go", "ready to ship", "ready to start"]);
+      for (const section of matched) {
+        const h = section.headingText?.trim().toLowerCase() ?? "";
+        if (!READY_HEADINGS.has(h)) continue;
+        const sectionLines = new Set(section.lines.map((l) => l.lineNo));
+        built.entries.forEach((e, idx) => {
+          if (e.status === "pending" && sectionLines.has(built.lineOf[idx]!)) e.status = "ready";
         });
       }
       // Persona headings ("As a Purchase Manager") are first-class observations.

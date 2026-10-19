@@ -113,6 +113,9 @@ const DATE_ATOM = [
   `${MONTH}\\.?`,
   `Q[1-4](?:[ /]?${YEAR})?`,
   `${YEAR}-\\d{2}-\\d{2}`,
+  // Numeric month/year ("01/2024", "1-2024") before the day/month form so the
+  // year is never split off as a bare-year token.
+  `(?:0?[1-9]|1[0-2])[\\/-](?:19|20)\\d{2}`,
   `\\d{1,2}\\/\\d{1,2}(?:\\/\\d{2,4})?`,
   `Week\\s+\\d{1,2}`,
   `Sprint\\s+\\d{1,2}`,
@@ -134,6 +137,8 @@ const DATE_EMBEDDED = [
   `${MONTH}\\.?\\s+${YEAR}`,
   `Q[1-4](?:[ /]?${YEAR})?`,
   `${YEAR}-\\d{2}-\\d{2}`,
+  // Same numeric month/year guard as DATE_ATOM: keep "01/2024" one token.
+  `(?:0?[1-9]|1[0-2])[\\/-](?:19|20)\\d{2}`,
   `\\d{1,2}\\/\\d{1,2}(?:\\/\\d{2,4})?`,
   `Week\\s+\\d{1,2}`,
   `Sprint\\s+\\d{1,2}`,
@@ -141,19 +146,44 @@ const DATE_EMBEDDED = [
 ].join("|");
 const DATE_ANYWHERE = new RegExp(`\\b(${DATE_EMBEDDED})\\b`, "i");
 
+const DATE_ENTIRE = new RegExp(`^(?:${DATE_EMBEDDED})$`, "i");
+
+/** True when the whole string is a date phrase ("January 2024"), unlike a name that starts with one ("May Lee"). */
+export function isEntirelyDate(text: string): boolean {
+  return DATE_ENTIRE.test(text.trim());
+}
+
 export function looksLikeDate(text: string): boolean {
   return DATE_TOKEN.test(text.trim());
 }
 
+/** True when the match at `index` is really the numeric tail of a
+ * hyphenated identifier ("RFC-1-2024"): an identifier run with a letter in
+ * it ends right where the match starts. Pure digit runs stay dates, so
+ * "2024-2025" still parses as a year range. */
+function insideIdentifier(text: string, index: number): boolean {
+  let i = index - 1;
+  while (i >= 0 && /[A-Za-z0-9]/.test(text[i]!)) i -= 1;
+  if (i < 0 || !/[-\/_.]/.test(text[i]!)) return false;
+  for (let j = i - 1; j >= 0 && /[A-Za-z0-9_./-]/.test(text[j]!); j -= 1) {
+    if (/[A-Za-z]/.test(text[j]!)) return true;
+  }
+  return false;
+}
+
 /** Find a date/time phrase anywhere in text; returns the matched span. */
 export function findDateToken(text: string): { date: string; index: number; length: number } | null {
-  const match = DATE_ANYWHERE.exec(text);
-  if (!match || match.index === undefined) return null;
-  return {
-    date: match[1]!.replace(/\.$/, "").replace(/\s+/g, " ").trim(),
-    index: match.index,
-    length: match[0].length,
-  };
+  const anywhere = new RegExp(DATE_ANYWHERE.source, "gi");
+  let match: RegExpExecArray | null;
+  while ((match = anywhere.exec(text)) !== null) {
+    if (insideIdentifier(text, match.index)) continue;
+    return {
+      date: match[1]!.replace(/\.$/, "").replace(/\s+/g, " ").trim(),
+      index: match.index,
+      length: match[0].length,
+    };
+  }
+  return null;
 }
 
 const SEPARATOR = /\s*[:—–]\s+|\s+-\s+/;
@@ -771,7 +801,15 @@ export function parseActionLine(raw: string): ActionEntry | null {
     const task = segments.slice(0, -2).join(", ");
     // An "owner" that is itself a date is a date range, not a person:
     // "Role — January 2024 – June 2025" is an entity title, not a todo.
-    if (looksLikeDate(due) && !looksLikeDate(owner) && owner.length <= 60 && task.length >= 3) {
+    // An owner that IS a date (or range fragment) is an entity title, but a
+    // person named May/June/August must survive: reject date SEGMENTS and
+    // bare-month range fragments ("Role - January - June 2025"), not names.
+    const bareMonthOwner = /^(jan|feb|mar|apr|may|june?|july?|aug|sep|sept|oct|nov|dec)[a-z]*\.?$/i.test(owner);
+    // A segment that BEGINS with an unambiguous date (month + year) is a
+    // range start with metadata, not a person: "January 2024 (Remote)".
+    // A name like "May Lee" has no year and survives.
+    const datePrefixedOwner = /^(jan|feb|mar|apr|may|june?|july?|aug|sep|sept|oct|nov|dec)[a-z]*\.?\s+\d{4}\b/i.test(owner);
+    if (looksLikeDate(due) && !isEntirelyDate(owner) && !bareMonthOwner && !datePrefixedOwner && owner.length <= 60 && task.length >= 3) {
       return { task, owner, due, status };
     }
   }

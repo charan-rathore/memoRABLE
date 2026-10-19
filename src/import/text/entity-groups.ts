@@ -159,7 +159,7 @@ export function isCompletionLabelLine(text: string): boolean {
 }
 
 const GROUP_LABEL =
-  /^\s*\*\*\s*(?:(?:this|last|next)\s+(?:week|month|quarter|year|sprint)|today|tomorrow|later|someday|backlog|todo|to-do|doing|in progress|ongoing|done|completed|up next|next up)\s*\*\*\s*[:.—–-]?\s*$/i;
+  /^\s*\*\*\s*(?:(?:this|last|next)\s+(?:week|month|quarter|year|sprint)|today|tomorrow|later|someday|backlog|todo|to-do|doing|in progress|ongoing|done|completed|up next|next up|blocked|pending|ready|in[ -]review|on[ -]hold|waiting|stalled|paused|wip)\s*\*\*\s*[:.—–-]?\s*$/i;
 
 function isTitleCandidate(text: string, next: GroupLine | undefined): boolean {
   if (isListLike(text) || isDecorativeLine(text) || isTableSeparator(text) || splitTableRow(text)) {

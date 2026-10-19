@@ -787,7 +787,11 @@ export function parseActionLine(raw: string): ActionEntry | null {
     // person named May/June/August must survive: reject date SEGMENTS and
     // bare-month range fragments ("Role - January - June 2025"), not names.
     const bareMonthOwner = /^(jan|feb|mar|apr|may|june?|july?|aug|sep|sept|oct|nov|dec)[a-z]*\.?$/i.test(owner);
-    if (looksLikeDate(due) && !isEntirelyDate(owner) && !bareMonthOwner && owner.length <= 60 && task.length >= 3) {
+    // A segment that BEGINS with an unambiguous date (month + year) is a
+    // range start with metadata, not a person: "January 2024 (Remote)".
+    // A name like "May Lee" has no year and survives.
+    const datePrefixedOwner = /^(jan|feb|mar|apr|may|june?|july?|aug|sep|sept|oct|nov|dec)[a-z]*\.?\s+\d{4}\b/i.test(owner);
+    if (looksLikeDate(due) && !isEntirelyDate(owner) && !bareMonthOwner && !datePrefixedOwner && owner.length <= 60 && task.length >= 3) {
       return { task, owner, due, status };
     }
   }

@@ -14,11 +14,10 @@ import { describe, expect, it } from "vitest";
 import {
   buildActionFromGroup,
   buildTimelineFromGroup,
-  detectEntityGroups,
   findDateRange,
 } from "@/import/text/entity-groups";
 import { importSource } from "@/import/import-source";
-import { inferTimeline } from "@/understanding/infer-events";
+import type { ActionEntry, TimelineEntry } from "@/domain/memory/schema";
 
 const G = (title: string, ...details: string[]) => ({
   titleLine: { text: title, lineNo: 1 },
@@ -80,7 +79,7 @@ describe("F: details reach rendered output", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     const timeline = result.value.blocks.find((b) => b.kind === "timeline");
-    const entries = ((timeline?.payload as any)?.entries ?? []) as any[];
+    const entries = ((timeline?.payload as { entries?: TimelineEntry[] } | undefined)?.entries ?? []);
     const mig = entries.find((e) => /migration/i.test(e.title));
     expect(mig).toBeTruthy();
     expect((mig.details ?? []).join(" ")).toContain("Configure database");
@@ -100,8 +99,8 @@ describe("G: bold label is not an entity title", () => {
     const result = importSource({ raw: doc, label: "standup-notes.md" });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    const actions = result.value.blocks.filter((b) => b.kind === "actions").flatMap((b) => (b.payload as any).entries);
-    const titles = actions.map((a: any) => a.task ?? a.title);
+    const actions = result.value.blocks.filter((b) => b.kind === "actions").flatMap((b) => (b.payload as { entries: ActionEntry[] }).entries);
+    const titles = actions.map((a) => a.task);
     expect(titles).toContain("Call Alice");
     expect(titles).toContain("Fix login");
   });
@@ -132,9 +131,9 @@ describe("I: imperative cut stays pending", () => {
     const result = importSource({ raw: doc, label: "cost-review.md" });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    const actions = result.value.blocks.filter((b) => b.kind === "actions").flatMap((b) => (b.payload as any).entries);
-    const cut = actions.find((a: any) => /cut cloud/i.test(a.task ?? a.title));
-    if (cut) expect((cut as any).status).not.toBe("done");
+    const actions = result.value.blocks.filter((b) => b.kind === "actions").flatMap((b) => (b.payload as { entries: ActionEntry[] }).entries);
+    const cut = actions.find((a) => /cut cloud/i.test(a.task));
+    if (cut) expect(cut.status).not.toBe("done");
   });
 });
 
@@ -149,10 +148,10 @@ describe("J: owner named May survives", () => {
     const result = importSource({ raw: doc, label: "planning.md" });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    const actions = result.value.blocks.filter((b) => b.kind === "actions").flatMap((b) => (b.payload as any).entries);
-    const draft = actions.find((a: any) => /draft report/i.test(a.task ?? a.title)) as any;
+    const actions = result.value.blocks.filter((b) => b.kind === "actions").flatMap((b) => (b.payload as { entries: ActionEntry[] }).entries);
+    const draft = actions.find((a) => /draft report/i.test(a.task));
     if (draft) {
-      expect(draft.owner ?? "").toMatch(/may lee/i);
+      expect(draft?.owner ?? "").toMatch(/may lee/i);
     }
   });
 });

@@ -959,13 +959,19 @@ function buildEntriesPayload(
       // bullets ARE finished work - propagate the label's state, the same way
       // changelog headings do above.
       {
+        // Scan each matched section independently: groupingLines can
+        // concatenate sections without a boundary marker, so a bucket at one
+        // section's end must not mark the next section's bullets done.
         const doneLines = new Set<number>();
-        for (let li = 0; li < lines.length; li++) {
-          if (!isCompletionLabelLine(lines[li]!.text)) continue;
-          let lj = li + 1;
-          while (lj < lines.length && isListLike(lines[lj]!.text)) {
-            doneLines.add(lines[lj]!.lineNo);
-            lj++;
+        for (const section of matched) {
+          const secLines = section.lines;
+          for (let li = 0; li < secLines.length; li++) {
+            if (!isCompletionLabelLine(secLines[li]!.text)) continue;
+            let lj = li + 1;
+            while (lj < secLines.length && isListLike(secLines[lj]!.text)) {
+              doneLines.add(secLines[lj]!.lineNo);
+              lj++;
+            }
           }
         }
         if (doneLines.size > 0) {

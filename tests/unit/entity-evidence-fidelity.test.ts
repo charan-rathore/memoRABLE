@@ -350,3 +350,32 @@ describe("Codex round 5: ready propagation, identifier separators, cut", () => {
     expect(inferReadiness("Cut cloud spend by 20%")).toBe("pending");
   });
 });
+
+describe("Codex round 6: Ready headings propagate, future years are not past", () => {
+  it("propagates a ### Ready subheading to its bullets", () => {
+    const doc = `# Notes
+
+## Actions
+
+### Ready
+- Deploy app
+- Cut release
+`;
+    const result = importSource({ raw: doc, label: "notes.md" });
+    if (!result.ok) throw new Error("import failed");
+    const actions = result.value.blocks
+      .filter((b) => b.kind === "actions")
+      .flatMap((b) => (b.payload as { entries: ActionEntry[] }).entries);
+    const dep = actions.find((a) => /deploy app/i.test(a.task));
+    const cut = actions.find((a) => /cut release/i.test(a.task));
+    expect(dep?.status).toBe("ready");
+    expect(cut?.status).toBe("ready");
+  });
+
+  it("rejects future years as past context for cut", async () => {
+    const { inferReadiness } = await import("@/understanding/inference");
+    expect(inferReadiness("Cut cloud spend in 2099")).not.toBe("done");
+    const lastYear = new Date().getFullYear() - 1;
+    expect(inferReadiness(`Cut cloud spend in ${lastYear}`)).toBe("done");
+  });
+});

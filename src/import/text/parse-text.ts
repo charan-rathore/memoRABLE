@@ -4,6 +4,7 @@ import {
   detectEntityGroups,
   groupLineNumbers,
   isCompletionLabelLine,
+  isReadinessLabelLine,
 } from "./entity-groups";
 import { ok, type Result } from "@/reliability/result";
 import type { Diagnostic } from "@/reliability/diagnostics";
@@ -977,6 +978,26 @@ function buildEntriesPayload(
         if (doneLines.size > 0) {
           built.entries.forEach((e, idx) => {
             if (doneLines.has(built.lineOf[idx]!)) e.status = "done";
+          });
+        }
+        // Bold readiness buckets ("**Ready**") propagate the same way: the
+        // bullets are agreed and waiting, not guessed pending - but never
+        // downgrade a bullet already known done.
+        const readyLines = new Set<number>();
+        for (const section of matched) {
+          const secLines = section.lines;
+          for (let li = 0; li < secLines.length; li++) {
+            if (!isReadinessLabelLine(secLines[li]!.text)) continue;
+            let lj = li + 1;
+            while (lj < secLines.length && isListLike(secLines[lj]!.text)) {
+              readyLines.add(secLines[lj]!.lineNo);
+              lj++;
+            }
+          }
+        }
+        if (readyLines.size > 0) {
+          built.entries.forEach((e, idx) => {
+            if (e.status === "pending" && readyLines.has(built.lineOf[idx]!)) e.status = "ready";
           });
         }
       }

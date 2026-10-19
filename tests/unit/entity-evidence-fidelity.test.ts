@@ -155,3 +155,43 @@ describe("J: owner named May survives", () => {
     }
   });
 });
+
+describe("Codex round 2: metadata, month fragments, completion buckets", () => {
+  it("accepts a delimited metadata tail after an open-ended marker", () => {
+    const t = buildTimelineFromGroup(G("Engineer January 2024 – Present | Remote", "- Shipped v2"), new Date("2026-10-19"));
+    if (!t) throw new Error("expected a timeline entry");
+    expect(t.state).not.toBe("done");
+    expect(t.title).not.toContain("Present");
+    expect(t.title).toContain("Remote");
+  });
+
+  it("still rejects prose after the marker", () => {
+    expect(findDateRange("Release January 2024 – Current status")).toBeNull();
+  });
+
+  it("rejects a bare-month range fragment as an action owner", async () => {
+    const { parseActionLine } = await import("@/import/text/patterns");
+    const out = parseActionLine("Product Analyst — January – June 2025");
+    expect(out === null || out.owner !== "January").toBe(true);
+  });
+
+  it("propagates a bold Done bucket to its bullets", () => {
+    const doc = `# Sprint Notes
+
+## Actions
+
+**Done**
+- Migrate database
+- Deploy app
+`;
+    const result = importSource({ raw: doc, label: "sprint-notes.md" });
+    if (!result.ok) throw new Error("import failed");
+    const actions = result.value.blocks
+      .filter((b) => b.kind === "actions")
+      .flatMap((b) => (b.payload as { entries: ActionEntry[] }).entries);
+    const mig = actions.find((a) => /migrate database/i.test(a.task));
+    const dep = actions.find((a) => /deploy app/i.test(a.task));
+    expect(mig?.status).toBe("done");
+    expect(dep?.status).toBe("done");
+  });
+});

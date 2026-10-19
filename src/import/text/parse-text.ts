@@ -3,6 +3,7 @@ import {
   buildTimelineFromGroup,
   detectEntityGroups,
   groupLineNumbers,
+  isCompletionLabelLine,
 } from "./entity-groups";
 import { ok, type Result } from "@/reliability/result";
 import type { Diagnostic } from "@/reliability/diagnostics";
@@ -953,6 +954,25 @@ function buildEntriesPayload(
         built.entries.forEach((e, idx) => {
           if (e.status === "pending" && sectionLines.has(built.lineOf[idx]!)) e.status = "done";
         });
+      }
+      // Bold completion buckets ("**Done**") are not entities, but their
+      // bullets ARE finished work - propagate the label's state, the same way
+      // changelog headings do above.
+      {
+        const doneLines = new Set<number>();
+        for (let li = 0; li < lines.length; li++) {
+          if (!isCompletionLabelLine(lines[li]!.text)) continue;
+          let lj = li + 1;
+          while (lj < lines.length && isListLike(lines[lj]!.text)) {
+            doneLines.add(lines[lj]!.lineNo);
+            lj++;
+          }
+        }
+        if (doneLines.size > 0) {
+          built.entries.forEach((e, idx) => {
+            if (doneLines.has(built.lineOf[idx]!)) e.status = "done";
+          });
+        }
       }
       // Persona headings ("As a Purchase Manager") are first-class observations.
       for (const section of matched) {

@@ -81,7 +81,7 @@ describe("F: details reach rendered output", () => {
     const timeline = result.value.blocks.find((b) => b.kind === "timeline");
     const entries = ((timeline?.payload as { entries?: TimelineEntry[] } | undefined)?.entries ?? []);
     const mig = entries.find((e) => /migration/i.test(e.title));
-    expect(mig).toBeTruthy();
+    if (!mig) throw new Error("Migration entry missing");
     expect((mig.details ?? []).join(" ")).toContain("Configure database");
   });
 });

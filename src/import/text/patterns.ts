@@ -113,6 +113,9 @@ const DATE_ATOM = [
   `${MONTH}\\.?`,
   `Q[1-4](?:[ /]?${YEAR})?`,
   `${YEAR}-\\d{2}-\\d{2}`,
+  // Numeric month/year ("01/2024", "1-2024") before the day/month form so the
+  // year is never split off as a bare-year token.
+  `(?:0?[1-9]|1[0-2])[\\/-](?:19|20)\\d{2}`,
   `\\d{1,2}\\/\\d{1,2}(?:\\/\\d{2,4})?`,
   `Week\\s+\\d{1,2}`,
   `Sprint\\s+\\d{1,2}`,
@@ -134,12 +137,21 @@ const DATE_EMBEDDED = [
   `${MONTH}\\.?\\s+${YEAR}`,
   `Q[1-4](?:[ /]?${YEAR})?`,
   `${YEAR}-\\d{2}-\\d{2}`,
+  // Same numeric month/year guard as DATE_ATOM: keep "01/2024" one token.
+  `(?:0?[1-9]|1[0-2])[\\/-](?:19|20)\\d{2}`,
   `\\d{1,2}\\/\\d{1,2}(?:\\/\\d{2,4})?`,
   `Week\\s+\\d{1,2}`,
   `Sprint\\s+\\d{1,2}`,
   YEAR,
 ].join("|");
 const DATE_ANYWHERE = new RegExp(`\\b(${DATE_EMBEDDED})\\b`, "i");
+
+const DATE_ENTIRE = new RegExp(`^(?:${DATE_EMBEDDED})$`, "i");
+
+/** True when the whole string is a date phrase ("January 2024"), unlike a name that starts with one ("May Lee"). */
+export function isEntirelyDate(text: string): boolean {
+  return DATE_ENTIRE.test(text.trim());
+}
 
 export function looksLikeDate(text: string): boolean {
   return DATE_TOKEN.test(text.trim());
@@ -771,7 +783,9 @@ export function parseActionLine(raw: string): ActionEntry | null {
     const task = segments.slice(0, -2).join(", ");
     // An "owner" that is itself a date is a date range, not a person:
     // "Role — January 2024 – June 2025" is an entity title, not a todo.
-    if (looksLikeDate(due) && !looksLikeDate(owner) && owner.length <= 60 && task.length >= 3) {
+    // An owner that IS a date (or range) is an entity title, but a person
+    // named May/June/August must survive: reject date SEGMENTS, not prefixes.
+    if (looksLikeDate(due) && !isEntirelyDate(owner) && owner.length <= 60 && task.length >= 3) {
       return { task, owner, due, status };
     }
   }

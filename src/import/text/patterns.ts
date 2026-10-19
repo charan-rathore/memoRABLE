@@ -164,8 +164,8 @@ export function looksLikeDate(text: string): boolean {
 function insideIdentifier(text: string, index: number): boolean {
   let i = index - 1;
   while (i >= 0 && /[A-Za-z0-9]/.test(text[i]!)) i -= 1;
-  if (i < 0 || (text[i] !== "-" && text[i] !== "/")) return false;
-  for (let j = i - 1; j >= 0 && /[A-Za-z0-9\-/]/.test(text[j]!); j -= 1) {
+  if (i < 0 || !/[-\/_.]/.test(text[i]!)) return false;
+  for (let j = i - 1; j >= 0 && /[A-Za-z0-9_./-]/.test(text[j]!); j -= 1) {
     if (/[A-Za-z]/.test(text[j]!)) return true;
   }
   return false;

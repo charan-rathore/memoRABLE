@@ -22,6 +22,7 @@ import {
   isTableSeparator,
   plainContentOf,
   splitTableRow,
+  splitListItem,
 } from "./patterns";
 
 export interface GroupLine {
@@ -86,7 +87,10 @@ export function findDateRange(text: string): DateRange | null {
   // Open-ended range: "January 2024 – Present". The end is not a date, so the
   // entry is ongoing - never read it as past, and span the marker so it does
   // not leak into the title.
-  const openEnded = /^(present|current|now|ongoing)(?![\w-])/i.exec(tail.trim());
+  // The marker must END the range: "January 2024 – Present" and
+  // "… – Present)." are open-ended, but "– Current status" is a date followed
+  // by prose, not an ongoing marker.
+  const openEnded = /^(present|current|now|ongoing)(?=\s*[.,;:!?)\]]*\s*$)/i.exec(tail.trim());
   const openEnd = openEnded?.[1];
   if (openEnd) {
     return {
@@ -118,6 +122,10 @@ function toYearMonth(date: string): { year: number; month: number } | null {
     const month = MONTH_INDEX[monthYear[1]!.toLowerCase().replace(/\.$/, "").slice(0, 3)];
     return month ? { year: Number(monthYear[2]), month } : null;
   }
+  const numericMonthYear = /^(0?[1-9]|1[0-2])[\/-]((?:19|20)\d{2})$/.exec(date.trim());
+  if (numericMonthYear) {
+    return { year: Number(numericMonthYear[2]), month: Number(numericMonthYear[1]) };
+  }
   const bareYear = /^((?:19|20)\d{2})$/.exec(date.trim());
   // A bare year as a range end means "by end of that year".
   if (bareYear) return { year: Number(bareYear[1]), month: 12 };
@@ -135,12 +143,18 @@ export function isPastRange(range: DateRange, now: Date = new Date()): boolean {
 /** Cheap presence gate before the full date-range scan. */
 const MONTH_WORD = /\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\b/i;
 
+/** Formatting labels that carry a section's bullets, not an entity: bold
+ * time/status words ("**This week**", "**Backlog**") must not swallow the
+ * real actions under them into one card. */
+const GROUP_LABEL =
+  /^\s*\*\*\s*(?:(?:this|last|next)\s+(?:week|month|quarter|year|sprint)|today|tomorrow|later|someday|backlog|todo|to-do|doing|in progress|ongoing|done|completed|up next|next up)\s*\*\*\s*[:.—–-]?\s*$/i;
+
 function isTitleCandidate(text: string, next: GroupLine | undefined): boolean {
   if (isListLike(text) || isDecorativeLine(text) || isTableSeparator(text) || splitTableRow(text)) {
     return false;
   }
   if (!next || !isListLike(next.text)) return false;
-  if (BOLD_LEAD.test(text)) return true;
+  if (BOLD_LEAD.test(text) && !GROUP_LABEL.test(text)) return true;
   // A date range needs digits or month names; skip the heavy scan otherwise.
   if (!/[0-9]/.test(text) && !MONTH_WORD.test(text)) return false;
   const plain = plainContentOf(text);
@@ -204,6 +218,13 @@ export function buildActionFromGroup(group: EntityGroup, now: Date = new Date())
   const details = detailsOf(group);
   const range = findDateRange(task);
 
+  // Checklist state survives plainContentOf stripping "[x]": read it from the
+  // raw detail lines before the past-tense heuristic gets a say.
+  const items = group.detailLines.map((l) => splitListItem(l.text));
+  const boxes = items.filter((i) => i?.marker === "task");
+  const allBoxesChecked = boxes.length > 0 && boxes.length === items.length && boxes.every((i) => i!.done);
+  const anyBoxUnchecked = boxes.some((i) => i!.done === false);
+
   let status = inferReadiness(task);
   if (range && isPastRange(range, now)) {
     status = "done";
@@ -212,11 +233,16 @@ export function buildActionFromGroup(group: EntityGroup, now: Date = new Date())
     // stronger evidence than past-tense detail lines are of finished work.
     !range?.open &&
     status === "pending" &&
+    !anyBoxUnchecked &&
     details.length > 0 &&
     details.every((d) => inferReadiness(d) === "done")
   ) {
     status = "done";
   }
+  if (allBoxesChecked) status = "done";
+  // An open range ("January 2024 – Present") says the entity is still active;
+  // that beats completion keywords in the title ("Complete Streets Program").
+  if (range?.open) status = "pending";
 
   return {
     task,
@@ -252,16 +278,18 @@ export function buildTimelineFromGroup(
   if (openParen && closeParen) {
     spanStart -= openParen[0].length;
     spanEnd += closeParen[0].length;
-  } else {
-    const terminalDot = /^\s*\.(?=\s|$)/.exec(plain.slice(spanEnd));
-    if (terminalDot) spanEnd += terminalDot[0].length;
   }
+  // Runs after the paren extension too: "(<range>)." loses the dot as well.
+  const terminalDot = /^\s*\.(?=\s|$)/.exec(plain.slice(spanEnd));
+  if (terminalDot) spanEnd += terminalDot[0].length;
   const span = { index: spanStart, length: spanEnd - spanStart };
   let title = `${plain.slice(0, span.index)} ${plain.slice(span.index + span.length)}`
     .replace(/\s+/g, " ")
     .replace(/^[\s,;·:—–-]+|[\s,;·:—–-]+$/g, "")
     .trim();
-  if (title.length < 3) title = plain;
+  // Only fall back to the raw line when nothing usable survived; short but
+  // real names ("AI", "3M") stay instead of regrowing the removed range.
+  if (!/[A-Za-z0-9]/.test(title) || (title.length < 2 && !/[A-Za-z]/.test(title))) title = plain;
 
   const past = range
     ? isPastRange(range, now)

@@ -195,3 +195,64 @@ describe("Codex round 2: metadata, month fragments, completion buckets", () => {
     expect(dep?.status).toBe("done");
   });
 });
+
+describe("Codex round 3: date-prefixed owners, section boundaries, all completion labels", () => {
+  it("rejects an owner that begins with an unambiguous date", async () => {
+    const { parseActionLine } = await import("@/import/text/patterns");
+    const out = parseActionLine("Product Analyst — January 2024 (Remote) – June 2025");
+    expect(out === null || !/^january/i.test(out.owner ?? "")).toBe(true);
+  });
+
+  it("keeps a person named May as an owner", async () => {
+    const { parseActionLine } = await import("@/import/text/patterns");
+    const out = parseActionLine("Ship report — May Lee — Aug 15");
+    if (!out) throw new Error("expected an action");
+    expect(out.owner).toBe("May Lee");
+  });
+
+  it("stops a completion bucket at the section boundary", () => {
+    const doc = `# Notes
+
+## Actions
+
+### Sprint One
+
+**Done**
+- Migrate database
+
+## Next Steps
+
+- Plan launch
+`;
+    const result = importSource({ raw: doc, label: "notes.md" });
+    if (!result.ok) throw new Error("import failed");
+    const actions = result.value.blocks
+      .filter((b) => b.kind === "actions")
+      .flatMap((b) => (b.payload as { entries: ActionEntry[] }).entries);
+    const mig = actions.find((a) => /migrate database/i.test(a.task));
+    const plan = actions.find((a) => /plan launch/i.test(a.task));
+    expect(mig?.status).toBe("done");
+    expect(plan?.status).toBe("pending");
+  });
+
+  it("excludes every completion label from entity grouping", () => {
+    const doc = `# Notes
+
+## Actions
+
+**Shipped**
+- Migrate database
+- Deploy app
+`;
+    const result = importSource({ raw: doc, label: "notes.md" });
+    if (!result.ok) throw new Error("import failed");
+    const actions = result.value.blocks
+      .filter((b) => b.kind === "actions")
+      .flatMap((b) => (b.payload as { entries: ActionEntry[] }).entries);
+    expect(actions.some((a) => /^shipped$/i.test(a.task))).toBe(false);
+    const mig = actions.find((a) => /migrate database/i.test(a.task));
+    const dep = actions.find((a) => /deploy app/i.test(a.task));
+    expect(mig?.status).toBe("done");
+    expect(dep?.status).toBe("done");
+  });
+});

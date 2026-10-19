@@ -314,3 +314,39 @@ describe("Codex round 4: status buckets, hyphenated identifiers", () => {
     }
   });
 });
+
+describe("Codex round 5: ready propagation, identifier separators, cut", () => {
+  it("propagates a bold Ready bucket to its bullets", () => {
+    const doc = `# Notes
+
+## Actions
+
+**Ready**
+- Deploy app
+- Cut release
+`;
+    const result = importSource({ raw: doc, label: "notes.md" });
+    if (!result.ok) throw new Error("import failed");
+    const actions = result.value.blocks
+      .filter((b) => b.kind === "actions")
+      .flatMap((b) => (b.payload as { entries: ActionEntry[] }).entries);
+    const dep = actions.find((a) => /deploy app/i.test(a.task));
+    const cut = actions.find((a) => /cut release/i.test(a.task));
+    expect(dep?.status).toBe("ready");
+    expect(cut?.status).toBe("ready");
+  });
+
+  it("keeps underscored/dotted identifiers out of numeric dates", async () => {
+    expect(findDateRange("RFC_1-2024 – RFC_2-2025")).toBeNull();
+    expect(findDateRange("RFC.1-2024 – RFC.2-2025")).toBeNull();
+    const { findDateToken } = await import("@/import/text/patterns");
+    expect(findDateToken("1-2024")).not.toBeNull();
+    expect(findDateToken("2024-2025")).not.toBeNull();
+  });
+
+  it("retains completed uses of cut with explicit past context", async () => {
+    const { inferReadiness } = await import("@/understanding/inference");
+    expect(inferReadiness("Cut cloud spend by 20% last quarter")).toBe("done");
+    expect(inferReadiness("Cut cloud spend by 20%")).toBe("pending");
+  });
+});

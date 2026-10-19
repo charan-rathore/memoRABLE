@@ -157,15 +157,33 @@ export function looksLikeDate(text: string): boolean {
   return DATE_TOKEN.test(text.trim());
 }
 
+/** True when the match at `index` is really the numeric tail of a
+ * hyphenated identifier ("RFC-1-2024"): an identifier run with a letter in
+ * it ends right where the match starts. Pure digit runs stay dates, so
+ * "2024-2025" still parses as a year range. */
+function insideIdentifier(text: string, index: number): boolean {
+  let i = index - 1;
+  while (i >= 0 && /[A-Za-z0-9]/.test(text[i]!)) i -= 1;
+  if (i < 0 || (text[i] !== "-" && text[i] !== "/")) return false;
+  for (let j = i - 1; j >= 0 && /[A-Za-z0-9\-/]/.test(text[j]!); j -= 1) {
+    if (/[A-Za-z]/.test(text[j]!)) return true;
+  }
+  return false;
+}
+
 /** Find a date/time phrase anywhere in text; returns the matched span. */
 export function findDateToken(text: string): { date: string; index: number; length: number } | null {
-  const match = DATE_ANYWHERE.exec(text);
-  if (!match || match.index === undefined) return null;
-  return {
-    date: match[1]!.replace(/\.$/, "").replace(/\s+/g, " ").trim(),
-    index: match.index,
-    length: match[0].length,
-  };
+  const anywhere = new RegExp(DATE_ANYWHERE.source, "gi");
+  let match: RegExpExecArray | null;
+  while ((match = anywhere.exec(text)) !== null) {
+    if (insideIdentifier(text, match.index)) continue;
+    return {
+      date: match[1]!.replace(/\.$/, "").replace(/\s+/g, " ").trim(),
+      index: match.index,
+      length: match[0].length,
+    };
+  }
+  return null;
 }
 
 const SEPARATOR = /\s*[:—–]\s+|\s+-\s+/;

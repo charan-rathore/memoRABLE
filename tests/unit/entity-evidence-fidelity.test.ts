@@ -256,3 +256,61 @@ describe("Codex round 3: date-prefixed owners, section boundaries, all completio
     expect(dep?.status).toBe("done");
   });
 });
+
+describe("Codex round 4: status buckets, hyphenated identifiers", () => {
+  it("treats bold status buckets as structural, not entity titles", () => {
+    const doc = `# Notes
+
+## Actions
+
+**Blocked**
+- Fix login
+- Call Alice
+`;
+    const result = importSource({ raw: doc, label: "notes.md" });
+    if (!result.ok) throw new Error("import failed");
+    const actions = result.value.blocks
+      .filter((b) => b.kind === "actions")
+      .flatMap((b) => (b.payload as { entries: ActionEntry[] }).entries);
+    expect(actions.some((a) => /^blocked$/i.test(a.task))).toBe(false);
+    expect(actions.find((a) => /fix login/i.test(a.task))).toBeDefined();
+    expect(actions.find((a) => /call alice/i.test(a.task))).toBeDefined();
+  });
+
+  it.each(["Pending", "Ready", "In review", "On hold"])(
+    "excludes the bold %s bucket from entity grouping",
+    (label) => {
+      const doc = `# Notes
+
+## Actions
+
+**${label}**
+- Fix login
+`;
+      const result = importSource({ raw: doc, label: "notes.md" });
+      if (!result.ok) throw new Error("import failed");
+      const actions = result.value.blocks
+        .filter((b) => b.kind === "actions")
+        .flatMap((b) => (b.payload as { entries: ActionEntry[] }).entries);
+      expect(actions.some((a) => a.task.toLowerCase() === label.toLowerCase())).toBe(false);
+      expect(actions.find((a) => /fix login/i.test(a.task))).toBeDefined();
+    },
+  );
+
+  it("keeps hyphenated identifiers out of numeric dates", async () => {
+    expect(findDateRange("RFC-1-2024 – RFC-2-2025")).toBeNull();
+    // The numeric month/year form still works on its own.
+    const { findDateToken } = await import("@/import/text/patterns");
+    expect(findDateToken("1-2024")).not.toBeNull();
+    expect(findDateToken("2024-2025")).not.toBeNull();
+    expect(findDateRange("Jan 2024 – Feb 2025")).not.toBeNull();
+  });
+
+  it("does not truncate an identifier range title or mark it done", () => {
+    const t = buildTimelineFromGroup(G("RFC-1-2024 – RFC-2-2025", "- Shipped v2"), new Date("2026-10-19"));
+    if (t) {
+      expect(t.title).toContain("RFC-1-2024");
+      expect(t.state).not.toBe("done");
+    }
+  });
+});

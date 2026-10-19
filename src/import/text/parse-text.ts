@@ -258,8 +258,11 @@ export function parseText(input: TextImportInput): Result<MemoryDocument> {
   }
 
   // Unknown headings get a second chance from the shape of their content.
+  // Schedule ordinals ("Week 1") own their lines as phase content — a
+  // checkbox list under one is the phase's plan, not a standalone todo list.
   for (const section of sections) {
     if (section.kind !== null) continue;
+    if (section.headingText && matchOrdinalHeading(section.headingText)) continue;
     const inferred = inferKindFromLines(section.lines.map((l) => l.text));
     if (inferred) {
       section.kind = inferred;

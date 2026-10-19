@@ -336,10 +336,11 @@ interface Shape {
   measured: number;
   numbered: number;
   bulleted: number;
+  tasks: number;
 }
 
 function shapeOf(lines: string[]): Shape {
-  const shape: Shape = { total: 0, rules: 0, risks: 0, measured: 0, numbered: 0, bulleted: 0 };
+  const shape: Shape = { total: 0, rules: 0, risks: 0, measured: 0, numbered: 0, bulleted: 0, tasks: 0 };
   for (const raw of lines) {
     const text = raw.trim();
     if (text === "") continue;
@@ -348,6 +349,7 @@ function shapeOf(lines: string[]): Shape {
     const body = item ? item.text : text;
     if (item?.marker === "number") shape.numbered++;
     if (item?.marker === "bullet" || item?.marker === "task") shape.bulleted++;
+    if (item?.marker === "task") shape.tasks++;
     if (RULE_LINE.test(body)) shape.rules++;
     if (RISK_LINE.test(body)) shape.risks++;
     if (MEASURED.test(body)) shape.measured++;
@@ -366,6 +368,9 @@ export function inferKindFromLines(lines: string[]): BlockKind | null {
 
   const ratio = (n: number) => n / shape.total;
 
+  // Checkboxes are a todo list outright: the marker itself carries open/done
+  // state, whatever the section calls itself.
+  if (ratio(shape.tasks) >= 0.5) return "actions";
   // Something going wrong, stated repeatedly, is a risk list.
   if (ratio(shape.risks) >= 0.4) return "risks";
   // Mostly measured values is a signal list.

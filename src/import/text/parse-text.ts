@@ -127,6 +127,14 @@ interface Section {
   lines: SourceLine[];
 }
 
+const DATE_LIKE_CELL =
+  /(?:\d{4}-\d{2}-\d{2}|\b(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\b|^(?:19|20)\d{2}$)/i;
+
+/** Numeric but not date-like — "14.2 g/dL" yes, "March 3, 2027" no. */
+function isMeasurementCell(cell: string): boolean {
+  return /[0-9]/.test(cell) && !DATE_LIKE_CELL.test(cell);
+}
+
 export function parseText(input: TextImportInput): Result<MemoryDocument> {
   const { label } = input;
   // Hybrid semantic segmentation first (RFC Stage 3): structural anchors +
@@ -269,6 +277,42 @@ export function parseText(input: TextImportInput): Result<MemoryDocument> {
 
   // Graph node types assign remaining unknown sections (RFC Stage 4 → extract).
   assignKindsFromGraph(sections, graph);
+
+  // A "Results" section full of measurement rows is a signals table (lab
+  // report, benchmark sheet), not research-prose findings on a timeline. The
+  // "results" keyword claims timeline for the research case; re-route only
+  // when the section body is genuinely table-shaped measurements.
+  for (const section of sections) {
+    if (section.kind !== "timeline" || section.inherited) continue;
+    // Numbered ("4. Results") and colon-terminated ("Results:") headings count.
+    const heading = (section.headingText ?? "")
+      .trim()
+      .toLowerCase()
+      .replace(/^\d+(\.\d+)*\.?\s*/, "")
+      .replace(/[:.]\s*$/, "");
+    if (heading !== "results") continue;
+    // A real markdown table has a header separator; without one the header row
+    // would be emitted as a bogus signal ("Test" / "Value"), so pipe rows
+    // alone never reroute.
+    if (!section.lines.some((l) => isTableSeparator(l.text))) continue;
+    const rows = section.lines
+      .map((l) => l.text)
+      .filter((t) => !isTableSeparator(t))
+      .map((t) => splitTableRow(t))
+      .filter((c): c is string[] => c !== null && c.length >= 2);
+    if (rows.length < 2) continue;
+    // A measurement cell is numeric but not date-like: a "March 3, 2027" or
+    // "2027-05-14" column is an event table, not a measurement table.
+    const measurements = rows.filter((cells) => isMeasurementCell(cells[1]!));
+    // Measurement rows must dominate the section, not merely appear in it:
+    // a small table inside prose findings stays on the prose path.
+    const contentLines = section.lines.filter(
+      (l) => l.text.trim() !== "" && !isTableSeparator(l.text),
+    ).length;
+    if (measurements.length >= 2 && measurements.length * 2 >= contentLines) {
+      section.kind = "signals";
+    }
+  }
 
   const warnings: ImportWarning[] = [];
   let leftovers = sections.filter((s) => s.kind === null);

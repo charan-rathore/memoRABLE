@@ -369,8 +369,19 @@ export function inferKindFromLines(lines: string[]): BlockKind | null {
   const ratio = (n: number) => n / shape.total;
 
   // Checkboxes are a todo list outright: the marker itself carries open/done
-  // state, whatever the section calls itself.
-  if (ratio(shape.tasks) >= 0.5) return "actions";
+  // state, whatever the section calls itself — but only when the checkbox
+  // evidence beats every competing signal. A section that is half checkboxes
+  // and unanimously risks is a risk list with a task in it.
+  const taskRatio = ratio(shape.tasks);
+  if (taskRatio >= 0.5) {
+    const competing = Math.max(
+      ratio(shape.risks),
+      ratio(shape.measured),
+      ratio(shape.rules),
+      ratio(shape.numbered),
+    );
+    if (taskRatio >= competing) return "actions";
+  }
   // Something going wrong, stated repeatedly, is a risk list.
   if (ratio(shape.risks) >= 0.4) return "risks";
   // Mostly measured values is a signal list.

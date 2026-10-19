@@ -46,6 +46,29 @@ describe("checkbox sections under unrecognized headings", () => {
     expect(entries.some((e) => e.date === "Week 1")).toBe(true);
   });
 
+  it("still infers a numbered procedure under a document-structure heading as actions", () => {
+    // "Part 1" is a structure marker, not a schedule: the timeline owns
+    // nothing here, so content inference must keep routing the procedure.
+    const doc = `# Install Guide\n\n## Part 1\n1. Install the CLI with the package manager\n2. Generate a config with the init command\n3. Run the doctor command to verify the setup\n`;
+    const result = importSource({ raw: doc, label: "install.md" });
+    if (!result.ok) throw new Error("import failed");
+    const actions = result.value.blocks.find((b) => b.kind === "actions");
+    const entries = (actions?.payload as { entries: Array<{ task: string }> } | undefined)?.entries ?? [];
+    expect(entries.some((e) => /Install the CLI/.test(e.task))).toBe(true);
+    expect(entries.some((e) => /Generate a config/.test(e.task))).toBe(true);
+  });
+
+  it("lets a unanimous risk signal outvote a half-checkbox section", () => {
+    const doc = `# Incident Review\n\n## Mitigations\n- [ ] Verify the failure mode\n- Outage risk remains until the patch ships\n`;
+    const result = importSource({ raw: doc, label: "incident.md" });
+    if (!result.ok) throw new Error("import failed");
+    const risks = result.value.blocks.find((b) => b.kind === "risks");
+    expect(risks).toBeTruthy();
+    const actions = result.value.blocks.find((b) => b.kind === "actions");
+    const entries = (actions?.payload as { entries: Array<{ task: string }> } | undefined)?.entries ?? [];
+    expect(entries.some((e) => /Outage risk remains/.test(e.task))).toBe(false);
+  });
+
   it("still reads a measured-value section as signals", () => {
     const doc = `# Lab Report\n\n## Panel numbers\n- Hemoglobin came in at 14.2 g/dL\n- Fasting glucose measured 108 mg/dL over 3 hours fasting\n`;
     const result = importSource({ raw: doc, label: "lab.md" });

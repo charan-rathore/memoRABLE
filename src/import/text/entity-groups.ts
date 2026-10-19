@@ -166,7 +166,9 @@ function isTitleCandidate(text: string, next: GroupLine | undefined): boolean {
     return false;
   }
   if (!next || !isListLike(next.text)) return false;
-  if (BOLD_LEAD.test(text) && !GROUP_LABEL.test(text)) return true;
+  // Completion buckets ("**Done**", "**Shipped**") are not entity titles
+  // either; use the same predicate so new labels never re-enter grouping.
+  if (BOLD_LEAD.test(text) && !GROUP_LABEL.test(text) && !isCompletionLabelLine(text)) return true;
   // A date range needs digits or month names; skip the heavy scan otherwise.
   if (!/[0-9]/.test(text) && !MONTH_WORD.test(text)) return false;
   const plain = plainContentOf(text);

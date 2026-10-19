@@ -260,9 +260,13 @@ export function parseText(input: TextImportInput): Result<MemoryDocument> {
   // Unknown headings get a second chance from the shape of their content.
   // Schedule ordinals ("Week 1") own their lines as phase content — a
   // checkbox list under one is the phase's plan, not a standalone todo list.
+  // Document-structure ordinals ("Part 1", "Chapter 2") own nothing: their
+  // sections still infer from content.
+  const SCHEDULE_ORDINAL = /^(phase|task|step|stage|milestone|sprint|iteration|week|day|quarter|month)\b/i;
   for (const section of sections) {
     if (section.kind !== null) continue;
-    if (section.headingText && matchOrdinalHeading(section.headingText)) continue;
+    const ordinal = section.headingText ? matchOrdinalHeading(section.headingText) : null;
+    if (ordinal && SCHEDULE_ORDINAL.test(ordinal.marker)) continue;
     const inferred = inferKindFromLines(section.lines.map((l) => l.text));
     if (inferred) {
       section.kind = inferred;
@@ -291,7 +295,6 @@ export function parseText(input: TextImportInput): Result<MemoryDocument> {
   // markers ("Chapter 3", "Part II") are not phases — their sections stay
   // untouched. And ownership is all-or-nothing: if the lines exceed the
   // details limit, the section stays in leftovers rather than losing lines.
-  const SCHEDULE_ORDINAL = /^(phase|task|step|stage|milestone|sprint|iteration|week|day|quarter|month)\b/i;
   const consumedOrdinalSections = new Set<ReturnType<typeof startSection>>();
   const timelineExtras =
     understanding.archetype.timelineMode === "none"

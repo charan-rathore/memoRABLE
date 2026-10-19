@@ -783,9 +783,11 @@ export function parseActionLine(raw: string): ActionEntry | null {
     const task = segments.slice(0, -2).join(", ");
     // An "owner" that is itself a date is a date range, not a person:
     // "Role — January 2024 – June 2025" is an entity title, not a todo.
-    // An owner that IS a date (or range) is an entity title, but a person
-    // named May/June/August must survive: reject date SEGMENTS, not prefixes.
-    if (looksLikeDate(due) && !isEntirelyDate(owner) && owner.length <= 60 && task.length >= 3) {
+    // An owner that IS a date (or range fragment) is an entity title, but a
+    // person named May/June/August must survive: reject date SEGMENTS and
+    // bare-month range fragments ("Role - January - June 2025"), not names.
+    const bareMonthOwner = /^(jan|feb|mar|apr|may|june?|july?|aug|sep|sept|oct|nov|dec)[a-z]*\.?$/i.test(owner);
+    if (looksLikeDate(due) && !isEntirelyDate(owner) && !bareMonthOwner && owner.length <= 60 && task.length >= 3) {
       return { task, owner, due, status };
     }
   }

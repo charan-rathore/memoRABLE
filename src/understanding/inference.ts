@@ -451,7 +451,7 @@ const FINISHED = /\b(done|complete|completed|closed|shipped|delivered|finished|l
  * a past-tense verb buried mid-sentence proves nothing about the task itself.
  */
 const ACCOMPLISHED_WORDS = new Set(
-  ("delivered built improved reached awarded increased reduced cut flagged took preserved " +
+  ("delivered built improved reached awarded increased reduced flagged took preserved " +
     "launched led drove achieved won created designed developed ran grew raised earned ranked " +
     "placed published mentored automated eliminated lifted benchmarked implemented introduced " +
     "spearheaded orchestrated migrated streamlined scaled negotiated secured co-founded founded " +

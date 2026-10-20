@@ -171,19 +171,32 @@ function insideIdentifier(text: string, index: number): boolean {
   return false;
 }
 
-
-/** Units that make a preceding "n/m" token a measured fraction, not a date. */
+/** Units that make a preceding "n/m" token a measured fraction, not a date.
+ * Lowercase only, so a heading like "10/24 Hours: 9-5" is not a quantity. */
 const FRACTION_UNITS =
-  /^\s*(?:cups?|tsp|tbsp|teaspoons?|tablespoons?|kgs?|gms?|mg|ml|cl|litres?|liters?|oz|lbs?|pounds?|inch(?:es)?|cms?|mm|kms?|metres?|meters?|ft|feet|hours?|hrs?|minutes?|mins?|seconds?|secs?|dozen|plates?|scoops?|servings?|slices?|glasses?|packets?|bowls?|handfuls?|pinch(?:es)?|g|l|m|%)\b/i;
+  /^(?:\s+|-)(?:cups?|tsp|tbsp|teaspoons?|tablespoons?|kgs?|gms?|mg|ml|cl|litres?|liters?|oz|lbs?|pounds?|inch(?:es)?|cms?|mm|kms?|metres?|meters?|ft|feet|hours?|hrs?|minutes?|mins?|seconds?|secs?|dozen|plates?|scoops?|servings?|slices?|glasses?|packets?|bowls?|handfuls?|pinch(?:es)?|g|l|m)\b(?!\s*:)/;
 
-/** True when a numeric "n/m" token at `index` measures something — a fraction
- * followed by a unit ("1/2 cup") or the tail of a mixed number ("2 1/2
- * hours") — rather than a month/day date. */
+/** True when a numeric "n/m" token at `index` measures something: a proper
+ * fraction followed by a unit ("1/2 cup", "1/2-inch", "1/2%") or the tail of a
+ * standalone mixed number ("2 1/2 hours"), rather than a month/day date. */
 function isQuantityFraction(text: string, index: number, length: number): boolean {
   const token = text.slice(index, index + length);
-  if (!/^\d{1,2}\/\d{1,2}$/.test(token)) return false;
-  if (/\d\s$/.test(text.slice(0, index))) return true;
-  return FRACTION_UNITS.test(text.slice(index + length));
+  const parts = /^(\d{1,2})\/(\d{1,2})$/.exec(token);
+  if (!parts) return false;
+  // A real fraction: numerator below denominator, denominator a common one.
+  if (Number(parts[1]) >= Number(parts[2]) || Number(parts[2]) > 16) return false;
+  const before = text.slice(0, index);
+  // "2 1/2": a standalone number, not the end of an identifier like "v2".
+  if (/(?:^|[^\w.\-/])\d+\s+$/.test(before)) return true;
+  const after = text.slice(index + length);
+  if (/^\s*%/.test(after)) return true;
+  return FRACTION_UNITS.test(after);
+}
+
+/** True when `text` opens with a measured fraction ("1/2 cup flour"). */
+function startsWithQuantityFraction(text: string): boolean {
+  const m = /^\d{1,2}\/\d{1,2}/.exec(text);
+  return m !== null && isQuantityFraction(text, 0, m[0].length);
 }
 
 /** Find a date/time phrase anywhere in text; returns the matched span. */
@@ -579,7 +592,7 @@ export function titleAroundRemovedDate(text: string, index: number, length: numb
 export function parseTimelineLine(raw: string): TimelineEntry | null {
   const item = splitListItem(raw);
   const cells = splitTableRow(raw);
-  if (cells && cells.length >= 2 && cells[0] && looksLikeDate(cells[0])) {
+  if (cells && cells.length >= 2 && cells[0] && looksLikeDate(cells[0]) && !startsWithQuantityFraction(cells[0])) {
     const state = stateFromText(cells[2] ?? "") ?? "planned";
     return { date: cells[0], title: cells[1]!, state, ...inferArtifact(cells.slice(1).join(". ")) };
   }
@@ -653,7 +666,7 @@ export function parseObligationDateLine(text: string): TimelineEntry | null {
   if (!match) return null;
   const label = match[1]!.trim();
   const remainder = match[2]!.trim();
-  const found = findDateToken(remainder) ?? (looksLikeDate(remainder) ? { date: remainder, index: 0, length: remainder.length } : null);
+  const found = findDateToken(remainder) ?? (looksLikeDate(remainder) && !startsWithQuantityFraction(remainder) ? { date: remainder, index: 0, length: remainder.length } : null);
   if (!found) return null;
   const title =
     `${label.replace(/\b\w/g, (c) => c.toUpperCase())}: ${remainder}`.slice(0, 200) || remainder;

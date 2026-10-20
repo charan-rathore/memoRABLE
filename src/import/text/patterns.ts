@@ -171,12 +171,28 @@ function insideIdentifier(text: string, index: number): boolean {
   return false;
 }
 
+
+/** Units that make a preceding "n/m" token a measured fraction, not a date. */
+const FRACTION_UNITS =
+  /^\s*(?:cups?|tsp|tbsp|teaspoons?|tablespoons?|kgs?|gms?|mg|ml|cl|litres?|liters?|oz|lbs?|pounds?|inch(?:es)?|cms?|mm|kms?|metres?|meters?|ft|feet|hours?|hrs?|minutes?|mins?|seconds?|secs?|dozen|plates?|scoops?|servings?|slices?|glasses?|packets?|bowls?|handfuls?|pinch(?:es)?|g|l|m|%)\b/i;
+
+/** True when a numeric "n/m" token at `index` measures something — a fraction
+ * followed by a unit ("1/2 cup") or the tail of a mixed number ("2 1/2
+ * hours") — rather than a month/day date. */
+function isQuantityFraction(text: string, index: number, length: number): boolean {
+  const token = text.slice(index, index + length);
+  if (!/^\d{1,2}\/\d{1,2}$/.test(token)) return false;
+  if (/\d\s$/.test(text.slice(0, index))) return true;
+  return FRACTION_UNITS.test(text.slice(index + length));
+}
+
 /** Find a date/time phrase anywhere in text; returns the matched span. */
 export function findDateToken(text: string): { date: string; index: number; length: number } | null {
   const anywhere = new RegExp(DATE_ANYWHERE.source, "gi");
   let match: RegExpExecArray | null;
   while ((match = anywhere.exec(text)) !== null) {
     if (insideIdentifier(text, match.index)) continue;
+    if (isQuantityFraction(text, match.index, match[0].length)) continue;
     return {
       date: match[1]!.replace(/\.$/, "").replace(/\s+/g, " ").trim(),
       index: match.index,
@@ -602,7 +618,7 @@ export function parseTimelineLine(raw: string): TimelineEntry | null {
   const dateMatch = DATE_TOKEN.exec(text);
   let date: string;
   let rest: string;
-  if (dateMatch) {
+  if (dateMatch && !isQuantityFraction(text, 0, dateMatch[0].length)) {
     date = dateMatch[1]!.replace(/\.$/, "").replace(/\s+/g, " ").trim();
     rest = text.slice(dateMatch[0].length).replace(/^\s*[:—–-]\s*/, "").trim();
   } else {
@@ -822,7 +838,7 @@ export function parseActionLine(raw: string): ActionEntry | null {
     }
     const ownerMatch = /^@?([A-Z][\w.]*(?:\s+[A-Z][\w.]*){0,2})/.exec(tail!);
     const dueMatch = DATE_TOKEN.exec(tail!);
-    if (ownerMatch && dueMatch && task!.length >= 3) {
+    if (ownerMatch && dueMatch && !isQuantityFraction(tail!, 0, dueMatch[0].length) && task!.length >= 3) {
       return {
         task: task!,
         owner: ownerMatch[1]!,
@@ -937,6 +953,6 @@ export function parseActionLineLenient(raw: string): ActionEntry | null {
   const item = splitListItem(raw);
   const entry: ActionEntry = { task: text, status: inferReadiness(text, { checked: item?.done }) };
   const dueMatch = DATE_TOKEN.exec(text);
-  if (dueMatch) entry.due = dueMatch[1]!.replace(/\.$/, "");
+  if (dueMatch && !isQuantityFraction(text, 0, dueMatch[0].length)) entry.due = dueMatch[1]!.replace(/\.$/, "");
   return entry;
 }

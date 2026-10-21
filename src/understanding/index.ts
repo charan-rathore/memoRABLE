@@ -170,8 +170,12 @@ export function understand(input: UnderstandingInput & { sourceLabel?: string })
     archetype.timelineMode === "none"
       ? []
       : dedupeByMeaning(inferTimeline(statements), (t) => `${t.value.date} ${t.value.title}`);
+  // A consumed H1 ("# Action Items") claims its unheaded rows; the fallback
+  // filename label ("risks.md") is not a heading and must not suppress them.
+  const titleIsHeading =
+    input.title !== input.sourceLabel?.replace(/\.(md|markdown|txt)$/i, "");
   const actions = dedupeByMeaning(
-    inferActions(statements, kindClaimedByHeading(input.title)),
+    inferActions(statements, titleIsHeading ? kindClaimedByHeading(input.title) : null),
     (a) => a.value.task,
   );
   const heroInsights = deriveHeroInsights({

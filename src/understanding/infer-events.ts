@@ -11,6 +11,7 @@ import {
   parseActionLine,
   parseTimelineLine,
   parseUserStoryLine,
+  splitTableRow,
   titleAroundRemovedDate,
 } from "@/import/text/patterns";
 import type { ActionEntry, TimelineEntry } from "@/domain/memory/schema";
@@ -134,6 +135,9 @@ export function inferActions(
     const text = unpunctuated(statement.text);
     if (wordCount(text) < 3) continue;
     if (NON_ACTION.test(text)) continue;
+    // A table row outside an actions section is data, not a todo: positional
+    // task/owner/due mapping would read an expense's amount as its owner.
+    if (claimed !== "actions" && splitTableRow(statement.text)) continue;
 
     // Do not re-home pure risks or already-settled decisions as todos.
     if (strongestCategory(text) === "risk") continue;

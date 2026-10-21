@@ -67,3 +67,36 @@ describe("real task tables", () => {
     expect(entries.some((e) => /^(task|owner|due)$/i.test(e.task.trim()))).toBe(false);
   });
 });
+
+describe("header-shaped rows only", () => {
+  it("keeps a task whose owner shares a name with a column header", () => {
+    const doc = `# Sync Notes
+
+## Action items
+| Task | Owner | Due |
+| --- | --- | --- |
+| Draft report | Price | Friday |
+`;
+    const result = importSource({ raw: doc, label: "sync-owner.md" });
+    if (!result.ok) throw new Error("import failed");
+    const actions = result.value.blocks.find((b) => b.kind === "actions");
+    const entries = (actions?.payload as { entries?: Array<{ task: string; owner?: string }> } | undefined)?.entries ?? [];
+    expect(entries.some((e) => e.task === "Draft report" && e.owner === "Price")).toBe(true);
+  });
+});
+
+describe("a document titled as actions", () => {
+  it("reads an unheaded task table under an actions document title", () => {
+    const doc = `# Action Items
+
+| Task | Owner | Due |
+| --- | --- | --- |
+| Draft the proposal | Rohan | Friday |
+`;
+    const result = importSource({ raw: doc, label: "titled-actions.md" });
+    if (!result.ok) throw new Error("import failed");
+    const actions = result.value.blocks.find((b) => b.kind === "actions");
+    const entries = (actions?.payload as { entries?: Array<{ task: string; owner?: string }> } | undefined)?.entries ?? [];
+    expect(entries.some((e) => e.task === "Draft the proposal" && e.owner === "Rohan")).toBe(true);
+  });
+});

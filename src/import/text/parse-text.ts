@@ -283,6 +283,7 @@ export function parseText(input: TextImportInput): Result<MemoryDocument> {
   // Understand every section (including unheaded prose) before structural merge.
   const understanding = understand({
     title,
+    titleFromHeading: titleConsumedLine >= 0,
     sourceLabel: label,
     sections: sections.map((s) => ({ headingText: s.headingText, lines: s.lines })),
   });
@@ -1374,4 +1375,4 @@ function buildSnapshotPayload(
     ...(byline ? { byline } : {}),
     ...(notes.length > 0 ? { notes } : {}),
   };
-}
+  }

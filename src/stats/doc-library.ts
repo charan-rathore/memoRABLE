@@ -73,14 +73,16 @@ export function rememberLibraryDoc(input: {
   label: string;
   sourceText: string;
 }): LibraryDoc {
-  const docs = listLibraryDocs().filter(
-    (d) => d.sourceText !== input.sourceText,
-  );
+  // Dedupe against the form that actually gets stored: a re-imported >1MB
+  // document must not slip past the check because the stored copy was
+  // truncated and the fresh input was not.
+  const storedText = input.sourceText.slice(0, 1_048_576);
+  const docs = listLibraryDocs().filter((d) => d.sourceText !== storedText);
   const entry: LibraryDoc = {
     id: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
     title: input.title.slice(0, 200) || "Untitled",
     label: input.label.slice(0, 120) || "Untitled",
-    sourceText: input.sourceText.slice(0, 1_048_576),
+    sourceText: storedText,
     savedAt: Date.now(),
   };
   writeAll([entry, ...docs]);

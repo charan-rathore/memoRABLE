@@ -175,8 +175,14 @@ export function understand(
   // A consumed H1 ("# Action Items") claims its unheaded rows; the fallback
   // filename label ("risks.md") is not a heading and must not suppress them.
   // Provenance comes from the parser: a real H1 may equal the filename stem.
+  // Callers that pass no provenance keep the old default: the title counts as
+  // a heading unless it visibly matches the source label's filename stem.
+  const titleFromHeading =
+    input.titleFromHeading ??
+    (input.sourceLabel == null ||
+      input.title !== input.sourceLabel.replace(/\.(md|markdown|txt)$/i, ""));
   const actions = dedupeByMeaning(
-    inferActions(statements, input.titleFromHeading ? kindClaimedByHeading(input.title) : null),
+    inferActions(statements, titleFromHeading ? kindClaimedByHeading(input.title) : null),
     (a) => a.value.task,
   );
   const heroInsights = deriveHeroInsights({

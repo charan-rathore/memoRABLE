@@ -160,6 +160,10 @@ export function inferActions(
       continue;
     }
 
+    // A table row that no strict shape claimed is data, not a prose todo:
+    // the soft branch would read a header row's "Action Item" as TODO_HINT.
+    if (splitTableRow(statement.text)) continue;
+
     // Soft prose todos: "Someone should draft the customer email".
     if (!TODO_HINT.test(text) && !(statement.listItem && WORK_LEAD.test(text))) continue;
     // Hard requirements without todo language belong in Decisions.

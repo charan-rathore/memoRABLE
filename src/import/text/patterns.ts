@@ -803,11 +803,16 @@ export function parseUserStoryLine(raw: string): ActionEntry | null {
   return null;
 }
 
+/** Header furniture of a task table — a heading row is never an entry. */
+const TASK_HEADER_CELL =
+  /^(tasks?|actions?|items?|description|deliverables?|steps?|activity|owners?|assignees?|responsible|due(?:\s+date)?|deadline|status|amount|cost|price|notes?)$/i;
+
 export function parseActionLine(raw: string): ActionEntry | null {
   const story = parseUserStoryLine(raw);
   if (story) return story;
   const cells = splitTableRow(raw);
   if (cells && cells.length >= 3 && cells[0] && cells[1] && cells[2]) {
+    if (cells.slice(0, 3).some((c) => TASK_HEADER_CELL.test(c.trim()))) return null;
     const status = inferReadiness(cells.slice(3).join(" ") || cells[0]);
     return { task: cells[0], owner: cells[1], due: cells[2], status };
   }

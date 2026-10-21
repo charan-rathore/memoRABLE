@@ -805,14 +805,27 @@ export function parseUserStoryLine(raw: string): ActionEntry | null {
 
 /** Header furniture of a task table. A row is a heading row only when every one of its first cells is a header word, so an owner named Price or a task called Notes still parses. */
 const TASK_HEADER_CELL =
-  /^(tasks?|actions?|items?|description|deliverables?|steps?|activity|owners?|assignees?|responsible|due(?:\s+date)?|deadline|status|amount|cost|price|notes?)$/i;
+  /^(tasks?|actions?|action\s+items?|task\s+items?|items?|descriptions?|task\s+descriptions?|deliverables?|steps?|activity|activities|owners?|assignees?|assigned\s+to|responsible|due(?:\s+dates?)?|deadlines?|status|amounts?|costs?|prices?|notes?)$/i;
+
+/** A task table's heading row ("Task | Owner | Due") is furniture, not work. */
+function isTaskTableHeaderRow(raw: string): boolean {
+  const cells = splitTableRow(raw);
+  return Boolean(
+    cells &&
+      cells.length >= 3 &&
+      cells[0] &&
+      cells[1] &&
+      cells[2] &&
+      cells.slice(0, 3).every((c) => TASK_HEADER_CELL.test(c.trim())),
+  );
+}
 
 export function parseActionLine(raw: string): ActionEntry | null {
   const story = parseUserStoryLine(raw);
   if (story) return story;
+  if (isTaskTableHeaderRow(raw)) return null;
   const cells = splitTableRow(raw);
   if (cells && cells.length >= 3 && cells[0] && cells[1] && cells[2]) {
-    if (cells.slice(0, 3).every((c) => TASK_HEADER_CELL.test(c.trim()))) return null;
     const status = inferReadiness(cells.slice(3).join(" ") || cells[0]);
     return { task: cells[0], owner: cells[1], due: cells[2], status };
   }
@@ -964,6 +977,8 @@ export function parseRiskLineLenient(raw: string): RiskEntry | null {
 export function parseActionLineLenient(raw: string): ActionEntry | null {
   const story = parseUserStoryLine(raw);
   if (story) return story;
+  // Header furniture is not a leftover either.
+  if (isTaskTableHeaderRow(raw)) return null;
   const text = entryText(raw);
   if (!text) return null;
   const strict = parseActionLine(raw);

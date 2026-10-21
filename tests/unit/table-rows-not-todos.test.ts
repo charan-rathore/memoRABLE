@@ -100,3 +100,31 @@ describe("a document titled as actions", () => {
     expect(entries.some((e) => e.task === "Draft the proposal" && e.owner === "Rohan")).toBe(true);
   });
 });
+
+describe("compound table headers", () => {
+  it("never turns an Action Item header row into a task", () => {
+    const doc = `# Sync Notes
+
+## Action items
+| Action Item | Owner | Due Date |
+| --- | --- | --- |
+| Draft the proposal | Rohan | Friday |
+`;
+    const result = importSource({ raw: doc, label: "compound-header.md" });
+    if (!result.ok) throw new Error("import failed");
+    const actions = result.value.blocks.find((b) => b.kind === "actions");
+    const entries = (actions?.payload as { entries?: Array<{ task: string; owner?: string }> } | undefined)?.entries ?? [];
+    expect(entries.some((e) => /action item|owner|due/i.test(e.task))).toBe(false);
+    expect(entries.some((e) => e.task === "Draft the proposal" && e.owner === "Rohan")).toBe(true);
+  });
+});
+
+describe("filename-derived titles do not claim", () => {
+  it("still extracts a soft todo from an H1-less note named risks.md", () => {
+    const result = importSource({ raw: "Someone should draft the customer email for Meera", label: "risks.md" });
+    if (!result.ok) throw new Error("import failed");
+    const actions = result.value.blocks.find((b) => b.kind === "actions");
+    const entries = (actions?.payload as { entries?: Array<{ task: string }> } | undefined)?.entries ?? [];
+    expect(entries.some((e) => /draft the customer email/i.test(e.task))).toBe(true);
+  });
+});

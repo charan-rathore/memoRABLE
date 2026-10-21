@@ -10,6 +10,7 @@
  */
 import { describe, expect, it } from "vitest";
 import { importSource } from "@/import/import-source";
+import { understand } from "@/understanding";
 
 const expense = `# October Travel Expenses
 
@@ -154,5 +155,66 @@ describe("round 3 follow-ups", () => {
     const actions = result.value.blocks.find((b) => b.kind === "actions");
     const entries = (actions?.payload as { entries?: Array<{ task: string }> } | undefined)?.entries ?? [];
     expect(entries.some((e) => /draft the customer email/i.test(e.task))).toBe(true);
+  });
+});
+
+describe("round 4 follow-ups", () => {
+  it("a two-column Action Item header row is furniture too", () => {
+    const doc = `# Plan
+
+## Action items
+| Action Item | Owner |
+| --- | --- |
+| Chase the landlord about the deposit | Rohan |
+`;
+    const result = importSource({ raw: doc, label: "plan2.md" });
+    if (!result.ok) throw new Error("import failed");
+    const actions = result.value.blocks.find((b) => b.kind === "actions");
+    const entries = (actions?.payload as { entries?: Array<{ task: string; owner?: string }> } | undefined)?.entries ?? [];
+    expect(entries.some((e) => /action item|owner/i.test(e.task))).toBe(false);
+    expect(entries.some((e) => /chase the landlord/i.test(e.task) && e.owner === "Rohan")).toBe(true);
+  });
+
+  it("maps recovered cells by the table's own header schema", () => {
+    const doc = `# Plan
+
+## Action items
+| Task | Status | Notes |
+| --- | --- | --- |
+| Send the customer email to Meera | Ready | draft sits in drive |
+`;
+    const result = importSource({ raw: doc, label: "plan3.md" });
+    if (!result.ok) throw new Error("import failed");
+    const actions = result.value.blocks.find((b) => b.kind === "actions");
+    const entries = (actions?.payload as { entries?: Array<{ task: string; owner?: string; due?: string; status?: string }> } | undefined)?.entries ?? [];
+    const entry = entries.find((e) => /customer email to meera/i.test(e.task));
+    expect(entry).toBeDefined();
+    expect(entry?.owner).toBeUndefined();
+    expect(entry?.due).toBeUndefined();
+    expect(entry?.status).toBe("ready");
+  });
+
+  it("keeps an explicit Done status when recovering an incomplete row", () => {
+    const doc = `# Plan
+
+## Action items
+| Task | Owner | Due | Status |
+| --- | --- | --- | --- |
+| Send the customer email to Meera | | | Done |
+`;
+    const result = importSource({ raw: doc, label: "plan4.md" });
+    if (!result.ok) throw new Error("import failed");
+    const actions = result.value.blocks.find((b) => b.kind === "actions");
+    const entries = (actions?.payload as { entries?: Array<{ task: string; status?: string }> } | undefined)?.entries ?? [];
+    const entry = entries.find((e) => /customer email to meera/i.test(e.task));
+    expect(entry?.status).toBe("done");
+  });
+
+  it("understand() without provenance still treats its title as a heading", () => {
+    const u = understand({
+      title: "Risks",
+      sections: [{ headingText: null, lines: [{ text: "Someone should draft the customer email", lineNo: 1 }] }],
+    });
+    expect(u.actions.length).toBe(0);
   });
 });

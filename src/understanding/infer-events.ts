@@ -16,7 +16,7 @@ import {
   titleAroundRemovedDate,
 } from "@/import/text/patterns";
 import type { ActionEntry, BlockKind, TimelineEntry } from "@/domain/memory/schema";
-import type { Inferred, Statement } from "./inference";
+import { inferReadiness, type Inferred, type Statement } from "./inference";
 import { strongestCategory } from "./projection";
 import { clampWords, sentenceCase, unpunctuated, wordCount } from "./language";
 
@@ -130,6 +130,10 @@ export function inferActions(
 ): Array<Inferred<InferredAction>> {
   const out: Array<Inferred<InferredAction>> = [];
 
+  // The most recent task-table header row, keyed by section: recovered rows
+  // map their cells by that schema instead of guessing positions.
+  let tableHeader: { section: string | null; cells: string[] } | null = null;
+
   for (const statement of statements) {
     // A standalone task document ("# Action Items") is consumed as the
     // document title, leaving its rows unheaded; the title still claims them.
@@ -149,25 +153,52 @@ export function inferActions(
     if (strongestCategory(text) === "risk") continue;
     if (DECIDED.test(text) && !TODO_HINT.test(text)) continue;
 
-    // Strict structural shapes + user stories only (no lenient catch-all).
-    const parsed =
-      parseUserStoryLine(statement.text) ??
-      parseUserStoryLine(`- ${statement.text}`) ??
-      parseActionLine(statement.text) ??
-      parseActionLine(`- ${statement.text}`);
-
-    if (parsed && parsed.task.trim().length >= 3) {
-      out.push({ value: parsed, evidence: statement });
+    // Header furniture is never work, whatever the section claims; remember
+    // its schema so rows map cells to the right fields.
+    if (isTaskTableHeaderRow(statement.text)) {
+      tableHeader = {
+        section: statement.sectionTitle ?? null,
+        cells: splitTableRow(statement.text)!.map((c) => c.trim().toLowerCase()),
+      };
       continue;
     }
 
-    // Header furniture is never work, whatever the section claims.
-    if (isTaskTableHeaderRow(statement.text)) continue;
     // Only a claimed actions table reaches here (other sections skip table
-    // rows above): recover an incomplete row - blank owner/due cells - from
-    // its first cell instead of dropping the todo.
+    // rows above). With a known header, map cells by that schema - never
+    // positionally: a "Task | Status | Notes" row must not read "Ready" as
+    // its owner. Without one, strict positional parse first, then recover an
+    // incomplete row (blank owner/due cells) from its first cell.
     if (splitTableRow(statement.text)) {
       const cells = splitTableRow(statement.text)!;
+      const hdr =
+        tableHeader && tableHeader.section === (statement.sectionTitle ?? null)
+          ? tableHeader.cells
+          : null;
+      if (hdr) {
+        const colIdx = (re: RegExp): number => hdr.findIndex((c) => re.test(c));
+        const ownerIdx = colIdx(/^(owners?|assignees?|assigned\s*to|responsible)$/);
+        const dueIdx = colIdx(/^(due(\s*dates?)?|deadlines?)$/);
+        const statusIdx = colIdx(/^status$/);
+        const taskText = (cells[0] ?? "").trim();
+        if (taskText.length >= 3) {
+          const statusText = statusIdx >= 0 ? (cells[statusIdx] ?? "").trim() : "";
+          const entry: ActionEntry = {
+            task: taskText,
+            status: statusText ? inferReadiness(statusText) : inferReadiness(taskText),
+          };
+          const owner = ownerIdx >= 0 ? (cells[ownerIdx] ?? "").trim() : "";
+          const due = dueIdx >= 0 ? (cells[dueIdx] ?? "").trim() : "";
+          if (owner) entry.owner = owner;
+          if (due) entry.due = due;
+          out.push({ value: entry, evidence: statement });
+        }
+        continue;
+      }
+      const parsedRow = parseActionLine(statement.text);
+      if (parsedRow && parsedRow.task.trim().length >= 3) {
+        out.push({ value: parsedRow, evidence: statement });
+        continue;
+      }
       const cellText = unpunctuated((cells[0] ?? "").trim());
       const task = sentenceCase(clampWords(cellText, 28));
       if ((TODO_HINT.test(cellText) || WORK_LEAD.test(cellText)) && task.length >= 8) {
@@ -178,6 +209,18 @@ export function inferActions(
         if (due) entry.due = due;
         out.push({ value: entry, evidence: statement });
       }
+      continue;
+    }
+
+    // Strict structural shapes + user stories only (no lenient catch-all).
+    const parsed =
+      parseUserStoryLine(statement.text) ??
+      parseUserStoryLine(`- ${statement.text}`) ??
+      parseActionLine(statement.text) ??
+      parseActionLine(`- ${statement.text}`);
+
+    if (parsed && parsed.task.trim().length >= 3) {
+      out.push({ value: parsed, evidence: statement });
       continue;
     }
 

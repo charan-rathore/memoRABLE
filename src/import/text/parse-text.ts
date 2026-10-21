@@ -1375,4 +1375,4 @@ function buildSnapshotPayload(
     ...(byline ? { byline } : {}),
     ...(notes.length > 0 ? { notes } : {}),
   };
-  }
+}

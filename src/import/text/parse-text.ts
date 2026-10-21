@@ -66,6 +66,7 @@ import {
   isTableSeparator,
   parseActionLine,
   parseActionLineLenient,
+  remapActionEntryByHeader,
   parseDecisionLine,
   parseDecisionLineLenient,
   parseObligationDateLine,
@@ -811,8 +812,11 @@ function buildEntriesPayload(
       salvage?: LineParser<T>;
       /** Lines an entity group already owns — never parsed flat or noted. */
       skip?: Set<number>;
+      /** Re-map a parsed table row using the captured header schema. */
+      remapRow?: (entry: T, cells: string[], headerCells: string[]) => T;
     } = {},
   ): Collected<T> => {
+    let tableHeaderCells: string[] | null = null;
     const entries: T[] = [];
     const lineOf: Array<number | null> = [];
     const used = new Set<number>(options.skip ?? []);
@@ -823,11 +827,20 @@ function buildEntriesPayload(
       if (used.has(line.lineNo)) continue;
       if (isDecorativeLine(line.text)) continue;
       // Markdown table chrome is structural: separators are skipped, and a
-      // row directly followed by a separator is the table's header.
+      // row directly followed by a separator is the table's header. Keep the
+      // header's schema so rows map cells to the right fields.
       if (isTableSeparator(line.text)) continue;
       const next = lines[i + 1];
-      if (splitTableRow(line.text) && next && isTableSeparator(next.text)) continue;
-      const entry = strict(line.text);
+      if (splitTableRow(line.text) && next && isTableSeparator(next.text)) {
+        tableHeaderCells = splitTableRow(line.text)!.map((c) => c.trim().toLowerCase());
+        continue;
+      }
+      const rowCells = splitTableRow(line.text);
+      const strictEntry = strict(line.text);
+      const entry =
+        strictEntry && rowCells && tableHeaderCells && options.remapRow
+          ? options.remapRow(strictEntry, rowCells, tableHeaderCells)
+          : strictEntry;
       if (entry) {
         entries.push(entry);
         lineOf.push(line.lineNo);
@@ -943,7 +956,10 @@ function buildEntriesPayload(
         group: g,
       }));
       const skip = new Set(grouped.flatMap((g) => groupLineNumbers(g.group)));
-      const built = collectOver(lines, parseActionLine, parseActionLineLenient, { skip });
+      const built = collectOver(lines, parseActionLine, parseActionLineLenient, {
+        skip,
+        remapRow: remapActionEntryByHeader,
+      });
       for (const g of grouped) {
         built.entries.push(g.entry);
         built.lineOf.push(g.lineNo);
@@ -1375,4 +1391,4 @@ function buildSnapshotPayload(
     ...(byline ? { byline } : {}),
     ...(notes.length > 0 ? { notes } : {}),
   };
-}
+        }

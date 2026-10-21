@@ -14,7 +14,7 @@ import {
   splitTableRow,
   titleAroundRemovedDate,
 } from "@/import/text/patterns";
-import type { ActionEntry, TimelineEntry } from "@/domain/memory/schema";
+import type { ActionEntry, BlockKind, TimelineEntry } from "@/domain/memory/schema";
 import type { Inferred, Statement } from "./inference";
 import { strongestCategory } from "./projection";
 import { clampWords, sentenceCase, unpunctuated, wordCount } from "./language";
@@ -125,11 +125,16 @@ export function inferTimeline(
  */
 export function inferActions(
   statements: readonly Statement[],
+  unheadedClaim: BlockKind | null = null,
 ): Array<Inferred<InferredAction>> {
   const out: Array<Inferred<InferredAction>> = [];
 
   for (const statement of statements) {
-    const claimed = kindClaimedByHeading(statement.sectionTitle);
+    // A standalone task document ("# Action Items") is consumed as the
+    // document title, leaving its rows unheaded; the title still claims them.
+    const claimed =
+      kindClaimedByHeading(statement.sectionTitle) ??
+      (statement.sectionTitle == null ? unheadedClaim : null);
     if (claimed && claimed !== "actions" && claimed !== "snapshot") continue;
 
     const text = unpunctuated(statement.text);

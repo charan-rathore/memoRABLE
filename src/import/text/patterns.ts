@@ -810,14 +810,38 @@ const TASK_HEADER_CELL =
 /** A task table's heading row ("Task | Owner | Due") is furniture, not work. */
 export function isTaskTableHeaderRow(raw: string): boolean {
   const cells = splitTableRow(raw);
-  return Boolean(
-    cells &&
-      cells.length >= 3 &&
-      cells[0] &&
-      cells[1] &&
-      cells[2] &&
-      cells.slice(0, 3).every((c) => TASK_HEADER_CELL.test(c.trim())),
-  );
+  if (!cells || cells.length < 2 || !cells[0] || !cells[1]) return false;
+  return cells
+    .slice(0, Math.min(3, cells.length))
+    .every((c) => TASK_HEADER_CELL.test(c.trim()));
+}
+
+/** Re-map a parsed task row using the table's own header schema: with a
+ * "Task | Status | Notes" header, "Ready" is a status, never an owner. */
+export function remapActionEntryByHeader(
+  entry: ActionEntry,
+  cells: string[],
+  headerCells: string[],
+): ActionEntry {
+  const colIdx = (re: RegExp): number => headerCells.findIndex((c) => re.test(c));
+  const ownerIdx = colIdx(/^(owners?|assignees?|assigned\s*to|responsible)$/);
+  const dueIdx = colIdx(/^(due(\s*dates?)?|deadlines?)$/);
+  const statusIdx = colIdx(/^status$/);
+  const task = (cells[0] ?? "").trim();
+  if (task.length < 3) return entry;
+  const statusText = statusIdx >= 0 ? (cells[statusIdx] ?? "").trim() : "";
+  const out: ActionEntry = {
+    ...entry,
+    task,
+    status: statusText ? inferReadiness(statusText) : inferReadiness(task),
+  };
+  delete out.owner;
+  delete out.due;
+  const owner = ownerIdx >= 0 ? (cells[ownerIdx] ?? "").trim() : "";
+  const due = dueIdx >= 0 ? (cells[dueIdx] ?? "").trim() : "";
+  if (owner) out.owner = owner;
+  if (due) out.due = due;
+  return out;
 }
 
 export function parseActionLine(raw: string): ActionEntry | null {

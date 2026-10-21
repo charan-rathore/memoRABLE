@@ -8,6 +8,7 @@
 import { kindClaimedByHeading, matchOrdinalHeading } from "@/import/text/sections";
 import {
   findDateToken,
+  isTaskTableHeaderRow,
   parseActionLine,
   parseTimelineLine,
   parseUserStoryLine,
@@ -160,9 +161,25 @@ export function inferActions(
       continue;
     }
 
-    // A table row that no strict shape claimed is data, not a prose todo:
-    // the soft branch would read a header row's "Action Item" as TODO_HINT.
-    if (splitTableRow(statement.text)) continue;
+    // Header furniture is never work, whatever the section claims.
+    if (isTaskTableHeaderRow(statement.text)) continue;
+    // Only a claimed actions table reaches here (other sections skip table
+    // rows above): recover an incomplete row - blank owner/due cells - from
+    // its first cell instead of dropping the todo.
+    if (splitTableRow(statement.text)) {
+      const cells = splitTableRow(statement.text)!;
+      const cellText = unpunctuated((cells[0] ?? "").trim());
+      const task = sentenceCase(clampWords(cellText, 28));
+      if ((TODO_HINT.test(cellText) || WORK_LEAD.test(cellText)) && task.length >= 8) {
+        const entry: ActionEntry = { task, status: "pending" };
+        const owner = (cells[1] ?? "").trim();
+        const due = (cells[2] ?? "").trim();
+        if (owner) entry.owner = owner;
+        if (due) entry.due = due;
+        out.push({ value: entry, evidence: statement });
+      }
+      continue;
+    }
 
     // Soft prose todos: "Someone should draft the customer email".
     if (!TODO_HINT.test(text) && !(statement.listItem && WORK_LEAD.test(text))) continue;

@@ -128,3 +128,31 @@ describe("filename-derived titles do not claim", () => {
     expect(entries.some((e) => /draft the customer email/i.test(e.task))).toBe(true);
   });
 });
+
+describe("round 3 follow-ups", () => {
+  it("an H1 matching the filename stem still claims its section", () => {
+    const result = importSource({
+      raw: "# risks\n\nSomeone should draft the customer email",
+      label: "risks.md",
+    });
+    if (!result.ok) throw new Error("import failed");
+    const actions = result.value.blocks.find((b) => b.kind === "actions");
+    const entries = (actions?.payload as { entries?: Array<{ task: string }> } | undefined)?.entries ?? [];
+    expect(entries.some((e) => /draft the customer email/i.test(e.task))).toBe(false);
+  });
+
+  it("recovers a todo from an action-table row with blank owner and due", () => {
+    const doc = `# Plan
+
+## Action items
+| Task | Owner | Due |
+| --- | --- | --- |
+| Someone should draft the customer email | | |
+`;
+    const result = importSource({ raw: doc, label: "plan.md" });
+    if (!result.ok) throw new Error("import failed");
+    const actions = result.value.blocks.find((b) => b.kind === "actions");
+    const entries = (actions?.payload as { entries?: Array<{ task: string }> } | undefined)?.entries ?? [];
+    expect(entries.some((e) => /draft the customer email/i.test(e.task))).toBe(true);
+  });
+});

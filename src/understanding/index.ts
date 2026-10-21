@@ -146,7 +146,9 @@ export interface Understanding {
   redundant: number;
 }
 
-export function understand(input: UnderstandingInput & { sourceLabel?: string }): Understanding {
+export function understand(
+  input: UnderstandingInput & { sourceLabel?: string; titleFromHeading?: boolean },
+): Understanding {
   const headings = input.sections.map((s) => s.headingText).filter((h): h is string => h !== null);
   const sectionLines = input.sections.map((s) => s.lines.map((l) => plainContentOf(l.text)));
   const flatLines = sectionLines.flat().filter((l) => l.trim() !== "");
@@ -172,10 +174,9 @@ export function understand(input: UnderstandingInput & { sourceLabel?: string })
       : dedupeByMeaning(inferTimeline(statements), (t) => `${t.value.date} ${t.value.title}`);
   // A consumed H1 ("# Action Items") claims its unheaded rows; the fallback
   // filename label ("risks.md") is not a heading and must not suppress them.
-  const titleIsHeading =
-    input.title !== input.sourceLabel?.replace(/\.(md|markdown|txt)$/i, "");
+  // Provenance comes from the parser: a real H1 may equal the filename stem.
   const actions = dedupeByMeaning(
-    inferActions(statements, titleIsHeading ? kindClaimedByHeading(input.title) : null),
+    inferActions(statements, input.titleFromHeading ? kindClaimedByHeading(input.title) : null),
     (a) => a.value.task,
   );
   const heroInsights = deriveHeroInsights({

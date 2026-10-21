@@ -808,7 +808,7 @@ const TASK_HEADER_CELL =
   /^(tasks?|actions?|action\s+items?|task\s+items?|items?|descriptions?|task\s+descriptions?|deliverables?|steps?|activity|activities|owners?|assignees?|assigned\s+to|responsible|due(?:\s+dates?)?|deadlines?|status|amounts?|costs?|prices?|notes?)$/i;
 
 /** A task table's heading row ("Task | Owner | Due") is furniture, not work. */
-function isTaskTableHeaderRow(raw: string): boolean {
+export function isTaskTableHeaderRow(raw: string): boolean {
   const cells = splitTableRow(raw);
   return Boolean(
     cells &&

@@ -6,6 +6,7 @@ import type {
   TimelineEntry,
 } from "@/domain/memory/schema";
 import { isDecorativeLine, isTableSeparator, plainContentOf, splitListItem } from "@/import/text/patterns";
+import { kindClaimedByHeading } from "@/import/text/sections";
 import { classifyArchetype, type ArchetypeResult } from "./archetype";
 import { extractConcepts, type Concept } from "./concepts";
 import { understandIntent, type Intent } from "./intent";
@@ -169,7 +170,10 @@ export function understand(input: UnderstandingInput & { sourceLabel?: string })
     archetype.timelineMode === "none"
       ? []
       : dedupeByMeaning(inferTimeline(statements), (t) => `${t.value.date} ${t.value.title}`);
-  const actions = dedupeByMeaning(inferActions(statements), (a) => a.value.task);
+  const actions = dedupeByMeaning(
+    inferActions(statements, kindClaimedByHeading(input.title)),
+    (a) => a.value.task,
+  );
   const heroInsights = deriveHeroInsights({
     archetype: archetype.archetype,
     statements,

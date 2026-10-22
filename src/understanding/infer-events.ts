@@ -39,9 +39,10 @@ const TODO_HINT =
 const SCHEDULE_ORDINAL_MARKER = /^(phase|task|step|stage|milestone|sprint|iteration|week|day)\b/i;
 
 const WORK_LEAD =
-  // "write" excludes the cache terms write-through / write-back / write-ahead:
-  // "Write-through invalidation adds 4 ms" is a cost, not the work verb write.
-  /^(?:draft|chase|send|write(?![- ](?:through|back|ahead))|implement|build|create|fix|review|schedule|call|email|prepare|ship|deploy|spec|document|measure|track|add|remove|contact|follow up)\b/i;
+  // "write" excludes the cache terms write-through / write-back / write-ahead
+  // ("Write-through invalidation adds 4 ms" is a cost, not the work verb write),
+  // but not the phrasal task "Write back to the customer".
+  /^(?:draft|chase|send|write(?!-(?:through|back|ahead)\b)(?! (?:through|ahead)\b)(?! back (?:cache|caching|policy|mode|latency|path|buffer)\b)|implement|build|create|fix|review|schedule|call|email|prepare|ship|deploy|spec|document|measure|track|add|remove|contact|follow up)\b/i;
 
 /** Reject non-action prose that lenient structural parsers would otherwise accept. */
 const NON_ACTION =

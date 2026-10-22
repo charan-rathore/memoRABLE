@@ -216,6 +216,7 @@ export function findDateToken(text: string): { date: string; index: number; leng
   while ((match = anywhere.exec(text)) !== null) {
     if (insideIdentifier(text, match.index)) continue;
     if (isQuantityFraction(text, match.index, match[0].length)) continue;
+    if (isPhoneLikeNumber(text, match.index, match[0])) continue;
     return {
       date: match[1]!.replace(/\.$/, "").replace(/\s+/g, " ").trim(),
       index: match.index,
@@ -223,6 +224,26 @@ export function findDateToken(text: string): { date: string; index: number; leng
     };
   }
   return null;
+}
+
+const BARE_YEAR = /^(?:19|20)\d{2}$/;
+const PHONE_LEAD_IN = /(?:at|call|dial|phon(?:e|ed)|tel(?:ephone)?|helpline|contact|whatsapp)\s*$/i;
+
+/**
+ * A bare 4-digit run that sits in a phone-number context ("at 1912 (24x7
+ * helpline)", "Call 1800 425 1912") is a digit string, not a calendar year.
+ * Years with a month/day attached are unaffected - those never look like
+ * phone fragments.
+ */
+function isPhoneLikeNumber(text: string, index: number, matched: string): boolean {
+  if (!BARE_YEAR.test(matched)) return false;
+  const before = text.slice(0, index);
+  if (PHONE_LEAD_IN.test(before)) return true;
+  // Adjacent to another bare digit group: part of a longer number string.
+  if (/\d[\d ]$/.test(before)) return true;
+  const after = text.slice(index + matched.length);
+  if (/^ ?\d{2,}/.test(after)) return true;
+  return false;
 }
 
 const SEPARATOR = /\s*[:—–]\s+|\s+-\s+/;

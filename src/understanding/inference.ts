@@ -272,7 +272,10 @@ export const VERDICT_HEADING =
   /^(the\s+)?(verdict|bottom\s+line|our\s+take|final\s+word|should\s+you\s+buy)\b/i;
 
 /** Lines the author explicitly left unresolved are not commitments. */
-export const OPEN_QUESTION = /^(open question|tbd|to be (?:decided|determined)|unresolved|undecided)\b/i;
+// "unresolved" and "undecided" only mark a line as open when used as a label
+// ("Unresolved: ..."). "Unresolved disputes must be escalated" is a requirement.
+export const OPEN_QUESTION =
+  /^(?:(?:open questions?|tbd|to be (?:decided|determined))\b|(?:unresolved|undecided)\s*(?:[:\-–—?]|$))/i;
 
 export function readCommitment(text: string): "committed" | "considered" {
   if (CONSIDERED.test(text)) return "considered";

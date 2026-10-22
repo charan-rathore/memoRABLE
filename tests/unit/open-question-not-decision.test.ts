@@ -67,3 +67,34 @@ describe("cache terms that start with work verbs", () => {
     expect(actions.some((a) => /migration guide/.test(a.task))).toBe(true);
   });
 });
+
+describe("follow-up: real tasks and requirements that share a lead word", () => {
+  const doc = `# Support runbook
+
+## Trade-offs
+- Write back to the customer with the revised quote
+- Write-back caching adds a flush delay on shutdown
+- Unresolved disputes must be escalated to the account owner within 24 hours
+- Unresolved: who owns the escalation rota?
+`;
+
+  it("keeps 'Write back to the customer' as an action", () => {
+    const { actions } = blocks(doc);
+    expect(actions.some((a) => /Write back to the customer/.test(a.task))).toBe(true);
+  });
+
+  it("still does not read the write-back cache term as an action", () => {
+    const { actions } = blocks(doc);
+    expect(actions.some((a) => /flush delay/.test(a.task))).toBe(false);
+  });
+
+  it("keeps 'Unresolved disputes must be escalated' as a decision", () => {
+    const { decisions } = blocks(doc);
+    expect(decisions.some((e) => /Unresolved disputes must be escalated/.test(e.text))).toBe(true);
+  });
+
+  it("still drops the labelled 'Unresolved: ...' line as a decision", () => {
+    const { decisions } = blocks(doc);
+    expect(decisions.some((e) => /escalation rota/.test(e.text))).toBe(false);
+  });
+});

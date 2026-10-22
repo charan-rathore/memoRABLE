@@ -256,6 +256,17 @@ const RATIONALE = /\b(?:so that|so as to|in order to|to avoid|to prevent|because
  * memory system that flattens them hands the reader a decision nobody made.
  * An explicit hedge always wins over confident-sounding phrasing around it.
  */
+/**
+ * Review-style verdict headings carry an evaluative opinion the author
+ * already resolved ("Skip it", "Do the fastest thing that works"). Reading
+ * those as committed Decisions or pending Action items tells the owner they
+ * decided something they only mused about. The RFC-style "Recommendation"
+ * heading is deliberately excluded: there it names the decision being
+ * proposed and should be remembered.
+ */
+export const VERDICT_HEADING =
+  /^(the\s+)?(verdict|bottom\s+line|our\s+take|final\s+word|should\s+you\s+buy)\b/i;
+
 export function readCommitment(text: string): "committed" | "considered" {
   if (CONSIDERED.test(text)) return "considered";
   if (COMMITTED.test(text)) return "committed";
@@ -278,6 +289,7 @@ export function inferDecisions(
     // Decision. Inferring across buckets is how PRD Phases polluted Decisions.
     const claimed = kindClaimedByHeading(statement.sectionTitle);
     if (claimed && claimed !== "decisions" && claimed !== "snapshot") continue;
+    if (statement.sectionTitle && VERDICT_HEADING.test(statement.sectionTitle)) continue;
 
     const text = unpunctuated(statement.text);
     if (wordCount(text) < 3) continue;

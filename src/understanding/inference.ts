@@ -39,6 +39,8 @@ export interface Statement {
   lineNo: number;
   /** True when the author marked this line as a list item. */
   listItem: boolean;
+  /** Checkbox state when the line was a task marker ("- [ ]" / "- [x]"). */
+  task?: "open" | "done";
 }
 
 export interface Inferred<T> {
@@ -292,6 +294,9 @@ export function inferDecisions(
     const claimed = kindClaimedByHeading(statement.sectionTitle);
     if (claimed && claimed !== "decisions" && claimed !== "snapshot") continue;
     if (statement.sectionTitle && VERDICT_HEADING.test(statement.sectionTitle)) continue;
+    // A checkbox is the author's own todo marker. Reading it as a settled
+    // commitment turns an open task into a decision nobody made.
+    if (statement.task) continue;
 
     const text = unpunctuated(statement.text);
     if (wordCount(text) < 3) continue;

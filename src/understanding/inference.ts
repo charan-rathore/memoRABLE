@@ -271,6 +271,9 @@ const RATIONALE = /\b(?:so that|so as to|in order to|to avoid|to prevent|because
 export const VERDICT_HEADING =
   /^(the\s+)?(verdict|bottom\s+line|our\s+take|final\s+word|should\s+you\s+buy)\b/i;
 
+/** Lines the author explicitly left unresolved are not commitments. */
+export const OPEN_QUESTION = /^(open question|tbd|to be (?:decided|determined)|unresolved|undecided)\b/i;
+
 export function readCommitment(text: string): "committed" | "considered" {
   if (CONSIDERED.test(text)) return "considered";
   if (COMMITTED.test(text)) return "committed";
@@ -297,8 +300,10 @@ export function inferDecisions(
     // A checkbox is the author's own todo marker. Reading it as a settled
     // commitment turns an open task into a decision nobody made.
     if (statement.task) continue;
-
     const text = unpunctuated(statement.text);
+    // "Open question: ..." is unresolved by the author's own words; the one
+    // status it cannot carry is committed.
+    if (OPEN_QUESTION.test(text)) continue;
     if (wordCount(text) < 3) continue;
 
     // Precedence: Requirement > Risk > Action > Decision.

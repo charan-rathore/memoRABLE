@@ -121,9 +121,24 @@ export function overlap(a: string, b: string): number {
   return shared / (left.size + right.size - shared);
 }
 
+/** Number tokens with grouping separators normalized ("1,500" ~ "1500"). */
+function numberMultiset(text: string): string {
+  return (text.match(/\d[\d,]*(?:\.\d+)?/g) ?? [])
+    .map((n) => n.replace(/,/g, ""))
+    .sort()
+    .join("\u0000");
+}
+
 /** Two statements say the same thing when most of their content words agree. */
 export function saysTheSame(a: string, b: string): boolean {
   if (normalizeKey(a) === normalizeKey(b)) return true;
+  // Numbers are the identity of an event: "6E 5342 ... December 18" and
+  // "6E 5319 ... December 20" share every content word (digits are not
+  // content tokens) yet are the two different legs of one trip. When both
+  // sides carry numbers and they differ, it is not a restatement.
+  const na = numberMultiset(a);
+  const nb = numberMultiset(b);
+  if (na !== "" && nb !== "" && na !== nb) return false;
   return overlap(a, b) >= 0.72;
 }
 

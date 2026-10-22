@@ -1,4 +1,4 @@
-import { contentTokens, isStopword, normalizeKey, stem, stemTokens, tokenize } from "./language";
+import { isStopword, normalizeKey, shorten, stem, stemTokens, tokenize } from "./language";
 
 /**
  * Step two of understanding: what does this document keep coming back to?
@@ -236,6 +236,7 @@ export function conceptsIn(sentence: string, concepts: readonly Concept[]): Conc
 export function labelFor(sentence: string, concepts: readonly Concept[], maxWords = 6): string {
   const matched = conceptsIn(sentence, concepts)[0];
   if (matched) return matched.phrase;
-  const words = contentTokens(sentence).slice(0, maxWords);
-  return words.length > 0 ? words.join(" ") : "";
+  // A keyword mash ("Trick noticing loop dominates right") drops the words
+  // that made the sentence readable; a label must stay a contiguous clip.
+  return shorten(sentence, maxWords);
 }

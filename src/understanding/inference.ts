@@ -194,7 +194,9 @@ export function inferSignals(
     }
 
     if (LESSON.test(text) && wordCount(text) >= 5) {
-      const label = labelFor(text, concepts, 5);
+      // Five words clips a lesson opener mid-thought ("The trick is
+      // noticing"); eight usually reaches the part that carries the point.
+      const label = labelFor(text, concepts, 8);
       out.push({
         value: {
           label: sentenceCase(label || clampWords(text, 10)),

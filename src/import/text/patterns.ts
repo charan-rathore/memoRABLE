@@ -177,15 +177,25 @@ const FRACTION_UNITS =
   /^(?:\s+|-)(?:cups?|tsp|tbsp|teaspoons?|tablespoons?|kgs?|gms?|mg|ml|cl|litres?|liters?|oz|lbs?|pounds?|inch(?:es)?|cms?|mm|kms?|metres?|meters?|ft|feet|hours?|hrs?|minutes?|mins?|seconds?|secs?|dozen|plates?|scoops?|servings?|slices?|glasses?|packets?|bowls?|handfuls?|pinch(?:es)?|g|l|m)\b(?!\s*:)/;
 
 /** True when a numeric "n/m" token at `index` measures something: a proper
- * fraction followed by a unit ("1/2 cup", "1/2-inch", "1/2%") or the tail of a
- * standalone mixed number ("2 1/2 hours"), rather than a month/day date. */
+ * fraction followed by a unit ("1/2 cup", "1/2-inch", "1/2%"), the tail of a
+ * standalone mixed number ("2 1/2 hours"), or a rating after its label's
+ * colon ("SQL: 4/5") — rather than a month/day date. */
 function isQuantityFraction(text: string, index: number, length: number): boolean {
   const token = text.slice(index, index + length);
   const parts = /^(\d{1,2})\/(\d{1,2})$/.exec(token);
   if (!parts) return false;
+  const before = text.slice(0, index);
+  // A rating after a label, not a date: "SQL and data modeling: 4/5",
+  // "Ease of use: 10/10". Scores sit right after their label's colon.
+  if (
+    (parts[2] === "5" || parts[2] === "10") &&
+    Number(parts[1]) <= Number(parts[2]) &&
+    /:\s*$/.test(before)
+  ) {
+    return true;
+  }
   // A real fraction: numerator below denominator, denominator a common one.
   if (Number(parts[1]) >= Number(parts[2]) || Number(parts[2]) > 16) return false;
-  const before = text.slice(0, index);
   // "2 1/2": a standalone number, not the end of an identifier like "v2".
   if (/(?:^|[^\w.\-/])\d+\s+$/.test(before)) return true;
   const after = text.slice(index + length);

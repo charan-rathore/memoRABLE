@@ -364,6 +364,18 @@ const WHY =
 const DIAGNOSTIC = /^(.{8,160}?),?\s+(?:but|yet|however|while|with)\s+(.{6,180})$/i;
 
 /**
+ * Topic verbs put trouble words in citation scope, not assertion scope —
+ * NegEx-style trigger scoping (Chapman et al., clinical negation detection):
+ * a trigger term governs what follows it. "She covers the failure modes of
+ * RAG pipelines" talks about failure; "Two suppliers missed delivery windows"
+ * asserts one. When a topic verb precedes the first trouble word, the
+ * sentence is about a subject of talk, not something going wrong — unless a
+ * stated consequence independently marks real trouble.
+ */
+const TOPICAL =
+  /\b(covers?|covering|discuss(?:es|ed|ing)?|talks?\s+about|writes?\s+about|writing\s+about|speaks?\s+about|presents?(?:ing)?|explains?(?:ing)?|describ\w+|teach(?:es|ing)?|taught|explor\w+|reviews?(?:ing)?|summariz\w+|overviews?)\b/i;
+
+/**
  * Read one sentence as observation, why it matters, and what it costs.
  *
  * Returns null when the sentence is not describing something going wrong,
@@ -382,6 +394,14 @@ export function readRisk(text: string): InferredRisk | null {
   // A risk needs trouble somewhere in it, or a stated consequence that makes
   // the trouble explicit. Neither present means this is just a sentence.
   if (!TROUBLE.test(flat) && !consequenceMatch) return null;
+
+  // Trouble inside the scope of a topic verb is cited, not asserted
+  // ("covers the failure modes of X"). A stated consequence still counts.
+  if (!consequenceMatch) {
+    const troubleHit = TROUBLE.exec(flat);
+    const topicalHit = TOPICAL.exec(flat);
+    if (troubleHit && topicalHit && topicalHit.index < troubleHit.index) return null;
+  }
 
   let observation = flat;
   let consequence: string | undefined;

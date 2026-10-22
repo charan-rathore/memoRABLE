@@ -227,7 +227,7 @@ export function findDateToken(text: string): { date: string; index: number; leng
 }
 
 const BARE_YEAR = /^(?:19|20)\d{2}$/;
-const PHONE_LEAD_IN = /(?:at|call|dial|phon(?:e|ed)|tel(?:ephone)?|helpline|contact|whatsapp)\s*$/i;
+const PHONE_LEAD_IN = /\b(?:at|call|dial|phon(?:e|ed)|tel(?:ephone)?|helpline|contact|whatsapp)\s*$/i;
 
 /**
  * A bare 4-digit run that sits in a phone-number context ("at 1912 (24x7

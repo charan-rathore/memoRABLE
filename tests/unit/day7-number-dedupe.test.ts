@@ -78,3 +78,15 @@ describe("phone numbers are not dates", () => {
     expect(findDateToken("Call 1800 425 1912 for outages")).toBeNull();
   });
 });
+
+describe("phone lead-in needs a whole word", () => {
+  it("reads a year after a word that merely ends in 'at' or 'tel' as a date", () => {
+    expect(findDateToken("Trip to Gujarat 2026")?.date).toBe("2026");
+    expect(findDateToken("Booked the hotel 2026 package")?.date).toBe("2026");
+  });
+
+  it("still skips a year after a real phone lead-in word", () => {
+    expect(findDateToken("Register complaints at 1912 (24x7 helpline)")).toBeNull();
+    expect(findDateToken("Call 1912 for help")).toBeNull();
+  });
+});

@@ -147,6 +147,19 @@ export function inferActions(
     const text = unpunctuated(statement.text);
     if (wordCount(text) < 3) continue;
     if (NON_ACTION.test(text)) continue;
+
+    // A checkbox is the author's explicit todo marker: an open box is pending
+    // work, a checked box is done work. No work-verb guessing needed.
+    if (statement.task) {
+      const task = sentenceCase(clampWords(text, 28));
+      if (task.length >= 8) {
+        out.push({
+          value: { task, status: statement.task === "done" ? "done" : "pending" },
+          evidence: statement,
+        });
+      }
+      continue;
+    }
     // A table row outside an actions section is data, not a todo: positional
     // task/owner/due mapping would read an expense's amount as its owner.
     if (claimed !== "actions" && splitTableRow(statement.text)) continue;

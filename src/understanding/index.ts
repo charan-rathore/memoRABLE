@@ -261,7 +261,9 @@ function distill(sections: readonly UnderstandingSection[]): {
       const text = line.text;
       if (text.trim() === "") continue;
       if (isDecorativeLine(text) || isTableSeparator(text)) continue;
-      const listItem = splitListItem(text) !== null;
+      const item = splitListItem(text);
+      const listItem = item !== null;
+      const task = item?.marker === "task" ? (item.done ? ("done" as const) : ("open" as const)) : undefined;
       const content = plainContentOf(text);
       if (content.trim() === "") continue;
 
@@ -273,6 +275,7 @@ function distill(sections: readonly UnderstandingSection[]): {
           sectionTitle: section.headingText,
           lineNo: line.lineNo,
           listItem,
+          ...(task ? { task } : {}),
         });
       }
     }

@@ -74,3 +74,17 @@ describe("checkbox items", () => {
     expect(decisions.some((e) => /Never store raw tokens/.test(e.text))).toBe(true);
   });
 });
+
+describe("checkbox items keep their metadata and content", () => {
+  it("keeps explicit owner and due on a checkbox action", () => {
+    const { actions } = blocks("# Plan\n\n## Week 1\n- [ ] Review rollout plan — Alice — Aug 15\n");
+    expect(actions).toHaveLength(1);
+    expect(actions[0]).toMatchObject({ task: "Review rollout plan", owner: "Alice", due: "Aug 15", status: "pending" });
+  });
+
+  it("keeps a multi-sentence checkbox as one task, so the instruction survives", () => {
+    const { actions } = blocks("# Plan\n\n## Week 1\n- [ ] The draft is attached. Send the proposal to Alice.\n");
+    expect(actions).toHaveLength(1);
+    expect(actions[0]!.task).toContain("Send the proposal to Alice");
+  });
+});

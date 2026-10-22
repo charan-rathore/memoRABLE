@@ -151,12 +151,16 @@ export function inferActions(
     // A checkbox is the author's explicit todo marker: an open box is pending
     // work, a checked box is done work. No work-verb guessing needed.
     if (statement.task) {
+      const status = statement.task === "done" ? "done" : "pending";
+      // Explicit "task - owner - due" metadata wins over the plain-text fallback.
+      const parsedTask = parseActionLine(statement.text) ?? parseActionLine(`- ${statement.text}`);
+      if (parsedTask && parsedTask.task.trim().length >= 3) {
+        out.push({ value: { ...parsedTask, status }, evidence: statement });
+        continue;
+      }
       const task = sentenceCase(clampWords(text, 28));
       if (task.length >= 8) {
-        out.push({
-          value: { task, status: statement.task === "done" ? "done" : "pending" },
-          evidence: statement,
-        });
+        out.push({ value: { task, status }, evidence: statement });
       }
       continue;
     }

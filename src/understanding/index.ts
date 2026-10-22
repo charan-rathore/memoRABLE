@@ -267,7 +267,14 @@ function distill(sections: readonly UnderstandingSection[]): {
       const content = plainContentOf(text);
       if (content.trim() === "") continue;
 
-      for (const sentence of splitSentences(content)) {
+      // A checkbox item is one task: keep its whole content together so a
+      // background sentence cannot become the task and hide the instruction.
+      const taskWords = wordCount(content);
+      const sentences =
+        task && taskWords >= MIN_STATEMENT_WORDS && taskWords <= MAX_STATEMENT_WORDS
+          ? [content]
+          : splitSentences(content);
+      for (const sentence of sentences) {
         const words = wordCount(sentence);
         if (words < MIN_STATEMENT_WORDS || words > MAX_STATEMENT_WORDS) continue;
         raw.push({

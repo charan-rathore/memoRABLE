@@ -16,7 +16,7 @@ import {
   titleAroundRemovedDate,
 } from "@/import/text/patterns";
 import type { ActionEntry, BlockKind, TimelineEntry } from "@/domain/memory/schema";
-import { inferReadiness, type Inferred, type Statement } from "./inference";
+import { inferReadiness, VERDICT_HEADING, type Inferred, type Statement } from "./inference";
 import { strongestCategory } from "./projection";
 import { clampWords, sentenceCase, unpunctuated, wordCount } from "./language";
 
@@ -141,6 +141,8 @@ export function inferActions(
       kindClaimedByHeading(statement.sectionTitle) ??
       (statement.sectionTitle == null ? unheadedClaim : null);
     if (claimed && claimed !== "actions" && claimed !== "snapshot") continue;
+    // Verdict prose is the author's resolved opinion, not a todo for the owner.
+    if (statement.sectionTitle && VERDICT_HEADING.test(statement.sectionTitle)) continue;
 
     const text = unpunctuated(statement.text);
     if (wordCount(text) < 3) continue;

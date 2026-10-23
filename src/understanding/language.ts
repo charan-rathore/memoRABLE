@@ -94,9 +94,6 @@ export function wordCount(text: string): number {
  */
 const ABBREVIATIONS = /\b(?:e\.g|i\.e|etc|vs|approx|fig|no|mr|mrs|ms|dr|prof|inc|ltd|co|st|jan|feb|mar|apr|jun|jul|aug|sep|sept|oct|nov|dec)\.$/i;
 
-/** A trailing single-capital initial ("...to S.", "...the R. K.") is a name, not a full stop. */
-const NAME_INITIAL = /(?:^|\s)[A-Z]\.$/;
-
 export function splitSentences(text: string): string[] {
   const flat = text.replace(/\s+/g, " ").trim();
   if (flat === "") return [];
@@ -106,7 +103,7 @@ export function splitSentences(text: string): string[] {
   for (const part of parts) {
     buffer = buffer === "" ? part : `${buffer} ${part}`;
     // A decimal point or a known abbreviation is not the end of a thought.
-    if (ABBREVIATIONS.test(buffer) || /\d\.$/.test(buffer) || NAME_INITIAL.test(buffer)) continue;
+    if (ABBREVIATIONS.test(buffer) || /\d\.$/.test(buffer)) continue;
     out.push(buffer.trim());
     buffer = "";
   }

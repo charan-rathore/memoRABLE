@@ -203,21 +203,25 @@ function candidatePhrases(line: string): string[] {
  * document had two subjects when it had one.
  */
 function dropContainedPhrases(concepts: readonly Concept[]): Concept[] {
+  // The comparison is quadratic in count, so each kept phrase's key and stems
+  // are computed once, not once per pair (same disease as dedupeByMeaning).
   const kept: Concept[] = [];
+  const keptForms: { key: string; stems: string[] }[] = [];
   for (const concept of concepts) {
     const key = ` ${normalizeKey(concept.phrase)} `;
     const words = new Set(stemTokens(concept.phrase));
-    const swallowed = kept.some((k) => {
-      const other = ` ${normalizeKey(k.phrase)} `;
-      if (other === key || other.includes(key) || key.includes(other)) return true;
+    const swallowed = keptForms.some((k) => {
+      if (k.key === key || k.key.includes(key) || key.includes(k.key)) return true;
       // Two words in common is the same idea wearing a different collar.
       // "Fleet analytics" and "fleet-analytics pricing" are one theme, and a
       // reader who is told about both assumes there were two. One word in
       // common is left alone: "data room" and "data model" are not the same.
-      const theirs = stemTokens(k.phrase);
-      return theirs.filter((w) => words.has(w)).length >= 2;
+      return k.stems.filter((w) => words.has(w)).length >= 2;
     });
-    if (!swallowed) kept.push(concept);
+    if (!swallowed) {
+      kept.push(concept);
+      keptForms.push({ key, stems: stemTokens(concept.phrase) });
+    }
   }
   return kept;
 }

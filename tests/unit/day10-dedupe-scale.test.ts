@@ -40,4 +40,15 @@ describe("dedupeByMeaning keeps its meaning rules", () => {
     // Base: ~8.5s here (quadratic). Fixed: ~0.2s. Budget 3s splits them.
     expect(ms).toBeLessThan(3000);
   });
+
+  it("imports a header-heavy document within its performance budget", () => {
+    // dropContainedPhrases re-tokenized every kept concept per comparison.
+    const doc = Array.from({ length: 4000 }, (_, i) => `# H${i}\ntext ${i}`).join("\n");
+    const t0 = performance.now();
+    const r = importSource({ raw: doc, label: "header-perf" });
+    const ms = performance.now() - t0;
+    expect(r.ok).toBe(true);
+    // Base: ~3.5s here (quadratic). Fixed: ~0.55s. Budget 2s splits them.
+    expect(ms).toBeLessThan(2000);
+  });
 });

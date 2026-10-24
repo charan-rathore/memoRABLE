@@ -474,11 +474,11 @@ export function inferRisks(statements: readonly Statement[]): Array<Inferred<Inf
 const PRODUCES =
   // Colon forms first so "output: x" is not captured as ": x" by `outputs?`;
   // the (?![a-z]) boundary stops "delivery"/"producer" matching `deliver`/`produce`.
-  /\b(?:deliverables?\s*[:—-]|outputs?\s*[:—-]|artifacts?\s*[:—-]|produces?|produced|outputs?|delivers?|yields?|creates?|results? in|you(?:'|’)?ll have|leaves you with|ends with)(?![a-z])\s*(?:a|an|the)?\s*(.{3,120}?)(?:[.;]|$)/i;
+  /\b(?:(?:deliverables?|outputs?|artifacts?)(?![a-z])\s*[:—-]|(?:produces?|produced|outputs?|delivers?|yields?|creates?|results? in|you(?:'|’)?ll have|leaves you with|ends with)(?![a-z]))\s*(?:a|an|the)?\s*(.{3,120}?)(?:[.;]|$)/i;
 
 /** "required before cleaning" / "depends on the data dictionary". */
 const REQUIRES =
-  /\b(?:required before|needed before|must happen before|depends on|dependent on|blocked by|prerequisites?\s*[:—-]?|requires?|after you have|once you have|only after)(?![a-z])\s*(?:a|an|the)?\s*(.{3,120}?)(?:[.;]|$)/i;
+  /\b(?:(?:required before|needed before|must happen before|depends on|dependent on|blocked by|prerequisites?|requires?|after you have|once you have|only after)(?![a-z])\s*[:—-]?)\s*(?:a|an|the)?\s*(.{3,120}?)(?:[.;]|$)/i;
 
 export function inferArtifact(text: string): InferredArtifact {
   const artifact: InferredArtifact = {};

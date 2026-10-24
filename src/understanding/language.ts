@@ -147,14 +147,41 @@ export function saysTheSame(a: string, b: string): boolean {
  * themselves constantly, and a memory that repeats with them is a transcript.
  */
 export function dedupeByMeaning<T>(items: readonly T[], textOf: (item: T) => string): T[] {
+  // The comparison is quadratic in count, so each text is reduced to its
+  // comparison form ONCE; saysTheSame re-tokenized both sides per pair, which
+  // made a few thousand restated lines take minutes.
   const kept: T[] = [];
+  const keptPrepared: PreparedMeaning[] = [];
   for (const item of items) {
     const text = textOf(item);
     if (text.trim() === "") continue;
-    if (kept.some((k) => saysTheSame(textOf(k), text))) continue;
+    const prepared = prepareMeaning(text);
+    if (keptPrepared.some((k) => samePrepared(k, prepared))) continue;
     kept.push(item);
+    keptPrepared.push(prepared);
   }
   return kept;
+}
+
+/** saysTheSame's three inputs (key, numbers, content tokens) per text. */
+interface PreparedMeaning {
+  key: string;
+  numbers: string;
+  tokens: Set<string>;
+}
+
+function prepareMeaning(text: string): PreparedMeaning {
+  return { key: normalizeKey(text), numbers: numberMultiset(text), tokens: new Set(contentTokens(text)) };
+}
+
+/** Identical decision to saysTheSame, over prepared forms. */
+function samePrepared(a: PreparedMeaning, b: PreparedMeaning): boolean {
+  if (a.key === b.key) return true;
+  if (a.numbers !== "" && b.numbers !== "" && a.numbers !== b.numbers) return false;
+  if (a.tokens.size === 0 || b.tokens.size === 0) return false;
+  let shared = 0;
+  for (const token of a.tokens) if (b.tokens.has(token)) shared++;
+  return shared / (a.tokens.size + b.tokens.size - shared) >= 0.72;
 }
 
 /**

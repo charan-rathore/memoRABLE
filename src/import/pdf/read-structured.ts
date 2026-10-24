@@ -90,7 +90,7 @@ export async function readPdfBytes(
     const blocks = await ocrImages(images, {
       ...options.ocr,
       onProgress: (pct) => onProgress?.(60 + Math.round(pct * 0.35)),
-    });
+    }).catch(() => []); // OCR is optional; startup failure must not discard readable layout text.
     ocrBlocks = blocks.length;
     markdown = mergeOcrIntoMarkdown(markdown, blocks);
   }

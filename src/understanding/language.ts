@@ -152,13 +152,27 @@ export function dedupeByMeaning<T>(items: readonly T[], textOf: (item: T) => str
   // made a few thousand restated lines take minutes.
   const kept: T[] = [];
   const keptPrepared: PreparedMeaning[] = [];
+  const keys = new Set<string>();
+  const byNumbers = new Map<string, PreparedMeaning[]>();
+  const withoutNumbers: PreparedMeaning[] = [];
   for (const item of items) {
     const text = textOf(item);
     if (text.trim() === "") continue;
     const prepared = prepareMeaning(text);
-    if (keptPrepared.some((k) => samePrepared(k, prepared))) continue;
+    if (keys.has(prepared.key)) continue;
+    const candidates = prepared.numbers === ""
+      ? keptPrepared
+      : [...withoutNumbers, ...(byNumbers.get(prepared.numbers) ?? [])];
+    if (candidates.some((k) => samePrepared(k, prepared))) continue;
     kept.push(item);
     keptPrepared.push(prepared);
+    keys.add(prepared.key);
+    if (prepared.numbers === "") withoutNumbers.push(prepared);
+    else {
+      const group = byNumbers.get(prepared.numbers) ?? [];
+      group.push(prepared);
+      byNumbers.set(prepared.numbers, group);
+    }
   }
   return kept;
 }

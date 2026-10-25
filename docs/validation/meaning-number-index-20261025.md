@@ -17,3 +17,7 @@ Source-only revert: the 300 ms budget fails before and passes after. Eighty seed
 Actual 100-quarter `importSource` complete MemoryDocument JSON, including IDs, hash and relations, is identical on baseline and candidate. Baseline SHA-256: `c37c4619e0200226a62ebc2704b5673994c51ff0f94be1563db14c687c9aef76`. The committed baseline fixture was not generated from candidate expectations.
 
 Full suite: 503 PASS, 2 skipped before the additional golden integration test. Final focused suite: 3 PASS. Type, lint and build pass after the test typing fix. No schema, threshold or output-contract change.
+
+## Historical environment record
+
+These measurements and tests ran locally. The retained qualification logs do not record the Node version or operating-system version for this run. Those historical details are unknown and must not be inferred from the current environment. Relative timings apply only to the stated local workload, not other machines or deployed services.

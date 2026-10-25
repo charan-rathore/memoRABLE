@@ -1,9 +1,20 @@
 # Prepare link vocabulary once per pass
 
-Based on merged86, main762766c. The relation link pass stemmed each source/target string again for every pair. With100entriesin eachkind, deterministicJSONimportspentmosttime repeatingunchangedtokenization.
+Based on merged #86, main `762766c`. The relation-link pass stemmed each source and target string again for every pair. With 100 entries in each kind, the deterministic JSON import spent most time repeating unchanged tokenisation.
 
-Preparetargetvocabularyonce, sourcestokensonceperrow. Keepidentical2sharedtokenfloor,0.2threshold,minsize denominator,stablesort and2edgecap. Empty-sidefastreturn doesnoextra work. Nochange tospecialaction/phasepaths, graphsemanticsorsource.
+Prepare target vocabulary once, and source tokens once per row. Keep the same two-shared-token floor, 0.2 threshold, minimum-size denominator, stable sort and two-edge cap. Empty-side early return does no extra work. No change to special action/phase paths, graph semantics or source content.
 
-ActualfullsixblockJSONimport,100entries/kind: baseline822.38ms->87.62ms median2imports/5trials;300mslocalcomparativebudgetRED/GREEN. Initialmeasurement769->91ms consistent. FullserializedMemoryDocument includingallIDs,hashes,provenance,relations byte-identical; committedbaselinefingerprintcontrol.
+## Executed checks
 
-OrdinaryAtlasfixture7trialmedian100imports88.80msbaseline->78.13mscandidate. Full501PASS2existing skips,type/lint/buildPASS. TiminglocalNodeactualimport,notdeployedbrowserclaim. FreshCI/browser/reviewrequired beforemerge.
+- Actual full six-block JSON import, 100 entries per kind: median 822.38 ms baseline to 87.62 ms candidate for two imports across five trials. A local comparative 300 ms budget was RED before and GREEN after. Initial measurements of 769 ms to 91 ms were consistent.
+- The full serialized MemoryDocument, including all IDs, hashes, provenance and relations, was byte-identical. A committed baseline fingerprint checks this.
+- Ordinary Atlas fixture, seven-trial median for 100 imports: 88.80 ms baseline to 78.13 ms candidate.
+- Full suite: 501 PASS, 2 existing skips. Typecheck, lint and build passed.
+
+## Followthrough and limits
+
+These are local Node actual-import timings, not deployed-browser latency claims. Fresh CI, browser checks and review were still required before merge. The validation note records the local qualification stage; current PR state is tracked in #87. No schema, threshold, relation-order or output-contract change.
+
+## Historical environment record
+
+These measurements and tests ran locally. The retained qualification logs do not record the Node version or operating-system version for this run. Those historical details are unknown and must not be inferred from the current environment. Relative timings apply only to the stated local workload, not other machines or deployed services.

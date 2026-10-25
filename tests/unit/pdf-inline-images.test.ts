@@ -55,3 +55,36 @@ it("bounds an image object that never resolves", async () => {
     expect(vi.getTimerCount()).toBe(0);
   } finally { vi.useRealTimers(); }
 });
+
+
+function sharedImagePdf(): Uint8Array {
+  const image = deflateSync(Buffer.alloc(200*100*3,120));
+  const objects = [
+    Buffer.from("<< /Type /Catalog /Pages 2 0 R >>"),
+    Buffer.from("<< /Type /Pages /Kids [3 0 R 4 0 R 5 0 R] /Count 3 >>"),
+    ...[1,2,3].map(()=>Buffer.from("<< /Type /Page /Parent 2 0 R /MediaBox [0 0 300 200] /Resources << /XObject << /Im0 7 0 R >> >> /Contents 6 0 R >>")),
+    Buffer.from("<< /Length 31 >>\nstream\nq 200 0 0 100 0 0 cm /Im0 Do Q\nendstream"),
+    Buffer.concat([Buffer.from(`<< /Type /XObject /Subtype /Image /Width 200 /Height 100 /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /FlateDecode /Length ${image.length} >>\nstream\n`),image,Buffer.from("\nendstream")]),
+  ];
+  const parts=[Buffer.from("%PDF-1.4\n")];const offsets:number[]=[];let length=parts[0]!.length;
+  objects.forEach((o,i)=>{offsets.push(length);const p=Buffer.concat([Buffer.from(`${i+1} 0 obj\n`),o,Buffer.from("\nendobj\n")]);parts.push(p);length+=p.length;});
+  parts.push(Buffer.from(`xref\n0 8\n0000000000 65535 f \n${offsets.map(o=>`${String(o).padStart(10,"0")} 00000 n \n`).join("")}trailer\n<< /Root 1 0 R /Size 8 >>\nstartxref\n${length}\n%%EOF`));
+  return new Uint8Array(Buffer.concat(parts));
+}
+
+it("extracts promoted shared XObjects from the real pdf.js common pool",async()=>{
+ const pdfjs=await import("pdfjs-dist/legacy/build/pdf.mjs");
+ const doc=await pdfjs.getDocument({data:sharedImagePdf()}).promise;
+ try {
+  let globalSeen=false;
+  for(let i=1;i<=3;i++){
+   const page=await doc.getPage(i);
+   const ops=await page.getOperatorList();
+   globalSeen ||= ops.argsArray.some(a=>Array.isArray(a)&&typeof a[0]==="string"&&a[0].startsWith("g_"));
+   const images=await extractPageImages(page,i,pdfjs.OPS);
+   expect(images[0]?.width).toBe(200);
+   expect(images[0]?.png).not.toBeNull();
+  }
+  expect(globalSeen).toBe(true);
+ } finally {await doc.destroy();}
+},20000);

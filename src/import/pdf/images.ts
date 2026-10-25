@@ -17,6 +17,7 @@ export interface ExtractedPdfImage {
 type PdfJsPage = {
   getOperatorList: () => Promise<{ fnArray: number[]; argsArray: unknown[] }>;
   objs: { get: (name: string, callback?: (data: unknown) => void) => Promise<unknown> | unknown };
+  commonObjs?: { get: (name: string, callback?: (data: unknown) => void) => Promise<unknown> | unknown };
 };
 
 type PdfJsModule = {
@@ -57,7 +58,9 @@ export async function extractPageImages(
         const timer = setTimeout(() => resolve(null), 5_000);
         const finish = (data: unknown) => { clearTimeout(timer); resolve(data); };
         try {
-          const immediate = page.objs.get(name, finish);
+          const pool = name.startsWith("g_") ? page.commonObjs : page.objs;
+          if (!pool) { finish(null); return; }
+          const immediate = pool.get(name, finish);
           if (immediate !== undefined && immediate !== null) finish(immediate);
         } catch (error) { clearTimeout(timer); reject(error); }
       });

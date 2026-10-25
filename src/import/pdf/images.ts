@@ -16,7 +16,7 @@ export interface ExtractedPdfImage {
 
 type PdfJsPage = {
   getOperatorList: () => Promise<{ fnArray: number[]; argsArray: unknown[] }>;
-  objs: { get: (name: string) => Promise<unknown> | unknown };
+  objs: { get: (name: string, callback?: (data: unknown) => void) => Promise<unknown> | unknown };
 };
 
 type PdfJsModule = {
@@ -48,7 +48,19 @@ export async function extractPageImages(
     if (seen.has(name)) continue;
     seen.add(name);
     try {
-      const raw = await Promise.resolve(page.objs.get(name));
+      // getOperatorList can finish before worker image data is resolved. pdf.js
+      // exposes unresolved objects through the callback form; synchronous get
+      // throws and would silently discard images that are still loading.
+      const raw = await new Promise<unknown>((resolve, reject) => {
+        // Image extraction is best-effort. A broken worker must not hold the
+        // readable document open forever waiting for an object that never arrives.
+        const timer = setTimeout(() => resolve(null), 5_000);
+        const finish = (data: unknown) => { clearTimeout(timer); resolve(data); };
+        try {
+          const immediate = page.objs.get(name, finish);
+          if (immediate !== undefined && immediate !== null) finish(immediate);
+        } catch (error) { clearTimeout(timer); reject(error); }
+      });
       const img = asImageData(raw);
       if (!img || img.width < 40 || img.height < 40) continue;
       // Soft masks / tiny icons are noise; keep spreadsheet-scale captures.

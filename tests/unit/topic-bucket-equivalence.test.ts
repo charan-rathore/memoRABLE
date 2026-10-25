@@ -1,0 +1,2 @@
+import {it,expect} from 'vitest';import {hybridSegment} from '@/understanding/segment';import {createHash} from 'node:crypto';
+it('actual segmentation long soft-wrapped prose budget',()=>{const text=Array.from({length:1200},(_,i)=>`Research evidence platform growth retention segment outcome metrics source ${i} needs further analysis and careful tracking.`).join('\n');const result=hybridSegment(text);expect(createHash('sha256').update(JSON.stringify(result)).digest('hex')).toBe('0554a6b88b4a8306e3db0e5cff08ddb5d25b21117a201a018dfd6cbf8857e435');});

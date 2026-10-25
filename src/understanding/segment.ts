@@ -159,18 +159,25 @@ function splitByTopicShift(segments: SemanticSegment[]): SemanticSegment[] {
     }
 
     let bucket = paragraphs[0]!;
+    let bucketStems = stemsOf(bucket);
+    let bucketWords = bucket.reduce((n, l) => n + l.text.split(/\s+/).length, 0);
     for (let i = 1; i < paragraphs.length; i++) {
       const next = paragraphs[i]!;
-      const cohesion = jaccard(stemsOf(bucket), stemsOf(next));
-      const bucketWords = bucket.reduce((n, l) => n + l.text.split(/\s+/).length, 0);
+      const nextStems = stemsOf(next);
+      const nextWords = next.reduce((n, l) => n + l.text.split(/\s+/).length, 0);
+      const cohesion = jaccard(bucketStems, nextStems);
       // Hybrid mix: keep related paragraphs together; cut on low overlap once
       // the bucket is already a meaningful chunk (~80+ words), never at a fixed
       // token window.
       if (cohesion < 0.12 && bucketWords >= 80) {
         out.push(paragraphsToSegment(++seq, segment, bucket));
         bucket = next;
+        bucketStems = nextStems;
+        bucketWords = nextWords;
       } else {
-        bucket = bucket.concat(next);
+        bucket.push(...next);
+        for (const token of nextStems) bucketStems.add(token);
+        bucketWords += nextWords;
       }
     }
     if (bucket.length) out.push(paragraphsToSegment(++seq, segment, bucket));

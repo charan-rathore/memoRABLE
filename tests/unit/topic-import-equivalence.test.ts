@@ -1,0 +1,2 @@
+import {it,expect} from 'vitest';import {importSource} from '@/import/import-source';import {createHash} from 'node:crypto';
+it('actual source import equivalence',()=>{const raw=Array.from({length:90},(_,i)=>`Research evidence platform growth retention segment outcome metrics source ${i} needs further analysis and careful tracking.`).join('\n');const result=importSource({raw,label:'topic.txt'});expect(result.ok).toBe(true);expect(createHash('sha256').update(JSON.stringify(result)).digest('hex')).toBe('846260b338d814c1f06c897f2e1a534582c4278f5eb82a8c30d6139ceb480ae5');});

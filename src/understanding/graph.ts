@@ -158,9 +158,20 @@ function link<A, B>(
   note: string,
 ): MemoryRelation[] {
   const out: MemoryRelation[] = [];
+  if (from.length === 0 || to.length === 0) return out;
+  // Each entry's text and vocabulary are invariant within this linking pass.
+  // Prepare once, rather than tokenize both sides again for every pair.
+  const targets = to.map((target) => ({ target, tokens: new Set(stemTokens(textOfB(target.entry))) }));
   for (const source of from) {
-    const scored = to
-      .map((target) => ({ target, score: relatedness(textOfA(source.entry), textOfB(target.entry)) }))
+    const left = new Set(stemTokens(textOfA(source.entry)));
+    const scored = targets
+      .map(({ target, tokens: right }) => {
+        let shared = 0;
+        for (const token of left) if (right.has(token)) shared++;
+        const score = left.size && right.size && shared >= MIN_SHARED_TOKENS
+          ? shared / Math.min(left.size, right.size) : 0;
+        return { target, score };
+      })
       .filter((s) => s.score >= LINK_THRESHOLD)
       .sort((a, b) => b.score - a.score)
       .slice(0, MAX_EDGES_PER_MEMORY);

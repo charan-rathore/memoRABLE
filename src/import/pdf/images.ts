@@ -234,9 +234,13 @@ function deflate(data: Uint8Array): Uint8Array {
 function adler32(data: Uint8Array): number {
   let a = 1;
   let b = 0;
-  for (let i = 0; i < data.length; i++) {
-    a = (a + data[i]!) % 65521;
-    b = (b + a) % 65521;
+  // Adler-32's 5552-byte block bound keeps sums exact within uint32.
+  // Reduce once per block instead of twice for every raster byte.
+  for (let start = 0; start < data.length; start += 5552) {
+    const end = Math.min(start + 5552, data.length);
+    for (let i = start; i < end; i++) { a += data[i]!; b += a; }
+    a %= 65521;
+    b %= 65521;
   }
   return ((b << 16) | a) >>> 0;
 }

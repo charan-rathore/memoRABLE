@@ -92,7 +92,7 @@ export function wordCount(text: string): number {
  * Split prose into sentences. Abbreviations and decimals are the usual way a
  * naive splitter embarrasses itself, so both are held together explicitly.
  */
-const ABBREVIATIONS = /\b(?:e\.g|i\.e|etc|vs|approx|fig|no|mr|mrs|ms|dr|prof|inc|ltd|co|st|jan|feb|mar|apr|jun|jul|aug|sep|sept|oct|nov|dec)\.$/i;
+const ABBREVIATIONS = /\b(?:e\.g|i\.e|etc|vs|approx|fig|no|mr|mrs|ms|dr|prof|inc|ltd|co|st|dept|univ|inst|assn|assoc|asst|jan|feb|mar|apr|jun|jul|aug|sep|sept|oct|nov|dec)\.$/i;
 
 export function splitSentences(text: string): string[] {
   const flat = text.replace(/\s+/g, " ").trim();

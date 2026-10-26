@@ -49,6 +49,8 @@ export interface RecallInput {
   actions: readonly ActionEntry[];
   /** The document's own opening paragraph, used only if composition fails. */
   fallback: string;
+  /** Document archetype; a resume frames a person, not a product initiative. */
+  archetype?: string;
 }
 
 export interface Recall {
@@ -69,6 +71,20 @@ export interface Recall {
 }
 
 export function composeRecall(input: RecallInput): Recall {
+  // A resume frames a person, not a product initiative: there is no goal,
+  // problem, or outcome to name, and its achievements or education must not
+  // be relabeled as one. Keep the source's own opening as the summary.
+  if (input.archetype === "resume") {
+    return {
+      summary: clampWords(unpunctuated(input.fallback), LIMITS.maxSnapshotWords),
+      composed: false,
+      hook: "",
+      goal: "",
+      problem: "",
+      outcome: "",
+      readingMinutes: readingMinutes(input),
+    };
+  }
   const goal = primaryGoal(input);
   const problem = primaryProblem(input);
   const outcome = primaryOutcome(input);
@@ -218,8 +234,14 @@ function outstandingWorkClause(
     .filter((t): t is string => Boolean(t));
   const uniqueTickets = [...new Set(tickets.map((t) => t.toUpperCase()))];
 
+  // A statusless card (e.g. a resume project) makes no outstanding-work
+  // claim, so it never feeds the outstanding-work summary.
   const waitingActions = actions.filter(
-    (a) => a.status !== "done" && !/^persona:/i.test(a.task) && !/^user story:/i.test(a.task),
+    (a) =>
+      a.status !== undefined &&
+      a.status !== "done" &&
+      !/^persona:/i.test(a.task) &&
+      !/^user story:/i.test(a.task),
   );
 
   if (uniqueTickets.length > 0) {

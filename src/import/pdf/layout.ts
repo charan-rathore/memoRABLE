@@ -421,8 +421,24 @@ export function layoutToMarkdown(pages: LayoutPage[]): string {
       }
 
       if (/^•\s/.test(line.text) || /^\d+[.)]\s+/.test(line.text)) {
-        out.push(toListMarkdown(line.text));
+        // A wrapped bullet continues on the next line(s) with no marker of
+        // its own; fold the continuation back into the item. Same guards as
+        // the prose merge: never across headings, tables, other items, or
+        // columns, and never past a terminal-punctuation boundary - a line
+        // after "…results:" is new content, not a wrap.
+        let itemText = line.text;
         i++;
+        while (i < page.lines.length) {
+          const next = page.lines[i]!;
+          if (next.heading || next.tableRow || /^•\s/.test(next.text) || /^\d+[.)]\s+/.test(next.text)) {
+            break;
+          }
+          if (line.column && next.column && line.column !== next.column) break;
+          if (!isBulletWrapContinuation(itemText, next.text)) break;
+          itemText = joinSoftWrap(itemText, next.text);
+          i++;
+        }
+        out.push(toListMarkdown(dehyphenateText(itemText.replace(/\s+/g, " ").trim())));
         continue;
       }
 
@@ -605,6 +621,21 @@ function toListMarkdown(text: string): string {
   return text.replace(/^(\d+)[.)]\s+/, "$1. ");
 }
 
+/**
+ * Bullet wraps are stricter than prose wraps: a resume/report bullet is one
+ * complete statement per line, so its wrap fragment is a mid-sentence
+ * continuation - lowercase/digit lead, or a hyphen wrap. A line that starts
+ * uppercase after a finished bullet is new content (the next role header, a
+ * new paragraph), never a wrap.
+ */
+function isBulletWrapContinuation(prev: string, next: string): boolean {
+  if (!prev || !next) return false;
+  const left = prev.trimEnd();
+  if (/[A-Za-z][\u00AD-]$/.test(left) && /^[a-z]/.test(next)) return true;
+  if (/[.!?:]$/.test(left)) return false;
+  return /^[a-z0-9(\u201c"']/.test(next);
+}
+
 function isSoftWrapContinuation(prev: string, next: string): boolean {
   if (!prev || !next) return false;
   // Hyphenated wraps must continue even when the next fragment is lowercase.
@@ -617,18 +648,49 @@ function isSoftWrapContinuation(prev: string, next: string): boolean {
 }
 
 /** Repair common PDF wrap artifacts still present inside a finished line. */
+// Intentional compound heads/tails ("AI-led", "zero-shot", "high-priority",
+// "state-of-the-art") keep their hyphen through every dehyphenation pass.
+const COMPOUND_LEFT =
+  /^(domain|state|real|high|low|multi|cross|self|open|end|token|zero|few|base|pre|post|non|in|re|co|rule|hand|fine|span|event|data|model|task|text|sub|llm)$/i;
+const COMPOUND_RIGHT =
+  /^(shot|specific|based|crafted|grained|level|of|the|art|reader|tuning|purpose|correction|refinement|reasoning)$/i;
+// A wrapped word's right fragment is a short stem plus a common suffix
+// ("mentation" = "menta" + "tion"); a whole-word suffix list misses those.
+const SYLLABLE_SUFFIX =
+  /^(?:[a-z]{0,8}?)(?:tion|sion|ment|ments|ness|ting|cial|ical|imal|ental|atory|ative|ences|cal|tal|nal|ral|ous|ive|est|ing|ers|ies|ely|ful|led|ture|tures|ity)$/i;
+const SYLLABLE_WHOLE = /^(?:art|ods|lite|cus)$/i;
+
 export function dehyphenateText(text: string): string {
   return text
     .replace(/([A-Za-z])\u00AD([a-z])/g, "$1$2")
-    .replace(/([A-Za-z])-\s+([a-z])/g, "$1$2")
+    // "AI- led" / "domain- specific": a hyphen split by glyph spacing inside
+    // one line. Blindly dropping the hyphen destroys real compounds ("AIled"),
+    // so only a clear syllable split joins bare ("zeo- lite" → "zeolite",
+    // "imple- mentation" → "implementation"); real compounds keep the hyphen
+    // and drop just the space.
+    // Lookahead: the right word is not consumed, so hyphen chains
+    // ("state- of- the- art") still decide pair by pair.
+    .replace(/\b([A-Za-z]+)-\s+(?=([a-z]+)\b)/g, (full, left: string, right: string) => {
+      // All-caps acronym heads are compounds ("AI- led"), never syllables.
+      if (/^[A-Z0-9]{2,4}$/.test(left)) return `${left}-`;
+      if (COMPOUND_LEFT.test(left) || COMPOUND_RIGHT.test(right)) {
+        return `${left}-`;
+      }
+      if (SYLLABLE_SUFFIX.test(right) || SYLLABLE_WHOLE.test(right)) {
+        return left;
+      }
+      if (left.length <= 4 && right.length <= 5 && left === left.toLowerCase()) {
+        return left;
+      }
+      return `${left}-`;
+    })
     // Safety net for syllable hyphens left inside a paragraph (criti-cal, funda-mental).
     // Never touch intentional compounds (zero-shot, domain-specific, rule-based, …).
     .replace(/\b([a-z]{2,6})-([a-z]{2,8})\b/gi, (full, left: string, right: string) => {
-      const compoundLeft =
-        /^(domain|state|real|high|low|multi|cross|self|open|end|token|zero|few|base|pre|post|non|in|re|co|rule|hand|fine|span|event|data|model|task|text|sub|llm)$/i;
-      const compoundRight =
-        /^(shot|specific|based|crafted|grained|level|of|the|art|reader|tuning|purpose|correction|refinement|reasoning|reasoning)$/i;
-      if (compoundLeft.test(left) || compoundRight.test(right)) return full;
+      // All-caps acronym heads ("AI-led") are real compounds, never syllables
+      // (the i flag would otherwise fuse them: "AIled").
+      if (/^[A-Z0-9]{2,4}$/.test(left)) return full;
+      if (COMPOUND_LEFT.test(left) || COMPOUND_RIGHT.test(right)) return full;
       if (
         /^(tion|sion|ment|ness|ting|cial|ical|imal|ental|atory|ative|ences|cal|tal|nal|ral|ous|ive|est|ing|ers|ies|ely|ful|led|ture|tures)$/i.test(
           right,

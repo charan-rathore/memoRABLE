@@ -161,7 +161,7 @@ export function understand(
 
   const { statements, redundant } = distill(input.sections);
 
-  const signals = dedupeByMeaning(inferSignals(statements, concepts), (s) => s.value.label);
+  const signals = dedupeByMeaning(inferSignals(statements, concepts, archetype.archetype), (s) => s.value.label);
   const decisions = dedupeByMeaning(
     inferDecisions(statements, intent, archetype.archetype),
     (d) => d.value.text,
@@ -171,7 +171,7 @@ export function understand(
   const timeline =
     archetype.timelineMode === "none"
       ? []
-      : dedupeByMeaning(inferTimeline(statements), (t) => `${t.value.date} ${t.value.title}`);
+      : dedupeByMeaning(inferTimeline(statements, archetype.archetype), (t) => `${t.value.date} ${t.value.title}`);
   // A consumed H1 ("# Action Items") claims its unheaded rows; the fallback
   // filename label ("risks.md") is not a heading and must not suppress them.
   // Provenance comes from the parser: a real H1 may equal the filename stem.
@@ -182,7 +182,7 @@ export function understand(
     (input.sourceLabel == null ||
       input.title !== input.sourceLabel.replace(/\.(md|markdown|txt)$/i, ""));
   const actions = dedupeByMeaning(
-    inferActions(statements, titleFromHeading ? kindClaimedByHeading(input.title) : null),
+    inferActions(statements, titleFromHeading ? kindClaimedByHeading(input.title) : null, archetype.archetype),
     (a) => a.value.task,
   );
   const heroInsights = deriveHeroInsights({
@@ -204,11 +204,33 @@ export function understand(
     timeline,
     actions,
     heroInsights,
-    heading: recallHeading(input.title, intent),
+    heading:
+      resumeNameLine(input, archetype.archetype, titleFromHeading) ??
+      recallHeading(input.title, intent),
     opening: firstProseParagraph(input.sections),
     distilled: statements.length,
     redundant,
   };
+}
+
+/**
+ * A resume's profile is the person: when the title fell back to the filename,
+ * the document's own first line ("Charan Prakash Rathore") names it - a short
+ * capitalized name line, never the account or file name.
+ */
+function resumeNameLine(
+  input: UnderstandingInput & { sourceLabel?: string },
+  archetype: string,
+  titleFromHeading: boolean,
+): string | null {
+  if (archetype !== "resume" || titleFromHeading) return null;
+  const first = input.sections
+    .flatMap((s) => s.lines)
+    .map((l) => l.text.trim())
+    .find((t) => t !== "");
+  if (!first) return null;
+  if (!/^[\p{Lu}][\p{L}.'-]+(?: [\p{Lu}][\p{L}.'-]+){1,4}$/u.test(first)) return null;
+  return first;
 }
 
 /**
@@ -232,6 +254,7 @@ export function recallFrom(
     concepts: understanding.concepts,
     ...memories,
     fallback: understanding.opening,
+    archetype: understanding.archetype.archetype,
   });
 }
 

@@ -66,7 +66,9 @@ export const decisionEntrySchema = z
   .object({
     ref: textField(40).optional(),
     text: textField(LIMITS.maxFieldLength),
-    status: z.enum(["approved", "requested", "proposed", "rejected"]),
+    // Optional: facts filed here by projection (a resume degree is not a
+    // proposed decision) carry no workflow status.
+    status: z.enum(["approved", "requested", "proposed", "rejected"]).optional(),
     commitment: z.enum(["committed", "considered"]).optional(),
     because: textField(LIMITS.maxFieldLength).optional(),
   })
@@ -80,7 +82,12 @@ export const timelineEntrySchema = z
   .object({
     date: textField(80),
     title: textField(LIMITS.maxFieldLength),
-    state: z.enum(["shipped", "on-track", "planned", "done"]),
+    /**
+     * Optional: omitted when the source supports no workflow judgment. A
+     * resume role's tenure range is a fact, but "on-track"/"done" are
+     * delivery-workflow readings dates alone do not evidence.
+     */
+    state: z.enum(["shipped", "on-track", "planned", "done"]).optional(),
     produces: textField(240).optional(),
     requires: textField(240).optional(),
     /** Detail lines the source filed under this entry, verbatim. */
@@ -125,7 +132,13 @@ export const actionEntrySchema = z
     task: textField(LIMITS.maxFieldLength),
     owner: textField(120).optional(),
     due: textField(80).optional(),
-    status: actionStatusSchema,
+    /**
+     * Optional: omitted when the source supports no stance at all (a resume
+     * project card carries dates and accomplishment bullets, but neither
+     * "finished" nor "outstanding" is evidenced). Every present value must
+     * be source-supported; never inferred from tenure dates alone.
+     */
+    status: actionStatusSchema.optional(),
     /** The decision this action carries out, by `ref` or by its exact text. */
     from: textField(LIMITS.maxFieldLength).optional(),
     /**

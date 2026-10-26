@@ -84,15 +84,17 @@ function timelineRow(
         {chain.map((line, i) => asideParagraph(line, `${block.id}-chain-${index}-${i}`, ctx.theme))}
       </Column>
       <Column padding="12px 0px 12px 12px" border={cellBorder}>
-        <Paragraph
-          html={inlineText(statusLabel(entry.state).toUpperCase())}
-          fontFamily={f.mono}
-          fontSize={scaledPx(10.5, scale)}
-          color={themedStatusColor(entry.state, c.accent)}
-          letterSpacing="0.1em"
-          textAlign="right"
-          lineHeight="150%"
-        />
+        {entry.state ? (
+          <Paragraph
+            html={inlineText(statusLabel(entry.state).toUpperCase())}
+            fontFamily={f.mono}
+            fontSize={scaledPx(10.5, scale)}
+            color={themedStatusColor(entry.state, c.accent)}
+            letterSpacing="0.1em"
+            textAlign="right"
+            lineHeight="150%"
+          />
+        ) : null}
       </Column>
     </Row>
   );

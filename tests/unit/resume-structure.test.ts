@@ -1,0 +1,576 @@
+import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { importSource } from "@/import/import-source";
+import { dehyphenateText, layoutToMarkdown, type LayoutLine } from "@/import/pdf/layout";
+import { splitSentences } from "@/understanding/language";
+import type { ActionsPayload, DecisionsPayload, RisksPayload, SignalsPayload, SnapshotPayload, TimelinePayload } from "@/domain/memory/schema";
+
+// Synthetic columnar-resume structure (role | org | dates rows, leadership
+// section, project tables, wrapped bullet continuation). No real person's data.
+function doc() {
+  const raw = readFileSync(resolve("tests/fixtures/resume-columnar.md"), "utf8");
+  const r = importSource({ raw, label: "resume-columnar.md" });
+  if (!r.ok) throw new Error("import failed");
+  return r.value;
+}
+function block<T>(d: ReturnType<typeof doc>, kind: string): T {
+  const b = d.blocks.find((x) => x.kind === kind);
+  if (!b) throw new Error(`missing ${kind}`);
+  return b.payload as T;
+}
+
+describe("resume structure: roles stay roles, skills stay skills", () => {
+  it("keeps leadership and experience roles in the timeline, not in skills", () => {
+    const d = doc();
+    const signals = block<SignalsPayload>(d, "signals");
+    const sigText = JSON.stringify(signals.entries);
+    expect(sigText).not.toMatch(/Team Lead|Teaching Assistant|Senior Product Analyst|Data Intern/);
+    const timeline = block<TimelinePayload>(d, "timeline");
+    const titles = timeline.entries.map((e) => e.title).join("\n");
+    expect(titles).toMatch(/Senior Product Analyst/);
+    expect(titles).toMatch(/Team Lead/);
+    expect(titles).toMatch(/Teaching Assistant/);
+  });
+
+  it("gives each role a clean title instead of the whole flattened line", () => {
+    const d = doc();
+    const timeline = block<TimelinePayload>(d, "timeline");
+    const acme = timeline.entries.find((e) => /Senior Product Analyst/.test(e.title));
+    expect(acme).toBeDefined();
+    expect(acme!.title).not.toMatch(/January 2024|Present|Client analytics/);
+    expect(acme!.title).toMatch(/Acme Analytics/);
+  });
+
+  // Slice 3 acceptance at the layer where the defect lives: PDF layout
+  // assembly splits a wrapped bullet at the wrap point.
+  it("keeps a wrapped achievement bullet whole instead of splitting at the wrap", () => {
+    const line = (text: string, over: Partial<LayoutLine> = {}): LayoutLine => ({
+      text,
+      page: 1,
+      y: 0,
+      fontSize: 10,
+      heading: false,
+      headingLevel: null,
+      tableRow: false,
+      cells: [],
+      ...over,
+    });
+    const md = layoutToMarkdown([
+      {
+        page: 1,
+        bodySize: 10,
+        lines: [
+          line("Experience", { heading: true, headingLevel: 1, fontSize: 16 }),
+          line("Acme Analytics | Senior Product Analyst, Growth January 2024 – Present"),
+          line("• Benchmarked 6 models across 4 prompting strategies, improving extraction F1 by 18% through systematic error"),
+          line("analysis"),
+          line("• Reduced analyst review time by 35% through automated classification"),
+        ],
+      },
+    ]);
+    const r = importSource({ raw: md, label: "resume-wrap.pdf" });
+    if (!r.ok) throw new Error("import failed");
+    const blob = JSON.stringify(r.value.blocks);
+    expect(blob).toMatch(/extraction F1 by 18% through systematic error analysis/);
+    // The wrap fragment never survives as an orphan note or its own signal.
+    expect(blob).not.toMatch(/"analysis"/);
+  });
+
+  it("does not stitch new content after a bullet into the item", () => {
+    const line = (text: string, over: Partial<LayoutLine> = {}): LayoutLine => ({
+      text,
+      page: 1,
+      y: 0,
+      fontSize: 10,
+      heading: false,
+      headingLevel: null,
+      tableRow: false,
+      cells: [],
+      ...over,
+    });
+    const md = layoutToMarkdown([
+      {
+        page: 1,
+        bodySize: 10,
+        lines: [
+          line("• Shipped the forecasting product."),
+          line("Awards", { heading: true, headingLevel: 1, fontSize: 16 }),
+          line("• Won the national case competition"),
+          line("• Built a leaderboard comparing SARIMA, LightGBM, and ensemble models"),
+          line("| Forecaster | Live Demo | ML Product May 2024 – Present |", { tableRow: true }),
+        ],
+      },
+    ]);
+    // A heading after a bullet stays a heading; a following bullet stays its
+    // own item; a table row after a bullet stays a row.
+    expect(md).toMatch(/- Shipped the forecasting product\.\n/);
+    expect(md).toMatch(/# Awards/);
+    expect(md).toMatch(/- Won the national case competition\n- Built a leaderboard/);
+    expect(md).toMatch(/Forecaster \| Live Demo/);
+  });
+
+  it("keeps the education table row as a dated entry instead of dropping it", () => {
+    const d = doc();
+    // Resume education rows file under the decisions bucket, which the resume
+    // projection displays as the "Education" section.
+    const decisions = block<DecisionsPayload>(d, "decisions");
+    const text = JSON.stringify(decisions.entries);
+    expect(text).toMatch(/BITS Pilani/);
+    expect(text).toMatch(/BE Computer Science/);
+    expect(text).toMatch(/June 2024/);
+    expect(text).toMatch(/CGPA: 9.10\/10/);
+    const timeline = block<TimelinePayload>(d, "timeline");
+    expect(JSON.stringify(timeline.entries)).not.toMatch(/BE Computer Science/);
+    // A degree is a fact, not a floated decision: no status or commitment.
+    for (const e of decisions.entries) {
+      expect("status" in e).toBe(false);
+      expect("commitment" in e).toBe(false);
+    }
+  });
+
+  it("never turns a product table row into a todo", () => {
+    const d = doc();
+    // A resume with no real todos has no actions block at all - that is fine.
+    const b = d.blocks.find((x) => x.kind === "actions");
+    const entries = b ? (b.payload as ActionsPayload).entries : [];
+    expect(JSON.stringify(entries)).not.toMatch(/Live Demo/);
+    expect(entries.some((e) => e.task === "Forecaster")).toBe(false);
+    // A role header is not a todo either (dash shape reads org as owner).
+    expect(JSON.stringify(entries)).not.toMatch(/Team Lead|Teaching Assistant|Product Analyst/);
+  });
+
+  it("keeps hyphenated compounds whole instead of fusing them", () => {
+    // Glyph spacing inside one PDF line splits "AI-led" into "AI- led".
+    expect(dehyphenateText("product analytics, and AI- led workflow automation")).toBe(
+      "product analytics, and AI-led workflow automation",
+    );
+    expect(dehyphenateText("domain- specific models")).toBe("domain-specific models");
+    // True syllable splits still join bare.
+    expect(dehyphenateText("zeo- lite")).toBe("zeolite");
+    expect(dehyphenateText("classifica- tion")).toBe("classification");
+  });
+
+  it("does not split a role line at the Dept. abbreviation", () => {
+    expect(
+      splitSentences("Teaching Assistant, Dept. of Mathematics, Some Institute January 2021 – June 2022"),
+    ).toHaveLength(1);
+    const d = doc();
+    const timeline = block<TimelinePayload>(d, "timeline");
+    const ta = timeline.entries.find((e) => /Teaching Assistant/.test(e.title));
+    expect(ta).toBeDefined();
+    expect(ta!.title).toMatch(/Dept\. of Mathematics, Some Institute/);
+    expect(ta!.title).not.toMatch(/^of Mathematics/);
+  });
+
+  it("files the skills list as skills and achievements as achievements", () => {
+    const d = doc();
+    const signals = block<SignalsPayload>(d, "signals");
+    expect(JSON.stringify(signals)).toMatch(/User Research|Prioritisation/);
+    const risks = block<RisksPayload>(d, "risks");
+    expect(JSON.stringify(risks.entries)).toMatch(/case competition|merit scholarship/);
+  });
+
+  it("invents no narrative relationships between resume memories", () => {
+    // The vocabulary-overlap graph read a scholarship as "motivating" a degree
+    // and the degree as "mitigating" the scholarship in generated output -
+    // nonsense the source never states. A resume earns no inferred relations.
+    const d = doc();
+    expect(d.relations ?? []).toHaveLength(0);
+    const serialized = JSON.parse(JSON.stringify(d));
+    expect(serialized.relations ?? []).toHaveLength(0);
+  });
+
+  it("omits workflow state from the serialized resume output", () => {
+    const d = doc();
+    const serialized = JSON.parse(JSON.stringify(d));
+    for (const b of serialized.blocks) {
+      if (b.kind !== "timeline" && b.kind !== "actions" && b.kind !== "decisions") continue;
+      for (const e of b.payload.entries ?? []) {
+        expect("state" in e).toBe(false);
+        expect("status" in e).toBe(false);
+        expect("commitment" in e).toBe(false);
+      }
+    }
+  });
+});
+
+describe("resume fidelity: no fabricated skill callouts or profile framings", () => {
+
+  it("frames no primary problem or goal from a resume's achievements or education", () => {
+    const d = doc();
+    const snap = d.blocks.find((b) => b.kind === "snapshot")!.payload as SnapshotPayload;
+    expect(snap.problem ?? "").toBe("");
+    expect(snap.goal ?? "").toBe("");
+    expect(snap.outcome ?? "").toBe("");
+    expect(snap.hook ?? "").not.toMatch(/Primary (goal|problem)/i);
+    // The summary stays the source's own opening.
+    expect(snap.summary).toMatch(/alex@example\.com/);
+  });
+
+  it("sees the title heading past a PDF page marker comment", () => {
+    const raw = [
+      "<!-- page:1 -->",
+      "# Alex Priya Example",
+      "alex@example.com | +91 9000000000",
+      "",
+      "# Education",
+      "| Some Institute | BE Computer Science | CGPA: 9.10/10 June 2024 |",
+      "",
+      "# Skills",
+      "Product: Discovery, User Research Analytics: SQL, Excel",
+      "",
+      "# Achievements",
+      "- Won the national case competition among 200+ teams",
+    ].join("\n");
+    const r = importSource({ raw, label: "alex-resume.pdf" });
+    if (!r.ok) throw new Error("import failed");
+    const snap = r.value.blocks.find((b) => b.kind === "snapshot")!.payload as SnapshotPayload;
+    expect(snap.heading).toBe("Alex Priya Example");
+  });
+
+  it("names the Profile from the resume's own name line, not the filename", () => {
+    // Flattened-PDF shape: the name is a plain first line, not a markdown heading.
+    const raw = readFileSync(resolve("tests/fixtures/resume-columnar.md"), "utf8").replace(
+      "# Alex Priya Example",
+      "Alex Priya Example",
+    );
+    const r = importSource({ raw, label: "alex-resume.pdf" });
+    if (!r.ok) throw new Error("import failed");
+    const snap = r.value.blocks.find((b) => b.kind === "snapshot")!.payload as SnapshotPayload;
+    expect(snap.heading).toBe("Alex Priya Example");
+    expect(snap.heading).not.toMatch(/\.pdf/i);
+  });
+});
+
+// Flattened-PDF resume shape with a role bullet that trend-patterns claim.
+function docWithMetricBullet() {
+  const raw = [
+    "Alex Priya Example", "alex@example.com | +91 9000000000", "",
+    "# Education", "| Some Institute | BE Computer Science | CGPA: 9.10/10 June 2024 |", "",
+    "# Experience",
+    "Beta Systems | Data Intern June 2023 – December 2023",
+    "- Benchmarked 6 LLMs across 4 prompting strategies, improving trigger extraction F1 by 18% through systematic error analysis",
+    "",
+    "# Skills", "Product: Discovery, User Research Analytics: SQL, Excel", "",
+    "# Achievements", "- Won the national case competition among 200+ teams",
+  ].join("\n");
+  const r = importSource({ raw, label: "alex-resume.pdf" });
+  if (!r.ok) throw new Error("import failed");
+  return r.value;
+}
+
+describe("resume fidelity: no fabricated skill callouts or profile framings", () => {
+  it("does not surface a role's metric bullet as a Skills signal", () => {
+    const d = docWithMetricBullet();
+    const signals = block<SignalsPayload>(d, "signals");
+    // The bullet belongs to the Beta Systems role in Experience; filing it
+    // again as a Skills signal reads as a skill claim.
+    expect(JSON.stringify(signals.entries)).not.toMatch(/Benchmarked|extraction F1/i);
+    // The bullet stays faithfully under its role.
+    const timeline = block<TimelinePayload>(d, "timeline");
+    const beta = timeline.entries.find((e) => /Data Intern/.test(e.title));
+    expect(JSON.stringify(beta?.details)).toMatch(/Benchmarked 6 LLMs/);
+    // The genuine skills list is preserved untouched.
+    expect(JSON.stringify(signals.notes)).toMatch(/User Research/);
+  });
+
+  it("keeps a role header's trailing description instead of consuming it", () => {
+    const d = doc();
+    const timeline = block<TimelinePayload>(d, "timeline");
+    const acme = timeline.entries.find((e) => /Senior Product Analyst/.test(e.title));
+    expect(acme).toBeDefined();
+    expect(acme!.title).not.toMatch(/Client analytics/);
+    expect(JSON.stringify(acme!.details ?? [])).toMatch(/Client analytics and campaign decision support/);
+  });
+
+  it("keeps heading-claimed project sections as project cards under a resume", () => {
+    const raw = [
+      "Alex Priya Example", "alex@example.com | +91 9000000000", "",
+      "# Education", "| Some Institute | BE Computer Science | CGPA: 9.10/10 June 2024 |", "",
+      "# Experience", "Beta Systems | Data Intern June 2023 – December 2023", "",
+      "# Volunteer Projects", "| Shelter App | Live Demo | Hackathon Project March 2023 |", "",
+      "# Skills", "Product: Discovery, User Research Analytics: SQL, Excel", "",
+      "# Achievements", "- Won the national case competition among 200+ teams",
+    ].join("\n");
+    const r = importSource({ raw, label: "alex-resume.pdf" });
+    if (!r.ok) throw new Error("import failed");
+    const d = r.value;
+    // "Volunteer Projects" is an explicit projects heading: its cards stay
+    // action cards even without a tenure range, not timeline entries.
+    const actions = block<ActionsPayload>(d, "actions");
+    expect(JSON.stringify(actions.entries)).toMatch(/Shelter App/);
+    const timeline = block<TimelinePayload>(d, "timeline");
+    expect(JSON.stringify(timeline.entries)).not.toMatch(/Shelter App/);
+  });
+
+  it("keeps an undated emphasized project title with bullets as one project card", () => {
+    // Exact Codex review case (PR90 r4373675417): an undated emphasized
+    // project title with accomplishment bullets must survive as one action
+    // card; rerouting the heading-claimed section to timeline would drop it.
+    const raw = [
+      "Alex Priya Example", "alex@example.com | +91 9000000000", "",
+      "# Education", "| Some Institute | BE Computer Science | CGPA: 9.10/10 June 2024 |", "",
+      "# Experience", "Beta Systems | Data Intern June 2023 – December 2023", "",
+      "# Community Projects", "**Shelter App**", "- Built a shelter-finding workflow for 3 local NGOs", "- Improved matching accuracy by 40% through iterative user testing", "",
+      "# Skills", "Product: Discovery, User Research Analytics: SQL, Excel", "",
+      "# Achievements", "- Won the national case competition among 200+ teams",
+    ].join("\n");
+    const r = importSource({ raw, label: "alex-resume.pdf" });
+    if (!r.ok) throw new Error("import failed");
+    const d = r.value;
+    const actions = block<ActionsPayload>(d, "actions");
+    const cards = JSON.stringify(actions.entries);
+    expect(cards).toMatch(/Shelter App/);
+    expect(cards).toMatch(/shelter-finding workflow/);
+    expect(cards).toMatch(/matching accuracy by 40%/);
+    const timeline = block<TimelinePayload>(d, "timeline");
+    expect(JSON.stringify(timeline.entries)).not.toMatch(/Shelter App/);
+  });
+
+  it("keeps a project name containing the word Code out of the link-cell reject", () => {
+    // Exact Codex review case (PR90 r4373675421): | Code Review Assistant |
+    // Internal Tool | June 2024 – Present | must title the card
+    // "Code Review Assistant", not "Internal Tool".
+    const raw = [
+      "Alex Priya Example", "alex@example.com | +91 9000000000", "",
+      "# Education", "| Some Institute | BE Computer Science | CGPA: 9.10/10 June 2024 |", "",
+      "# Experience", "Beta Systems | Data Intern June 2023 – December 2023", "",
+      "# Projects", "| Code Review Assistant | Internal Tool | June 2024 – Present |", "",
+      "# Skills", "Product: Discovery, User Research Analytics: SQL, Excel", "",
+      "# Achievements", "- Won the national case competition among 200+ teams",
+    ].join("\n");
+    const r = importSource({ raw, label: "alex-resume.pdf" });
+    if (!r.ok) throw new Error("import failed");
+    const actions = block<ActionsPayload>(r.value, "actions");
+    expect(JSON.stringify(actions.entries)).toMatch(/Code Review Assistant/);
+    expect(JSON.stringify(actions.entries)).not.toMatch(/"title":"Internal Tool"/);
+  });
+
+  it("keeps a project name containing the word App out of the link-cell reject", () => {
+    const d = doc();
+    const actions = block<ActionsPayload>(d, "actions");
+    expect(JSON.stringify(actions.entries)).toMatch(/Weather App/);
+  });
+
+  it("keeps an explicit Skills line that shares vocabulary with a role bullet", () => {
+    // Exact Codex review case (PR90 discussion_r4373808409): the overlap
+    // cleanup must only drop signals inferred from role bullets, never an
+    // explicit heading-owned skills line.
+    const raw = [
+      "Alex Priya Example", "alex@example.com | +91 9000000000", "",
+      "# Education", "| Some Institute | BE Computer Science | CGPA: 9.10/10 June 2024 |", "",
+      "# Experience", "Acme Analytics | Senior Product Analyst January 2024 – Present",
+      "- Built analytics pipelines using Python SQL JavaScript TypeScript React and Docker", "",
+      "# Skills", "- Languages: Python SQL JavaScript TypeScript React Docker", "",
+      "# Achievements", "- Won the national case competition among 200+ teams",
+    ].join("\n");
+    const r = importSource({ raw, label: "alex-resume.pdf" });
+    if (!r.ok) throw new Error("import failed");
+    const d = r.value;
+    const signals = block<SignalsPayload>(d, "signals");
+    expect(JSON.stringify(signals.entries)).toMatch(/Languages/);
+    expect(JSON.stringify(signals.entries)).toMatch(/TypeScript/);
+    // The role bullet stays under its role too.
+    const timeline = block<TimelinePayload>(d, "timeline");
+    expect(JSON.stringify(timeline.entries)).toMatch(/Built analytics pipelines/);
+  });
+
+  it("keeps the tenure end on an ongoing role instead of dropping Present", () => {
+    // Exact Codex review case (PR90 discussion_r4373808413).
+    const raw = [
+      "Alex Priya Example", "alex@example.com | +91 9000000000", "",
+      "# Education", "| Some Institute | BE Computer Science | CGPA: 9.10/10 June 2024 |", "",
+      "# Experience", "Acme Analytics | Senior Product Analyst January 2024 – Present",
+      "- Built analytics pipelines using Python SQL JavaScript TypeScript React and Docker", "",
+      "# Skills", "Product: Discovery, User Research Analytics: SQL, Excel", "",
+      "# Achievements", "- Won the national case competition among 200+ teams",
+    ].join("\n");
+    const r = importSource({ raw, label: "alex-resume.pdf" });
+    if (!r.ok) throw new Error("import failed");
+    const timeline = block<TimelinePayload>(r.value, "timeline");
+    const acme = timeline.entries.find((e) => /Senior Product Analyst/.test(e.title));
+    expect(acme).toBeDefined();
+    expect(acme!.date).toMatch(/January 2024/);
+    expect(acme!.date).toMatch(/Present/);
+    // Still no invented workflow state.
+    expect(JSON.stringify(acme)).not.toMatch(/"state"/);
+  });
+
+  it("keeps the end month on a closed, unbulleted role header", () => {
+    // The review's unbulleted comma form: "Senior Product Analyst, Acme
+    // Analytics January 2024 – Present" (closed variant here for the end
+    // month), routed through the statement parser rather than grouping.
+    const raw = [
+      "Alex Priya Example", "alex@example.com | +91 9000000000", "",
+      "# Education", "| Some Institute | BE Computer Science | CGPA: 9.10/10 June 2024 |", "",
+      "# Experience", "Senior Product Analyst, Acme Analytics January 2022 – December 2023", "",
+      "# Skills", "Product: Discovery, User Research Analytics: SQL, Excel", "",
+      "# Achievements", "- Won the national case competition among 200+ teams",
+    ].join("\n");
+    const r = importSource({ raw, label: "alex-resume.pdf" });
+    if (!r.ok) throw new Error("import failed");
+    const timeline = block<TimelinePayload>(r.value, "timeline");
+    const acme = timeline.entries.find((e) => /Senior Product Analyst/.test(e.title));
+    expect(acme).toBeDefined();
+    expect(acme!.date).toMatch(/January 2022/);
+    expect(acme!.date).toMatch(/December 2023/);
+    expect(JSON.stringify(acme)).not.toMatch(/"state"/);
+  });
+
+  it("keeps the tenure end on flat bulleted leadership roles (real-PDF shapes)", () => {
+    // Actual 997a02e preview defect: "Teaching Assistant, Dept. of
+    // Mechanical & CSE, BITS Pilani January 2025 – June 2026" rendered only
+    // JANUARY 2025; "Project Leader, Nirmaan – BITS Pilani Student Chapter
+    // January 2023 – May 2023" rendered only JANUARY 2023. Flat role lines
+    // with closed ranges are claimed by the generic group pass, which kept
+    // only the range start.
+    const raw = [
+      "Alex Priya Example", "alex@example.com | +91 9000000000", "",
+      "# Education", "| Some Institute | BE Computer Science | CGPA: 9.10/10 June 2024 |", "",
+      "# Experience",
+      "Teaching Assistant, Dept. of Mechanical & CSE, BITS Pilani January 2025 – June 2026",
+      "- Improved assignment completion by 30% across 200+ students",
+      "Project Leader, Nirmaan – BITS Pilani Student Chapter January 2023 – May 2023",
+      "- Increased sales by 60% while leading a 26-woman entrepreneurship initiative", "",
+      "# Skills", "Product: Discovery, User Research Analytics: SQL, Excel", "",
+      "# Achievements", "- Won the national case competition among 200+ teams",
+    ].join("\n");
+    const r = importSource({ raw, label: "alex-resume.pdf" });
+    if (!r.ok) throw new Error("import failed");
+    const timeline = block<TimelinePayload>(r.value, "timeline");
+    const ta = timeline.entries.find((e) => /Teaching Assistant/.test(e.title));
+    expect(ta).toBeDefined();
+    expect(ta!.date).toMatch(/January 2025/);
+    expect(ta!.date).toMatch(/June 2026/);
+    const nirmaan = timeline.entries.find((e) => /Project Leader/.test(e.title));
+    expect(nirmaan).toBeDefined();
+    expect(nirmaan!.date).toMatch(/January 2023/);
+    expect(nirmaan!.date).toMatch(/May 2023/);
+    // Bullets stay with their roles; no invented workflow state.
+    expect(JSON.stringify(ta!.details)).toMatch(/assignment completion/);
+    expect(JSON.stringify(nirmaan!.details)).toMatch(/26-woman/);
+    expect(JSON.stringify(timeline.entries)).not.toMatch(/"state"/);
+  });
+
+  it("keeps list-item role headers separate instead of swallowing the next role", () => {
+    // Exact Codex review case (PR90 discussion_r4373966566): role headers
+    // that are themselves list items must not absorb the following role and
+    // its bullets, and each role is emitted exactly once.
+    const raw = [
+      "Alex Priya Example", "alex@example.com | +91 9000000000", "",
+      "# Education", "| Some Institute | BE Computer Science | CGPA: 9.10/10 June 2024 |", "",
+      "# Experience",
+      "- Senior Engineer, Acme January 2024 – Present",
+      "- Led the payments rewrite for 4M users",
+      "- Software Engineer, Beta June 2021 – December 2023",
+      "- Shipped the onboarding revamp across 3 platforms", "",
+      "# Skills", "Product: Discovery, User Research Analytics: SQL, Excel", "",
+      "# Achievements", "- Won the national case competition among 200+ teams",
+    ].join("\n");
+    const r = importSource({ raw, label: "alex-resume.pdf" });
+    if (!r.ok) throw new Error("import failed");
+    const timeline = block<TimelinePayload>(r.value, "timeline");
+    const acme = timeline.entries.find((e) => /Senior Engineer/.test(e.title));
+    const beta = timeline.entries.find((e) => /Software Engineer/.test(e.title));
+    expect(acme).toBeDefined();
+    expect(beta).toBeDefined();
+    expect(acme!.date).toMatch(/Present/);
+    expect(beta!.date).toMatch(/December 2023/);
+    // Ownership: each role keeps only its own accomplishment.
+    expect(JSON.stringify(acme!.details)).toMatch(/payments rewrite/);
+    expect(JSON.stringify(acme!.details)).not.toMatch(/Software Engineer/);
+    expect(JSON.stringify(acme!.details)).not.toMatch(/onboarding revamp/);
+    expect(JSON.stringify(beta!.details)).toMatch(/onboarding revamp/);
+    // Each role appears exactly once.
+    expect(timeline.entries.filter((e) => /Software Engineer, Beta/.test(JSON.stringify(e))).length).toBe(1);
+    expect(JSON.stringify(timeline.entries)).not.toMatch(/"state"/);
+  });
+
+  it("keeps the employer cell in an experience table row", () => {
+    // Exact Codex review case (PR90 discussion_r4373966572):
+    // "| Senior Engineer | Acme Analytics | January 2024 – Present |" must
+    // not collapse to "Senior Engineer" with the employer discarded.
+    const raw = [
+      "Alex Priya Example", "alex@example.com | +91 9000000000", "",
+      "# Education", "| Some Institute | BE Computer Science | CGPA: 9.10/10 June 2024 |", "",
+      "# Experience",
+      "| Senior Engineer | Acme Analytics | January 2024 – Present |",
+      "- Led the payments rewrite for 4M users", "",
+      "# Skills", "Product: Discovery, User Research Analytics: SQL, Excel", "",
+      "# Achievements", "- Won the national case competition among 200+ teams",
+    ].join("\n");
+    const r = importSource({ raw, label: "alex-resume.pdf" });
+    if (!r.ok) throw new Error("import failed");
+    const timeline = block<TimelinePayload>(r.value, "timeline");
+    const entry = timeline.entries.find((e) => /Senior Engineer/.test(e.title));
+    expect(entry).toBeDefined();
+    expect(entry!.title).toMatch(/Acme Analytics/);
+    expect(entry!.date).toMatch(/Present/);
+    expect(JSON.stringify(entry!.details)).toMatch(/payments rewrite/);
+  });
+
+  it("keeps every descriptive cell in related row shapes, never link labels", () => {
+    const raw = [
+      "Alex Priya Example", "alex@example.com | +91 9000000000", "",
+      "# Education", "| Some Institute | BE Computer Science | CGPA: 9.10/10 June 2024 |", "",
+      "# Experience",
+      "| Senior Engineer | Live Demo | Acme Analytics | January 2024 – Present |",
+      "- Led the payments rewrite for 4M users",
+      "| Platform Engineer | Core team June 2021 – December 2023 | Beta Systems |",
+      "- Shipped the onboarding revamp", "",
+      "# Skills", "Product: Discovery, User Research Analytics: SQL, Excel", "",
+      "# Achievements", "- Won the national case competition among 200+ teams",
+    ].join("\n");
+    const r = importSource({ raw, label: "alex-resume.pdf" });
+    if (!r.ok) throw new Error("import failed");
+    const timeline = block<TimelinePayload>(r.value, "timeline");
+    const first = timeline.entries.find((e) => /Senior Engineer/.test(e.title));
+    expect(first).toBeDefined();
+    expect(first!.title).toMatch(/Acme Analytics/);
+    expect(first!.title).not.toMatch(/Live Demo/);
+    const second = timeline.entries.find((e) => /Platform Engineer/.test(e.title));
+    expect(second).toBeDefined();
+    expect(second!.title).toMatch(/Beta Systems/);
+    expect(second!.date).toMatch(/December 2023/);
+  });
+
+  it("stops a table row's details at a following list-item role header", () => {
+    const raw = [
+      "Alex Priya Example", "alex@example.com | +91 9000000000", "",
+      "# Education", "| Some Institute | BE Computer Science | CGPA: 9.10/10 June 2024 |", "",
+      "# Experience",
+      "| Senior Engineer | Acme Analytics | January 2024 – Present |",
+      "- Led the payments rewrite for 4M users",
+      "- Software Engineer, Beta June 2021 – December 2023",
+      "- Shipped the onboarding revamp", "",
+      "# Skills", "Product: Discovery, User Research Analytics: SQL, Excel", "",
+      "# Achievements", "- Won the national case competition among 200+ teams",
+    ].join("\n");
+    const r = importSource({ raw, label: "alex-resume.pdf" });
+    if (!r.ok) throw new Error("import failed");
+    const timeline = block<TimelinePayload>(r.value, "timeline");
+    const acme = timeline.entries.find((e) => /Senior Engineer/.test(e.title));
+    expect(acme).toBeDefined();
+    expect(JSON.stringify(acme!.details)).toMatch(/payments rewrite/);
+    expect(JSON.stringify(acme!.details)).not.toMatch(/Software Engineer/);
+    expect(JSON.stringify(acme!.details)).not.toMatch(/onboarding revamp/);
+    const beta = timeline.entries.find((e) => /Software Engineer/.test(e.title));
+    expect(beta).toBeDefined();
+    expect(JSON.stringify(beta!.details)).toMatch(/onboarding revamp/);
+  });
+
+  it("joins ordinary syllable wraps while keeping real compounds", () => {
+    expect(dehyphenateText("the imple- mentation of")).toBe("the implementation of");
+    expect(dehyphenateText("the classi- fication step")).toBe("the classification step");
+    expect(dehyphenateText("an AI- led workflow")).toBe("an AI-led workflow");
+    expect(dehyphenateText("a domain- specific tool")).toBe("a domain-specific tool");
+    expect(dehyphenateText("a zero- shot prompt")).toBe("a zero-shot prompt");
+    expect(dehyphenateText("a high- priority queue")).toBe("a high-priority queue");
+    expect(dehyphenateText("a fine- tuning run")).toBe("a fine-tuning run");
+    expect(dehyphenateText("state- of- the- art results")).toBe("state-of-the-art results");
+    // Exact Codex review cases (PR90 r4373675412).
+    expect(dehyphenateText("the infor- mation age")).toBe("the information age");
+    expect(dehyphenateText("the configu- ration file")).toBe("the configuration file");
+  });
+});

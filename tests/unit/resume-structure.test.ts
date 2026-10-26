@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 import { importSource } from "@/import/import-source";
 import { dehyphenateText, layoutToMarkdown, type LayoutLine } from "@/import/pdf/layout";
 import { splitSentences } from "@/understanding/language";
-import type { ActionsPayload, DecisionsPayload, RisksPayload, SignalsPayload, TimelinePayload } from "@/domain/memory/schema";
+import type { ActionsPayload, DecisionsPayload, RisksPayload, SignalsPayload, SnapshotPayload, TimelinePayload } from "@/domain/memory/schema";
 
 // Synthetic columnar-resume structure (role | org | dates rows, leadership
 // section, project tables, wrapped bullet continuation). No real person's data.
@@ -199,7 +199,7 @@ describe("resume fidelity: no fabricated skill callouts or profile framings", ()
 
   it("frames no primary problem or goal from a resume's achievements or education", () => {
     const d = doc();
-    const snap = d.blocks.find((b) => b.kind === "snapshot")!.payload as any;
+    const snap = d.blocks.find((b) => b.kind === "snapshot")!.payload as SnapshotPayload;
     expect(snap.problem ?? "").toBe("");
     expect(snap.goal ?? "").toBe("");
     expect(snap.outcome ?? "").toBe("");
@@ -225,7 +225,7 @@ describe("resume fidelity: no fabricated skill callouts or profile framings", ()
     ].join("\n");
     const r = importSource({ raw, label: "alex-resume.pdf" });
     if (!r.ok) throw new Error("import failed");
-    const snap = r.value.blocks.find((b) => b.kind === "snapshot")!.payload as any;
+    const snap = r.value.blocks.find((b) => b.kind === "snapshot")!.payload as SnapshotPayload;
     expect(snap.heading).toBe("Alex Priya Example");
   });
 
@@ -237,7 +237,7 @@ describe("resume fidelity: no fabricated skill callouts or profile framings", ()
     );
     const r = importSource({ raw, label: "alex-resume.pdf" });
     if (!r.ok) throw new Error("import failed");
-    const snap = r.value.blocks.find((b) => b.kind === "snapshot")!.payload as any;
+    const snap = r.value.blocks.find((b) => b.kind === "snapshot")!.payload as SnapshotPayload;
     expect(snap.heading).toBe("Alex Priya Example");
     expect(snap.heading).not.toMatch(/\.pdf/i);
   });

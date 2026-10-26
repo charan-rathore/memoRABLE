@@ -418,6 +418,41 @@ describe("resume fidelity: no fabricated skill callouts or profile framings", ()
     expect(JSON.stringify(acme)).not.toMatch(/"state"/);
   });
 
+  it("keeps the tenure end on flat bulleted leadership roles (real-PDF shapes)", () => {
+    // Actual 997a02e preview defect: "Teaching Assistant, Dept. of
+    // Mechanical & CSE, BITS Pilani January 2025 – June 2026" rendered only
+    // JANUARY 2025; "Project Leader, Nirmaan – BITS Pilani Student Chapter
+    // January 2023 – May 2023" rendered only JANUARY 2023. Flat role lines
+    // with closed ranges are claimed by the generic group pass, which kept
+    // only the range start.
+    const raw = [
+      "Alex Priya Example", "alex@example.com | +91 9000000000", "",
+      "# Education", "| Some Institute | BE Computer Science | CGPA: 9.10/10 June 2024 |", "",
+      "# Experience",
+      "Teaching Assistant, Dept. of Mechanical & CSE, BITS Pilani January 2025 – June 2026",
+      "- Improved assignment completion by 30% across 200+ students",
+      "Project Leader, Nirmaan – BITS Pilani Student Chapter January 2023 – May 2023",
+      "- Increased sales by 60% while leading a 26-woman entrepreneurship initiative", "",
+      "# Skills", "Product: Discovery, User Research Analytics: SQL, Excel", "",
+      "# Achievements", "- Won the national case competition among 200+ teams",
+    ].join("\n");
+    const r = importSource({ raw, label: "alex-resume.pdf" });
+    if (!r.ok) throw new Error("import failed");
+    const timeline = block<TimelinePayload>(r.value, "timeline");
+    const ta = timeline.entries.find((e) => /Teaching Assistant/.test(e.title));
+    expect(ta).toBeDefined();
+    expect(ta!.date).toMatch(/January 2025/);
+    expect(ta!.date).toMatch(/June 2026/);
+    const nirmaan = timeline.entries.find((e) => /Project Leader/.test(e.title));
+    expect(nirmaan).toBeDefined();
+    expect(nirmaan!.date).toMatch(/January 2023/);
+    expect(nirmaan!.date).toMatch(/May 2023/);
+    // Bullets stay with their roles; no invented workflow state.
+    expect(JSON.stringify(ta!.details)).toMatch(/assignment completion/);
+    expect(JSON.stringify(nirmaan!.details)).toMatch(/26-woman/);
+    expect(JSON.stringify(timeline.entries)).not.toMatch(/"state"/);
+  });
+
   it("joins ordinary syllable wraps while keeping real compounds", () => {
     expect(dehyphenateText("the imple- mentation of")).toBe("the implementation of");
     expect(dehyphenateText("the classi- fication step")).toBe("the classification step");

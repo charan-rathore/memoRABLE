@@ -299,7 +299,15 @@ export function buildTimelineFromGroup(
   const single = range ? null : findDateToken(plain);
   if (!range && !single) return null;
 
-  const date = (range ? range.start : single!.date).slice(0, 80);
+  // Resumes keep the full tenure range as data ("January 2025 – June 2026",
+  // "… – Present"): dropping the end loses whether a role is current and how
+  // long it ran. Generic grouping keeps the designed start-date row.
+  const date = (range
+    ? opts?.omitState
+      ? `${range.start} – ${range.end}`
+      : range.start
+    : single!.date
+  ).slice(0, 80);
   const rawSpan = range ?? { index: single!.index, length: single!.length };
   // Swallow the wrapper the range leaves behind: "(<range>)" loses both
   // parens, and a terminal period right after the range goes with it, so the

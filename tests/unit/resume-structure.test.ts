@@ -194,3 +194,130 @@ describe("resume structure: roles stay roles, skills stay skills", () => {
     }
   });
 });
+
+describe("resume fidelity: no fabricated skill callouts or profile framings", () => {
+
+  it("frames no primary problem or goal from a resume's achievements or education", () => {
+    const d = doc();
+    const snap = d.blocks.find((b) => b.kind === "snapshot")!.payload as any;
+    expect(snap.problem ?? "").toBe("");
+    expect(snap.goal ?? "").toBe("");
+    expect(snap.outcome ?? "").toBe("");
+    expect(snap.hook ?? "").not.toMatch(/Primary (goal|problem)/i);
+    // The summary stays the source's own opening.
+    expect(snap.summary).toMatch(/alex@example\.com/);
+  });
+
+  it("sees the title heading past a PDF page marker comment", () => {
+    const raw = [
+      "<!-- page:1 -->",
+      "# Alex Priya Example",
+      "alex@example.com | +91 9000000000",
+      "",
+      "# Education",
+      "| Some Institute | BE Computer Science | CGPA: 9.10/10 June 2024 |",
+      "",
+      "# Skills",
+      "Product: Discovery, User Research Analytics: SQL, Excel",
+      "",
+      "# Achievements",
+      "- Won the national case competition among 200+ teams",
+    ].join("\n");
+    const r = importSource({ raw, label: "alex-resume.pdf" });
+    if (!r.ok) throw new Error("import failed");
+    const snap = r.value.blocks.find((b) => b.kind === "snapshot")!.payload as any;
+    expect(snap.heading).toBe("Alex Priya Example");
+  });
+
+  it("names the Profile from the resume's own name line, not the filename", () => {
+    // Flattened-PDF shape: the name is a plain first line, not a markdown heading.
+    const raw = readFileSync(resolve("tests/fixtures/resume-columnar.md"), "utf8").replace(
+      "# Alex Priya Example",
+      "Alex Priya Example",
+    );
+    const r = importSource({ raw, label: "alex-resume.pdf" });
+    if (!r.ok) throw new Error("import failed");
+    const snap = r.value.blocks.find((b) => b.kind === "snapshot")!.payload as any;
+    expect(snap.heading).toBe("Alex Priya Example");
+    expect(snap.heading).not.toMatch(/\.pdf/i);
+  });
+});
+
+// Flattened-PDF resume shape with a role bullet that trend-patterns claim.
+function docWithMetricBullet() {
+  const raw = [
+    "Alex Priya Example", "alex@example.com | +91 9000000000", "",
+    "# Education", "| Some Institute | BE Computer Science | CGPA: 9.10/10 June 2024 |", "",
+    "# Experience",
+    "Beta Systems | Data Intern June 2023 – December 2023",
+    "- Benchmarked 6 LLMs across 4 prompting strategies, improving trigger extraction F1 by 18% through systematic error analysis",
+    "",
+    "# Skills", "Product: Discovery, User Research Analytics: SQL, Excel", "",
+    "# Achievements", "- Won the national case competition among 200+ teams",
+  ].join("\n");
+  const r = importSource({ raw, label: "alex-resume.pdf" });
+  if (!r.ok) throw new Error("import failed");
+  return r.value;
+}
+
+describe("resume fidelity: no fabricated skill callouts or profile framings", () => {
+  it("does not surface a role's metric bullet as a Skills signal", () => {
+    const d = docWithMetricBullet();
+    const signals = block<SignalsPayload>(d, "signals");
+    // The bullet belongs to the Beta Systems role in Experience; filing it
+    // again as a Skills signal reads as a skill claim.
+    expect(JSON.stringify(signals.entries)).not.toMatch(/Benchmarked|extraction F1/i);
+    // The bullet stays faithfully under its role.
+    const timeline = block<TimelinePayload>(d, "timeline");
+    const beta = timeline.entries.find((e) => /Data Intern/.test(e.title));
+    expect(JSON.stringify(beta?.details)).toMatch(/Benchmarked 6 LLMs/);
+    // The genuine skills list is preserved untouched.
+    expect(JSON.stringify(signals.notes)).toMatch(/User Research/);
+  });
+
+  it("keeps a role header's trailing description instead of consuming it", () => {
+    const d = doc();
+    const timeline = block<TimelinePayload>(d, "timeline");
+    const acme = timeline.entries.find((e) => /Senior Product Analyst/.test(e.title));
+    expect(acme).toBeDefined();
+    expect(acme!.title).not.toMatch(/Client analytics/);
+    expect(JSON.stringify(acme!.details ?? [])).toMatch(/Client analytics and campaign decision support/);
+  });
+
+  it("keeps heading-claimed project sections as project cards under a resume", () => {
+    const raw = [
+      "Alex Priya Example", "alex@example.com | +91 9000000000", "",
+      "# Education", "| Some Institute | BE Computer Science | CGPA: 9.10/10 June 2024 |", "",
+      "# Experience", "Beta Systems | Data Intern June 2023 – December 2023", "",
+      "# Volunteer Projects", "| Shelter App | Live Demo | Hackathon Project March 2023 |", "",
+      "# Skills", "Product: Discovery, User Research Analytics: SQL, Excel", "",
+      "# Achievements", "- Won the national case competition among 200+ teams",
+    ].join("\n");
+    const r = importSource({ raw, label: "alex-resume.pdf" });
+    if (!r.ok) throw new Error("import failed");
+    const d = r.value;
+    // "Volunteer Projects" is an explicit projects heading: its cards stay
+    // action cards even without a tenure range, not timeline entries.
+    const actions = block<ActionsPayload>(d, "actions");
+    expect(JSON.stringify(actions.entries)).toMatch(/Shelter App/);
+    const timeline = block<TimelinePayload>(d, "timeline");
+    expect(JSON.stringify(timeline.entries)).not.toMatch(/Shelter App/);
+  });
+
+  it("keeps a project name containing the word App out of the link-cell reject", () => {
+    const d = doc();
+    const actions = block<ActionsPayload>(d, "actions");
+    expect(JSON.stringify(actions.entries)).toMatch(/Weather App/);
+  });
+
+  it("joins ordinary syllable wraps while keeping real compounds", () => {
+    expect(dehyphenateText("the imple- mentation of")).toBe("the implementation of");
+    expect(dehyphenateText("the classi- fication step")).toBe("the classification step");
+    expect(dehyphenateText("an AI- led workflow")).toBe("an AI-led workflow");
+    expect(dehyphenateText("a domain- specific tool")).toBe("a domain-specific tool");
+    expect(dehyphenateText("a zero- shot prompt")).toBe("a zero-shot prompt");
+    expect(dehyphenateText("a high- priority queue")).toBe("a high-priority queue");
+    expect(dehyphenateText("a fine- tuning run")).toBe("a fine-tuning run");
+    expect(dehyphenateText("state- of- the- art results")).toBe("state-of-the-art results");
+  });
+});

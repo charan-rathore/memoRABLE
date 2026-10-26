@@ -36,6 +36,8 @@ export interface ResumeRoleHeader {
   /** Role/org lead with the tenure stripped (e.g. "Team Lead, City Robotics Club"). */
   title: string;
   state: "done" | "on-track";
+  /** Description flattened onto the line AFTER the tenure - kept verbatim. */
+  trailing?: string;
 }
 
 export function parseResumeRoleHeader(raw: string): ResumeRoleHeader | null {
@@ -60,5 +62,18 @@ export function parseResumeRoleHeader(raw: string): ResumeRoleHeader | null {
   const start = tenure[1]!.replace(/\s+/g, " ").replace(/\.$/, "");
   const end = tenure[2]!.replace(/\s+/g, " ").replace(/\.$/, "");
   const ongoing = /^(present|current|now|ongoing)$/i.test(end);
-  return { date: start, end, title: pre, state: ongoing ? "on-track" : "done" };
+  // The tenure rarely ends the flattened line: "… – Present Client analytics
+  // and campaign decision support". That suffix is the role's own
+  // description, not part of its title - keep it verbatim as trailing.
+  const after = text
+    .slice(tenure.index + tenure[0].length)
+    .replace(/^[\s|·,;:–—-]+|[\s|·,;:–—-]+$/gu, "")
+    .trim();
+  return {
+    date: start,
+    end,
+    title: pre,
+    state: ongoing ? "on-track" : "done",
+    ...(after.length > 0 ? { trailing: after } : {}),
+  };
 }

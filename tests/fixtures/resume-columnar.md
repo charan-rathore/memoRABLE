@@ -30,6 +30,11 @@ Teaching Assistant, Dept. of Mathematics, Some Institute January 2021 – June 2
 
 - Shipped a forecasting product converting sensor streams into location-specific alerts
 
+| Weather App | Live Demo | Hackathon Project March 2023 – May 2023 |
+| --- | --- | --- |
+
+- Built a forecasting app comparing SARIMA and gradient-boosted baselines
+
 # Skills
 Product: Discovery, User Research, Prioritisation, Experimentation Analytics: SQL, Mixpanel, Excel, Tableau
 

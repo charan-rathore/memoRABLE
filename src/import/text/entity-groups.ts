@@ -367,8 +367,12 @@ const SINGLE_DATE = new RegExp(`\\b(${MONTH_NAME.source}\\.?\\s+(?:19|20)\\d{2})
 /** Metric cells ("CGPA: 8.70/10") are detail evidence, not name or type. */
 const METRIC_CELL = /\b(c\.?g\.?p\.?a|g\.?p\.?a|percentage|percentile|score|rank)\b|\d+(?:\.\d+)?\s*\/\s*\d+/i;
 
-/** Link cells in a project table carry no entity name. */
-const LINK_CELL = /\b(live|demo|github|code|repo|video|link|website|app)\b|↗|https?:\/\//i;
+/** Link cells in a project table carry no entity name. A cell IS a link
+ * label ("Live Demo", "Code ↗", a URL) - a name that merely CONTAINS a word
+ * like "App" ("Weather App") is the project name, not a link. */
+const LINK_LABEL = /^(?:live\s+demo|live|demo|github|code|repo|video|link|website|app|source(?:\s+code)?|docs?|site)\s*↗?$/i;
+const LINK_CELL = (cell: string): boolean =>
+  LINK_LABEL.test(cell.trim()) || /↗|https?:\/\//i.test(cell);
 
 /**
  * "| Forecaster | Live Demo | ML Product May 2024 – Present |" →
@@ -399,7 +403,7 @@ export function parseResumeProjectRow(
   }
   if (!date) return null;
   const name = cells.find(
-    (c) => !TENURE_RANGE.test(c) && !LINK_CELL.test(c) && c.trim().length > 1,
+    (c) => !TENURE_RANGE.test(c) && !LINK_CELL(c) && c.trim().length > 1,
   );
   if (!name) return null;
   return {
@@ -437,7 +441,7 @@ export function parseResumeEducationRow(
       continue;
     }
     const usable = (m ? pre : cell).replace(/^[\s|·,;:–—-]+|[\s|·,;:–—-]+$/gu, "").trim();
-    if (usable.length > 1 && !LINK_CELL.test(usable)) nameCells.push(usable);
+    if (usable.length > 1 && !LINK_CELL(usable)) nameCells.push(usable);
   }
   if (!date || nameCells.length === 0) return null;
   return {

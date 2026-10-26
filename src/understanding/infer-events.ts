@@ -93,7 +93,12 @@ export function inferTimeline(
       if (role) {
         out.push({
           // Dates and title only - a tenure range is not a workflow state.
-          value: { date: role.date, title: role.title },
+          // A description flattened after the tenure survives as a detail.
+          value: {
+            date: role.date,
+            title: role.title,
+            ...(role.trailing ? { details: [role.trailing] } : {}),
+          },
           evidence: statement,
         });
         continue;

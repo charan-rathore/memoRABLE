@@ -204,11 +204,33 @@ export function understand(
     timeline,
     actions,
     heroInsights,
-    heading: recallHeading(input.title, intent),
+    heading:
+      resumeNameLine(input, archetype.archetype, titleFromHeading) ??
+      recallHeading(input.title, intent),
     opening: firstProseParagraph(input.sections),
     distilled: statements.length,
     redundant,
   };
+}
+
+/**
+ * A resume's profile is the person: when the title fell back to the filename,
+ * the document's own first line ("Charan Prakash Rathore") names it - a short
+ * capitalized name line, never the account or file name.
+ */
+function resumeNameLine(
+  input: UnderstandingInput & { sourceLabel?: string },
+  archetype: string,
+  titleFromHeading: boolean,
+): string | null {
+  if (archetype !== "resume" || titleFromHeading) return null;
+  const first = input.sections
+    .flatMap((s) => s.lines)
+    .map((l) => l.text.trim())
+    .find((t) => t !== "");
+  if (!first) return null;
+  if (!/^[\p{Lu}][\p{L}.'-]+(?: [\p{Lu}][\p{L}.'-]+){1,4}$/u.test(first)) return null;
+  return first;
 }
 
 /**
@@ -232,6 +254,7 @@ export function recallFrom(
     concepts: understanding.concepts,
     ...memories,
     fallback: understanding.opening,
+    archetype: understanding.archetype.archetype,
   });
 }
 

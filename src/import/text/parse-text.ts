@@ -9,6 +9,7 @@ import {
   isCompletionLabelLine,
   isReadinessLabelLine,
 } from "./entity-groups";
+import { kindClaimedByHeading } from "./sections";
 import { ok, type Result } from "@/reliability/result";
 import type { Diagnostic } from "@/reliability/diagnostics";
 import { finalizeDocument, type BlockInput } from "@/domain/memory/normalize";
@@ -146,6 +147,8 @@ export function parseText(input: TextImportInput): Result<MemoryDocument> {
   for (let i = 0; i < rawLines.length; i++) {
     const line = rawLines[i]!;
     if (line.trim() === "") continue;
+    // Extraction page markers ("<!-- page:1 -->") are scaffolding, not content.
+    if (/^<!--\s*page:\d+\s*-->$/.test(line.trim())) continue;
     const heading = matchHeading(line, rawLines[i + 1]);
     if (heading && heading.level === 1) {
       title = heading.text;
@@ -307,6 +310,9 @@ export function parseText(input: TextImportInput): Result<MemoryDocument> {
       if (!section.headingText || section.inherited) continue;
       if (section.kind !== "signals" && section.kind !== "actions") continue;
       if (!RESUME_TIMELINE_SECTION.test(section.headingText)) continue;
+      // A heading that explicitly claims its kind ("Volunteer Projects" →
+      // projects) keeps it; only content-inferred kinds are reassigned.
+      if (kindClaimedByHeading(section.headingText) === section.kind) continue;
       section.kind = "timeline";
       section.assigned = true;
     }
@@ -411,6 +417,36 @@ export function parseText(input: TextImportInput): Result<MemoryDocument> {
 
     // Layer 3 lite: temporal honesty gate on the local Timeline bucket.
     applyTemporalHonesty(built, understanding, warnings);
+
+    // Resume: a bullet already kept under its role in the timeline must not
+    // resurface as a Skills signal - the same sentence filed twice, and the
+    // second filing reads as a skill claim. The skills list itself stays.
+    if (understanding.archetype.archetype === "resume") {
+      const timelineBlock = built.get("timeline");
+      const signalsBlock = built.get("signals");
+      if (
+        timelineBlock &&
+        signalsBlock &&
+        "entries" in timelineBlock.payload &&
+        "entries" in signalsBlock.payload
+      ) {
+        const tokenize = (t: string): string[] => t.toLowerCase().match(/[a-z0-9]+/g) ?? [];
+        const detailTokens = (timelineBlock.payload.entries as TimelineEntry[])
+          .flatMap((e) => e.details ?? [])
+          .map((d) => new Set(tokenize(d)));
+        if (detailTokens.length > 0) {
+          const kept = (signalsBlock.payload.entries as SignalEntry[]).filter((sig) => {
+            const tokens = tokenize(`${sig.label} ${sig.value ?? ""} ${sig.implication ?? ""}`);
+            if (tokens.length < 5) return true;
+            const duplicated = detailTokens.some(
+              (dt) => tokens.filter((t) => dt.has(t)).length / tokens.length >= 0.6,
+            );
+            return !duplicated;
+          });
+          signalsBlock.payload.entries = kept;
+        }
+      }
+    }
 
     ctx.recall = recallFrom(understanding, {
       signals: entriesOf<SignalEntry>(built, "signals"),

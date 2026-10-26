@@ -648,27 +648,41 @@ function isSoftWrapContinuation(prev: string, next: string): boolean {
 }
 
 /** Repair common PDF wrap artifacts still present inside a finished line. */
+// Intentional compound heads/tails ("AI-led", "zero-shot", "high-priority",
+// "state-of-the-art") keep their hyphen through every dehyphenation pass.
+const COMPOUND_LEFT =
+  /^(domain|state|real|high|low|multi|cross|self|open|end|token|zero|few|base|pre|post|non|in|re|co|rule|hand|fine|span|event|data|model|task|text|sub|llm)$/i;
+const COMPOUND_RIGHT =
+  /^(shot|specific|based|crafted|grained|level|of|the|art|reader|tuning|purpose|correction|refinement|reasoning)$/i;
+// A wrapped word's right fragment is a short stem plus a common suffix
+// ("mentation" = "menta" + "tion"); a whole-word suffix list misses those.
+const SYLLABLE_SUFFIX =
+  /^(?:[a-z]{0,8}?)(?:tion|sion|ment|ments|ness|ting|cial|ical|imal|ental|atory|ative|ences|cal|tal|nal|ral|ous|ive|est|ing|ers|ies|ely|ful|led|ture|tures|ity)$/i;
+const SYLLABLE_WHOLE = /^(?:art|ods|lite|cus)$/i;
+
 export function dehyphenateText(text: string): string {
   return text
     .replace(/([A-Za-z])\u00AD([a-z])/g, "$1$2")
     // "AI- led" / "domain- specific": a hyphen split by glyph spacing inside
     // one line. Blindly dropping the hyphen destroys real compounds ("AIled"),
-    // so only a clear syllable split joins bare ("zeo- lite" → "zeolite");
-    // everything else keeps the hyphen and drops just the space.
-    .replace(/\b([A-Za-z]+)-\s+([a-z]+)\b/g, (full, left: string, right: string) => {
+    // so only a clear syllable split joins bare ("zeo- lite" → "zeolite",
+    // "imple- mentation" → "implementation"); real compounds keep the hyphen
+    // and drop just the space.
+    // Lookahead: the right word is not consumed, so hyphen chains
+    // ("state- of- the- art") still decide pair by pair.
+    .replace(/\b([A-Za-z]+)-\s+(?=([a-z]+)\b)/g, (full, left: string, right: string) => {
       // All-caps acronym heads are compounds ("AI- led"), never syllables.
-      if (/^[A-Z0-9]{2,4}$/.test(left)) return `${left}-${right}`;
-      if (
-        /^(tion|sion|ment|ments|ness|ting|cial|ical|imal|ental|atory|ative|ences|cal|tal|nal|ral|ous|ive|est|ing|ers|ies|ely|ful|led|ture|tures|art|ods|lite|cus)$/i.test(
-          right,
-        )
-      ) {
-        return `${left}${right}`;
+      if (/^[A-Z0-9]{2,4}$/.test(left)) return `${left}-`;
+      if (COMPOUND_LEFT.test(left) || COMPOUND_RIGHT.test(right)) {
+        return `${left}-`;
+      }
+      if (SYLLABLE_SUFFIX.test(right) || SYLLABLE_WHOLE.test(right)) {
+        return left;
       }
       if (left.length <= 4 && right.length <= 5 && left === left.toLowerCase()) {
-        return `${left}${right}`;
+        return left;
       }
-      return `${left}-${right}`;
+      return `${left}-`;
     })
     // Safety net for syllable hyphens left inside a paragraph (criti-cal, funda-mental).
     // Never touch intentional compounds (zero-shot, domain-specific, rule-based, …).
@@ -676,11 +690,7 @@ export function dehyphenateText(text: string): string {
       // All-caps acronym heads ("AI-led") are real compounds, never syllables
       // (the i flag would otherwise fuse them: "AIled").
       if (/^[A-Z0-9]{2,4}$/.test(left)) return full;
-      const compoundLeft =
-        /^(domain|state|real|high|low|multi|cross|self|open|end|token|zero|few|base|pre|post|non|in|re|co|rule|hand|fine|span|event|data|model|task|text|sub|llm)$/i;
-      const compoundRight =
-        /^(shot|specific|based|crafted|grained|level|of|the|art|reader|tuning|purpose|correction|refinement|reasoning|reasoning)$/i;
-      if (compoundLeft.test(left) || compoundRight.test(right)) return full;
+      if (COMPOUND_LEFT.test(left) || COMPOUND_RIGHT.test(right)) return full;
       if (
         /^(tion|sion|ment|ness|ting|cial|ical|imal|ental|atory|ative|ences|cal|tal|nal|ral|ous|ive|est|ing|ers|ies|ely|ful|led|ture|tures)$/i.test(
           right,

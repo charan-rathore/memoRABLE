@@ -15,6 +15,7 @@
 import type { ActionEntry, TimelineEntry } from "@/domain/memory/schema";
 import { LIMITS } from "@/domain/memory/limits";
 import { inferReadiness } from "@/understanding/inference";
+import { parseResumeRoleHeader } from "@/understanding/role-headers";
 import {
   findDateToken,
   isDecorativeLine,
@@ -236,7 +237,11 @@ function detailsOf(group: EntityGroup): string[] {
  * range or uniformly past-tense detail lines are finished work; anything
  * else keeps the source's own stance (pending only when nothing says done).
  */
-export function buildActionFromGroup(group: EntityGroup, now: Date = new Date()): ActionEntry {
+export function buildActionFromGroup(
+  group: EntityGroup,
+  now: Date = new Date(),
+  opts?: { omitStatus?: boolean },
+): ActionEntry {
   const task = plainContentOf(group.titleLine.text).slice(0, LIMITS.maxFieldLength);
   const details = detailsOf(group);
   const range = findDateRange(task);
@@ -267,9 +272,13 @@ export function buildActionFromGroup(group: EntityGroup, now: Date = new Date())
   // that beats completion keywords in the title ("Complete Streets Program").
   if (range?.open) status = "pending";
 
+  // Resume project cards carry no status: neither a closed range nor
+  // accomplishment bullets evidence a task stance, so the key is omitted
+  // rather than manufactured. Generic workstream grouping keeps the
+  // checklist/range semantics pinned by entity-evidence-fidelity tests.
   return {
     task,
-    status,
+    ...(opts?.omitStatus ? {} : { status }),
     ...(details.length > 0 ? { details } : {}),
   };
 }
@@ -283,6 +292,7 @@ export function buildActionFromGroup(group: EntityGroup, now: Date = new Date())
 export function buildTimelineFromGroup(
   group: EntityGroup,
   now: Date = new Date(),
+  opts?: { omitState?: boolean },
 ): TimelineEntry | null {
   const plain = plainContentOf(group.titleLine.text);
   const range = findDateRange(plain);
@@ -327,7 +337,218 @@ export function buildTimelineFromGroup(
   return {
     date,
     title: title.slice(0, LIMITS.maxFieldLength),
-    state: past ? "done" : "planned",
+    // Resume roles/projects carry no state: the tenure range is a date fact,
+    // not evidence the work is "done" or still "planned". Generic workstream
+    // grouping keeps the past/planned reading pinned by existing tests.
+    ...(opts?.omitState ? {} : { state: past ? ("done" as const) : ("planned" as const) }),
     ...(details.length > 0 ? { details } : {}),
   };
+}
+
+/* ------------------------- resume entity rows ----------------------------- */
+
+/**
+ * Resume-only entity passes. The generic title candidate test needs a closed
+ * date range, but flattened resumes carry open tenures with trailing prose
+ * ("… January 2024 – Present Client analytics …") and file projects as table
+ * rows ("| Forecaster | Live Demo | ML Product May 2024 – Present |"). Both
+ * shapes are tenure-dated entities that own their bullets; gated on the
+ * resume archetype at the call site so other documents keep the generic path.
+ */
+
+const TENURE_RANGE = new RegExp(
+  `(${MONTH_NAME.source}\\.?\\s+(?:19|20)\\d{2})\\s*[-–—]\\s*(${MONTH_NAME.source}\\.?\\s+(?:19|20)\\d{2}|present|current|now|ongoing)\\b`,
+  "i",
+);
+
+/** Single date in an education row: "CGPA: 8.70/10 June 2026". */
+const SINGLE_DATE = new RegExp(`\\b(${MONTH_NAME.source}\\.?\\s+(?:19|20)\\d{2})\\b`, "i");
+
+/** Metric cells ("CGPA: 8.70/10") are detail evidence, not name or type. */
+const METRIC_CELL = /\b(c\.?g\.?p\.?a|g\.?p\.?a|percentage|percentile|score|rank)\b|\d+(?:\.\d+)?\s*\/\s*\d+/i;
+
+/** Link cells in a project table carry no entity name. */
+const LINK_CELL = /\b(live|demo|github|code|repo|video|link|website|app)\b|↗|https?:\/\//i;
+
+/**
+ * "| Forecaster | Live Demo | ML Product May 2024 – Present |" →
+ * { date: "May 2024", title: "Forecaster — ML Product", state: "on-track" }.
+ */
+export function parseResumeProjectRow(
+  raw: string,
+): { date: string; end: string; title: string; state: "done" | "on-track"; trailing?: string } | null {
+  const cells = splitTableRow(raw);
+  if (!cells || cells.length < 2) return null;
+  let date: string | null = null;
+  let end = "";
+  let state: "done" | "on-track" = "done";
+  let type: string | null = null;
+  let trailing: string | undefined;
+  for (const cell of cells) {
+    const m = TENURE_RANGE.exec(cell);
+    if (!m) continue;
+    date = m[1]!.replace(/\s+/g, " ");
+    end = m[2]!.replace(/\s+/g, " ");
+    state = /^(present|current|now|ongoing)$/i.test(m[2]!.trim()) ? "on-track" : "done";
+    // The entity type precedes the tenure ("ML Product May 2024 – Present").
+    // Text AFTER the range is flattened description prose, not a label -
+    // keep it verbatim as trailing so it survives outside the clean title.
+    type = cell.slice(0, m.index).replace(/^[\s|·,;:–—-]+|[\s|·,;:–—-]+$/gu, "").trim() || null;
+    const after = cell.slice(m.index + m[0].length).replace(/^[\s|·,;:–—-]+|[\s|·,;:–—-]+$/gu, "").trim();
+    if (after.length > 0) trailing = after;
+  }
+  if (!date) return null;
+  const name = cells.find(
+    (c) => !TENURE_RANGE.test(c) && !LINK_CELL.test(c) && c.trim().length > 1,
+  );
+  if (!name) return null;
+  return {
+    date,
+    end,
+    title: type ? `${name.trim()} — ${type}` : name.trim(),
+    state,
+    ...(trailing ? { trailing } : {}),
+  };
+}
+
+/**
+ * "| BITS Pilani | MSc Chemistry + BE Mechanical | CGPA: 8.70/10 June 2026 |"
+ * → { date: "June 2026", title: "BITS Pilani — MSc Chemistry + BE Mechanical",
+ *     trailing: "CGPA: 8.70/10" }. Single-date rows only; a tenure range makes
+ * it a project/experience row instead.
+ */
+export function parseResumeEducationRow(
+  raw: string,
+): { date: string; title: string; state: "done"; trailing?: string } | null {
+  const cells = splitTableRow(raw);
+  if (!cells || cells.length < 2) return null;
+  if (cells.some((c) => TENURE_RANGE.test(c))) return null;
+  let date: string | null = null;
+  let trailing: string | undefined;
+  const nameCells: string[] = [];
+  for (const cell of cells) {
+    const m = SINGLE_DATE.exec(cell);
+    const pre = m ? cell.slice(0, m.index).trim() : cell.trim();
+    if (m && !date) date = m[1]!.replace(/\s+/g, " ");
+    const metric = METRIC_CELL.test(cell) || (m !== null && METRIC_CELL.test(pre));
+    if (metric) {
+      const metricText = (m ? pre : cell.trim()).replace(/^[\s|·,;:–—-]+|[\s|·,;:–—-]+$/gu, "").trim();
+      if (metricText.length > 0 && !trailing) trailing = metricText;
+      continue;
+    }
+    const usable = (m ? pre : cell).replace(/^[\s|·,;:–—-]+|[\s|·,;:–—-]+$/gu, "").trim();
+    if (usable.length > 1 && !LINK_CELL.test(usable)) nameCells.push(usable);
+  }
+  if (!date || nameCells.length === 0) return null;
+  return {
+    date,
+    title: nameCells.join(" — "),
+    state: "done",
+    ...(trailing ? { trailing } : {}),
+  };
+}
+
+export interface ResumeRowGroup {
+  titleLine: GroupLine;
+  detailLines: GroupLine[];
+  consumed: number[];
+  parsed: { date: string; end?: string; title: string; state: "done" | "on-track"; trailing?: string };
+}
+
+/**
+ * Project table rows own the bullets that follow them (skipping an optional
+ * table separator). Returns only rows whose consumed lines are still free.
+ */
+export function collectResumeProjectRows(
+  lines: readonly GroupLine[],
+  alreadyConsumed: ReadonlySet<number>,
+): ResumeRowGroup[] {
+  const out: ResumeRowGroup[] = [];
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]!;
+    if (alreadyConsumed.has(line.lineNo)) continue;
+    const parsed = parseResumeProjectRow(line.text);
+    if (!parsed) continue;
+    let j = i + 1;
+    const consumed = [line.lineNo];
+    if (j < lines.length && isTableSeparator(lines[j]!.text)) {
+      consumed.push(lines[j]!.lineNo);
+      j++;
+    }
+    const detailLines: GroupLine[] = [];
+    while (j < lines.length && isListLike(lines[j]!.text)) {
+      detailLines.push(lines[j]!);
+      j++;
+    }
+    if (detailLines.some((d) => alreadyConsumed.has(d.lineNo))) continue;
+    consumed.push(...detailLines.map((d) => d.lineNo));
+    out.push({ titleLine: line, detailLines, consumed, parsed });
+  }
+  return out;
+}
+
+function rowDetails(detailLines: readonly GroupLine[]): string[] {
+  return detailLines
+    .map((l) => plainContentOf(l.text))
+    .filter((d) => d.length > 0)
+    .slice(0, LIMITS.maxEntriesPerBlock);
+}
+
+/**
+ * Resume entity groups the generic pass cannot see: open-tenure role headers
+ * with trailing prose, and tenure-bearing project table rows. Each returns a
+ * clean entry with its bullets attached as verbatim details.
+ */
+export function detectResumeEntityGroups(
+  lines: readonly GroupLine[],
+  alreadyConsumed: ReadonlySet<number>,
+): Array<{ entry: TimelineEntry; lineNo: number; consumed: number[] }> {
+  const out: Array<{ entry: TimelineEntry; lineNo: number; consumed: number[] }> = [];
+  const rows = collectResumeProjectRows(lines, alreadyConsumed);
+  const rowLines = new Set(rows.flatMap((r) => r.consumed));
+  for (const r of rows) {
+    const details = [
+      ...(r.parsed.trailing ? [r.parsed.trailing] : []),
+      ...rowDetails(r.detailLines),
+    ];
+    out.push({
+      entry: {
+        date: r.parsed.date,
+        title: r.parsed.title.slice(0, LIMITS.maxFieldLength),
+        // No state: a project tenure range is a date fact, not a workflow
+        // judgment - the source never says the work is "done" or "on track".
+        ...(details.length > 0 ? { details } : {}),
+      },
+      lineNo: r.titleLine.lineNo,
+      consumed: r.consumed,
+    });
+  }
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]!;
+    if (alreadyConsumed.has(line.lineNo) || rowLines.has(line.lineNo)) continue;
+    const role = parseResumeRoleHeader(plainContentOf(line.text));
+    if (!role) continue;
+    let j = i + 1;
+    const consumed = [line.lineNo];
+    const detailLines: GroupLine[] = [];
+    while (j < lines.length && isListLike(lines[j]!.text)) {
+      detailLines.push(lines[j]!);
+      j++;
+    }
+    if (detailLines.some((d) => alreadyConsumed.has(d.lineNo) || rowLines.has(d.lineNo))) continue;
+    consumed.push(...detailLines.map((d) => d.lineNo));
+    const details = rowDetails(detailLines);
+    out.push({
+      entry: {
+        date: role.date,
+        title: role.title.slice(0, LIMITS.maxFieldLength),
+        // No state: a closed role range ends the tenure, but the badge reads
+        // as a delivery judgment the source never makes.
+        ...(details.length > 0 ? { details } : {}),
+      },
+      lineNo: line.lineNo,
+      consumed,
+    });
+  }
+  return out;
 }

@@ -2,6 +2,9 @@ import {
   buildActionFromGroup,
   buildTimelineFromGroup,
   detectEntityGroups,
+  collectResumeProjectRows,
+  detectResumeEntityGroups,
+  parseResumeEducationRow,
   groupLineNumbers,
   isCompletionLabelLine,
   isReadinessLabelLine,
@@ -288,6 +291,27 @@ export function parseText(input: TextImportInput): Result<MemoryDocument> {
     sourceLabel: label,
     sections: sections.map((s) => ({ headingText: s.headingText, lines: s.lines })),
   });
+
+  // Resume archetype: content-shape inference misfiles role sections
+  // ("Leadership & Community" → signals). Project sections keep the designed
+  // projects-as-action-cards routing, and Education keeps its designed
+  // decisions-bucket routing (projected as the "Education" section) - see
+  // entity-grouping and projection-profiles tests.
+  // Both hold tenure-dated entities with bullets - they belong in the
+  // timeline. Only reassigns content-inferred kinds, never explicit heading
+  // claims, and only when the archetype evidence already says resume.
+  if (understanding.archetype.archetype === "resume") {
+    const RESUME_TIMELINE_SECTION =
+      /\b(leadership|community|activities|positions?\s+of\s+responsibility|volunteer(?:ing|work)?|involvement|extracurriculars?)\b/i;
+    for (const section of sections) {
+      if (!section.headingText || section.inherited) continue;
+      if (section.kind !== "signals" && section.kind !== "actions") continue;
+      if (!RESUME_TIMELINE_SECTION.test(section.headingText)) continue;
+      section.kind = "timeline";
+      section.assigned = true;
+    }
+  }
+
 
   // Ordinal phases are timeline-worthy only when the archetype has a real
   // timeline mode. Menus/glossaries must not invent a schedule from "Phase 1".
@@ -903,6 +927,23 @@ function buildEntriesPayload(
         salvageProse: true,
         salvage: parseDecisionLineLenient,
       });
+      // Resume education sections file degrees as table rows
+      // ("| BITS Pilani | MSc Chemistry + BE Mechanical | CGPA: 8.70/10
+      // June 2026 |") which the decision line parsers cannot read - the
+      // whole row silently vanished. Recover each row as one entry.
+      if (ctx.understanding.archetype.archetype === "resume") {
+        const lines = groupingLines(matched, contentLines);
+        for (const l of lines) {
+          const edu = parseResumeEducationRow(l.text);
+          if (!edu) continue;
+          const text = `${edu.title} (${edu.date})${edu.trailing ? ` — ${edu.trailing}` : ""}`;
+          if (built.entries.some((e) => saysTheSame(e.text, text))) continue;
+          // A degree is a fact, not a floated decision: no status/commitment.
+          built.entries.push({ text });
+          built.lineOf.push(l.lineNo);
+        }
+        sortByLine(built);
+      }
       mergeDecisions(built, ctx, notes);
       // Compress inside Decisions: Key Requirements ≈ Acceptance Criteria.
       built.entries = compressDecisions(built.entries);
@@ -914,12 +955,25 @@ function buildEntriesPayload(
       // entry instead of becoming flat rows or "unrecognized" notes.
       const lines = groupingLines(matched, contentLines);
       const groups = detectEntityGroups(lines);
+      const omitState = ctx.understanding.archetype.archetype === "resume";
       const grouped = groups
-        .map((g) => ({ entry: buildTimelineFromGroup(g), lineNo: g.titleLine.lineNo, group: g }))
+        .map((g) => ({ entry: buildTimelineFromGroup(g, new Date(), { omitState }), lineNo: g.titleLine.lineNo, group: g }))
         .filter((g): g is { entry: TimelineEntry; lineNo: number; group: (typeof groups)[number] } =>
           g.entry !== null,
         );
       const skip = new Set(grouped.flatMap((g) => groupLineNumbers(g.group)));
+      if (ctx.understanding.archetype.archetype === "resume") {
+        // Open-tenure role headers and tenure-bearing project table rows are
+        // entities too; the generic pass only sees closed ranges.
+        for (const r of detectResumeEntityGroups(lines, skip)) {
+          grouped.push({
+            entry: r.entry,
+            lineNo: r.lineNo,
+            group: { titleLine: lines.find((l) => l.lineNo === r.lineNo)!, detailLines: [] },
+          });
+          for (const n of r.consumed) skip.add(n);
+        }
+      }
       const built = collectOver(lines, parseTimelineLine, parseTimelineLineLenient, { skip });
       for (const g of grouped) {
         built.entries.push(g.entry);
@@ -950,12 +1004,44 @@ function buildEntriesPayload(
       // its details — never one flat pending todo per bullet.
       const lines = groupingLines(matched, contentLines);
       const groups = detectEntityGroups(lines);
+      const omitStatus = ctx.understanding.archetype.archetype === "resume";
       const grouped = groups.map((g) => ({
-        entry: buildActionFromGroup(g),
+        entry: buildActionFromGroup(g, new Date(), { omitStatus }),
         lineNo: g.titleLine.lineNo,
         group: g,
       }));
       const skip = new Set(grouped.flatMap((g) => groupLineNumbers(g.group)));
+      if (ctx.understanding.archetype.archetype === "resume") {
+        // A resume project filed as a table row ("| Forecaster | Live Demo |
+        // ML Product May 2024 – Present |") is one entity card: the row names
+        // the project, its bullets are the details. The generic title test
+        // rejects table rows, so without this the row becomes a positional
+        // owner/due todo and every bullet its own card.
+        for (const r of collectResumeProjectRows(lines, skip)) {
+          grouped.push({
+            entry: {
+              // Tenure dates are preserved verbatim in the title; the card
+              // carries NO status. A closed range does not prove the project
+              // finished and shipped/built bullets are accomplishments, not
+              // completion claims - any status here would be manufactured.
+              task: `${r.parsed.title} (${r.parsed.date} – ${r.parsed.end ?? "Present"})`,
+              ...(r.detailLines.length > 0 || r.parsed.trailing
+                ? {
+                    details: [
+                      ...(r.parsed.trailing ? [r.parsed.trailing] : []),
+                      ...r.detailLines
+                        .map((l) => plainContentOf(l.text))
+                        .filter((d) => d.length > 0),
+                    ].slice(0, LIMITS.maxEntriesPerBlock),
+                  }
+                : {}),
+            },
+            lineNo: r.titleLine.lineNo,
+            group: { titleLine: r.titleLine, detailLines: r.detailLines },
+          });
+          for (const n of r.consumed) skip.add(n);
+        }
+      }
       const built = collectOver(lines, parseActionLine, parseActionLineLenient, {
         skip,
         remapRow: remapActionEntryByHeader,
@@ -1286,8 +1372,9 @@ function compressDecisions(entries: readonly DecisionEntry[]): DecisionEntry[] {
 function mergeDecisionPair(a: DecisionEntry, b: DecisionEntry): DecisionEntry {
   const statusRank = { rejected: 0, proposed: 1, requested: 2, approved: 3 } as const;
   const commitmentRank = { considered: 0, committed: 1 } as const;
-  const status =
-    statusRank[a.status] >= statusRank[b.status] ? a.status : b.status;
+  const aRank = a.status ? statusRank[a.status] : -1;
+  const bRank = b.status ? statusRank[b.status] : -1;
+  const status = aRank >= bRank ? a.status : b.status;
   const aCommit = a.commitment ?? "considered";
   const bCommit = b.commitment ?? "considered";
   const commitment =
@@ -1297,7 +1384,7 @@ function mergeDecisionPair(a: DecisionEntry, b: DecisionEntry): DecisionEntry {
   return {
     ...a,
     text,
-    status,
+    ...(status ? { status } : {}),
     ...(commitment ? { commitment } : {}),
     ...(a.because || b.because ? { because: a.because ?? b.because } : {}),
     ...(a.ref || b.ref ? { ref: a.ref ?? b.ref } : {}),

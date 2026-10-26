@@ -122,13 +122,18 @@ export function projectV6ToMemorySource(
         {
           kind: "actions" as const,
           payload: {
-            entries: extraction.actions.slice(0, LIMITS.maxEntriesPerBlock).map((a) => ({
-              task: clamp(a.content, LIMITS.maxFieldLength),
-              status: mapActionStatus(a.status),
-              ...(a.owner ? { owner: clamp(a.owner, 120) } : {}),
-              ...(a.due_date ? { due: clamp(a.due_date, 80) } : {}),
-              ...(a.carries_out ? { from: clamp(a.carries_out, LIMITS.maxFieldLength) } : {}),
-            })),
+            entries: extraction.actions.slice(0, LIMITS.maxEntriesPerBlock).map((a) => {
+              const status = mapActionStatus(a.status, archetypeId);
+              return {
+                task: clamp(a.content, LIMITS.maxFieldLength),
+                // Omitted entirely when neither source nor model supports a
+                // stance (resume projects) - never an implicit "pending".
+                ...(status ? { status } : {}),
+                ...(a.owner ? { owner: clamp(a.owner, 120) } : {}),
+                ...(a.due_date ? { due: clamp(a.due_date, 80) } : {}),
+                ...(a.carries_out ? { from: clamp(a.carries_out, LIMITS.maxFieldLength) } : {}),
+              };
+            }),
           },
         },
       ],
@@ -192,8 +197,14 @@ function confidenceToSeverity(
 
 function mapActionStatus(
   status: "ready" | "pending" | "suggested" | "done" | undefined,
-): "ready" | "pending" | "suggested" | "done" {
-  if (status === "ready" || status === "done" || status === "suggested") return status;
+  archetypeId?: DocumentArchetype,
+): "ready" | "pending" | "suggested" | "done" | undefined {
+  if (status === "ready" || status === "done" || status === "suggested" || status === "pending") {
+    return status;
+  }
+  // Resume items (project cards, roles) carry no task-stance evidence; an
+  // absent model status stays absent instead of becoming implicit "pending".
+  if (archetypeId === "resume") return undefined;
   return "pending";
 }
 

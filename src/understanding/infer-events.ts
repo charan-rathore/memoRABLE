@@ -16,6 +16,9 @@ import {
   titleAroundRemovedDate,
 } from "@/import/text/patterns";
 import type { ActionEntry, BlockKind, TimelineEntry } from "@/domain/memory/schema";
+import type { DocumentArchetype } from "./archetype";
+import { parseResumeRoleHeader } from "./role-headers";
+import { parseResumeProjectRow } from "@/import/text/entity-groups";
 import { inferReadiness, VERDICT_HEADING, type Inferred, type Statement } from "./inference";
 import { strongestCategory } from "./projection";
 import { clampWords, sentenceCase, unpunctuated, wordCount } from "./language";
@@ -67,6 +70,7 @@ const BYLINE = /\b(prepared|reviewed|authored|written)\s+by\b/i;
  */
 export function inferTimeline(
   statements: readonly Statement[],
+  archetype?: DocumentArchetype,
 ): Array<Inferred<InferredTimeline>> {
   const out: Array<Inferred<InferredTimeline>> = [];
 
@@ -81,6 +85,20 @@ export function inferTimeline(
     // phase entry out of existence.
     const ordinal = statement.sectionTitle ? matchOrdinalHeading(statement.sectionTitle) : null;
     if (ordinal && SCHEDULE_ORDINAL_MARKER.test(ordinal.marker)) continue;
+
+    // Resume role headers carry a tenure range, not a delivery date; read
+    // them as timeline entries so a resume keeps its own work history.
+    if (archetype === "resume" && !statement.listItem) {
+      const role = parseResumeRoleHeader(statement.text);
+      if (role) {
+        out.push({
+          // Dates and title only - a tenure range is not a workflow state.
+          value: { date: role.date, title: role.title },
+          evidence: statement,
+        });
+        continue;
+      }
+    }
 
     const text = unpunctuated(statement.text);
     if (wordCount(text) < 3) continue;
@@ -130,6 +148,7 @@ export function inferTimeline(
 export function inferActions(
   statements: readonly Statement[],
   unheadedClaim: BlockKind | null = null,
+  archetype?: DocumentArchetype,
 ): Array<Inferred<InferredAction>> {
   const out: Array<Inferred<InferredAction>> = [];
 
@@ -170,6 +189,19 @@ export function inferActions(
     // A table row outside an actions section is data, not a todo: positional
     // task/owner/due mapping would read an expense's amount as its owner.
     if (claimed !== "actions" && splitTableRow(statement.text)) continue;
+
+    // A resume project row ("| Forecaster | Live Demo | ML Product May 2024
+    // – Present |") is a tenure-dated entity, not a todo. Its heading
+    // ("Products & Projects") claims the actions kind, which would otherwise
+    // let positional parsing read "Live Demo" as the owner of pending work.
+    if (archetype === "resume" && parseResumeProjectRow(statement.text)) continue;
+
+    // A resume role header ("Project Leader, Nirmaan – BITS Pilani Student
+    // Chapter January 2023 – May 2023") is a tenure line, not a todo - the
+    // dash-separated owner/due parser reads the org as an owner.
+    if (archetype === "resume" && !statement.listItem && parseResumeRoleHeader(statement.text)) {
+      continue;
+    }
 
     // Do not re-home pure risks or already-settled decisions as todos.
     if (strongestCategory(text) === "risk") continue;

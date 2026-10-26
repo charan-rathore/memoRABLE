@@ -33,7 +33,15 @@ const MIN_SHARED_TOKENS = 2;
 /** Edges any one memory may own, keeping the graph legible. */
 const MAX_EDGES_PER_MEMORY = 2;
 
-export function buildRelations(blocks: readonly MemoryBlock[]): MemoryRelation[] {
+export function buildRelations(
+  blocks: readonly MemoryBlock[],
+  archetype?: string,
+): MemoryRelation[] {
+  // Vocabulary-overlap edges read as narrative claims ("scholarship motivates
+  // degree", "degree mitigates scholarship"). On a resume there is no source
+  // support for any such relationship, so the graph stays empty rather than
+  // inventing a story.
+  if (archetype === "resume") return [];
   const signals = entriesOf<SignalEntry>(blocks, "signals");
   const decisions = entriesOf<DecisionEntry>(blocks, "decisions");
   const timeline = entriesOf<TimelineEntry>(blocks, "timeline");

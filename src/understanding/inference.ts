@@ -2,6 +2,7 @@ import { kindClaimedByHeading } from "@/import/text/sections";
 import type { Concept } from "./concepts";
 import { labelFor } from "./concepts";
 import type { DocumentArchetype } from "./archetype";
+import { parseResumeRoleHeader } from "./role-headers";
 import type { Intent } from "./intent";
 import {
   allowSlideDecision,
@@ -111,6 +112,7 @@ const DOWN = /\b(low|lower|down|falling|fell|drop(?:ped|ping)?|decline[ds]?|weak
 export function inferSignals(
   statements: readonly Statement[],
   concepts: readonly Concept[],
+  archetype?: DocumentArchetype,
 ): Array<Inferred<InferredSignal>> {
   const collected: Array<Inferred<InferredSignal>> = [];
   const out = {
@@ -130,6 +132,11 @@ export function inferSignals(
   for (const statement of statements) {
     const text = unpunctuated(statement.text);
     if (wordCount(text) < 4) continue;
+
+    // A resume role header is a tenure line, not a lesson or a cause.
+    if (archetype === "resume" && !statement.listItem && parseResumeRoleHeader(statement.text)) {
+      continue;
+    }
 
     const conditional = firstMatch(text, CONDITIONAL);
     if (conditional) {

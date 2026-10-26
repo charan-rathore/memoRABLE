@@ -218,8 +218,14 @@ function outstandingWorkClause(
     .filter((t): t is string => Boolean(t));
   const uniqueTickets = [...new Set(tickets.map((t) => t.toUpperCase()))];
 
+  // A statusless card (e.g. a resume project) makes no outstanding-work
+  // claim, so it never feeds the outstanding-work summary.
   const waitingActions = actions.filter(
-    (a) => a.status !== "done" && !/^persona:/i.test(a.task) && !/^user story:/i.test(a.task),
+    (a) =>
+      a.status !== undefined &&
+      a.status !== "done" &&
+      !/^persona:/i.test(a.task) &&
+      !/^user story:/i.test(a.task),
   );
 
   if (uniqueTickets.length > 0) {

@@ -85,7 +85,7 @@ function actionRow(
             html={inlineText(actionStanceLabel(entry)!)}
             fontFamily={f.mono}
             fontSize={scaledPx(10.5, scale)}
-            color={themedStatusColor(entry.status, c.accent)}
+            color={entry.status ? themedStatusColor(entry.status, c.accent) : c.accent}
             letterSpacing="0.1em"
             textAlign="right"
             lineHeight="150%"
@@ -107,5 +107,6 @@ function assignment(entry: ActionEntry): string {
 function actionStanceLabel(entry: ActionEntry): string | null {
   if (/^persona\s*:/i.test(entry.task)) return "Source: Persona";
   if (/^user story\s*:/i.test(entry.task)) return "Source: User Story";
-  return statusLabel(entry.status).toUpperCase();
+  // No source-supported stance → no badge, rather than a manufactured one.
+  return entry.status ? statusLabel(entry.status).toUpperCase() : null;
 }

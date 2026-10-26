@@ -353,6 +353,71 @@ describe("resume fidelity: no fabricated skill callouts or profile framings", ()
     expect(JSON.stringify(actions.entries)).toMatch(/Weather App/);
   });
 
+  it("keeps an explicit Skills line that shares vocabulary with a role bullet", () => {
+    // Exact Codex review case (PR90 discussion_r4373808409): the overlap
+    // cleanup must only drop signals inferred from role bullets, never an
+    // explicit heading-owned skills line.
+    const raw = [
+      "Alex Priya Example", "alex@example.com | +91 9000000000", "",
+      "# Education", "| Some Institute | BE Computer Science | CGPA: 9.10/10 June 2024 |", "",
+      "# Experience", "Acme Analytics | Senior Product Analyst January 2024 – Present",
+      "- Built analytics pipelines using Python SQL JavaScript TypeScript React and Docker", "",
+      "# Skills", "- Languages: Python SQL JavaScript TypeScript React Docker", "",
+      "# Achievements", "- Won the national case competition among 200+ teams",
+    ].join("\n");
+    const r = importSource({ raw, label: "alex-resume.pdf" });
+    if (!r.ok) throw new Error("import failed");
+    const d = r.value;
+    const signals = block<SignalsPayload>(d, "signals");
+    expect(JSON.stringify(signals.entries)).toMatch(/Languages/);
+    expect(JSON.stringify(signals.entries)).toMatch(/TypeScript/);
+    // The role bullet stays under its role too.
+    const timeline = block<TimelinePayload>(d, "timeline");
+    expect(JSON.stringify(timeline.entries)).toMatch(/Built analytics pipelines/);
+  });
+
+  it("keeps the tenure end on an ongoing role instead of dropping Present", () => {
+    // Exact Codex review case (PR90 discussion_r4373808413).
+    const raw = [
+      "Alex Priya Example", "alex@example.com | +91 9000000000", "",
+      "# Education", "| Some Institute | BE Computer Science | CGPA: 9.10/10 June 2024 |", "",
+      "# Experience", "Acme Analytics | Senior Product Analyst January 2024 – Present",
+      "- Built analytics pipelines using Python SQL JavaScript TypeScript React and Docker", "",
+      "# Skills", "Product: Discovery, User Research Analytics: SQL, Excel", "",
+      "# Achievements", "- Won the national case competition among 200+ teams",
+    ].join("\n");
+    const r = importSource({ raw, label: "alex-resume.pdf" });
+    if (!r.ok) throw new Error("import failed");
+    const timeline = block<TimelinePayload>(r.value, "timeline");
+    const acme = timeline.entries.find((e) => /Senior Product Analyst/.test(e.title));
+    expect(acme).toBeDefined();
+    expect(acme!.date).toMatch(/January 2024/);
+    expect(acme!.date).toMatch(/Present/);
+    // Still no invented workflow state.
+    expect(JSON.stringify(acme)).not.toMatch(/"state"/);
+  });
+
+  it("keeps the end month on a closed, unbulleted role header", () => {
+    // The review's unbulleted comma form: "Senior Product Analyst, Acme
+    // Analytics January 2024 – Present" (closed variant here for the end
+    // month), routed through the statement parser rather than grouping.
+    const raw = [
+      "Alex Priya Example", "alex@example.com | +91 9000000000", "",
+      "# Education", "| Some Institute | BE Computer Science | CGPA: 9.10/10 June 2024 |", "",
+      "# Experience", "Senior Product Analyst, Acme Analytics January 2022 – December 2023", "",
+      "# Skills", "Product: Discovery, User Research Analytics: SQL, Excel", "",
+      "# Achievements", "- Won the national case competition among 200+ teams",
+    ].join("\n");
+    const r = importSource({ raw, label: "alex-resume.pdf" });
+    if (!r.ok) throw new Error("import failed");
+    const timeline = block<TimelinePayload>(r.value, "timeline");
+    const acme = timeline.entries.find((e) => /Senior Product Analyst/.test(e.title));
+    expect(acme).toBeDefined();
+    expect(acme!.date).toMatch(/January 2022/);
+    expect(acme!.date).toMatch(/December 2023/);
+    expect(JSON.stringify(acme)).not.toMatch(/"state"/);
+  });
+
   it("joins ordinary syllable wraps while keeping real compounds", () => {
     expect(dehyphenateText("the imple- mentation of")).toBe("the implementation of");
     expect(dehyphenateText("the classi- fication step")).toBe("the classification step");

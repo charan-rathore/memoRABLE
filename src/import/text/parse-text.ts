@@ -431,6 +431,17 @@ export function parseText(input: TextImportInput): Result<MemoryDocument> {
         "entries" in signalsBlock.payload
       ) {
         const tokenize = (t: string): string[] => t.toLowerCase().match(/[a-z0-9]+/g) ?? [];
+        // Lines owned by an explicit Skills heading are source facts, not
+        // inferred duplicates - shared vocabulary with a role bullet must
+        // never delete them.
+        const explicitSkillsTokens = sections
+          .filter(
+            (sec) =>
+              sec.kind === "signals" &&
+              sec.headingText != null &&
+              kindClaimedByHeading(sec.headingText) === "signals",
+          )
+          .flatMap((sec) => sec.lines.map((l) => new Set(tokenize(l.text))));
         const detailTokens = (timelineBlock.payload.entries as TimelineEntry[])
           .flatMap((e) => e.details ?? [])
           .map((d) => new Set(tokenize(d)));
@@ -438,6 +449,11 @@ export function parseText(input: TextImportInput): Result<MemoryDocument> {
           const kept = (signalsBlock.payload.entries as SignalEntry[]).filter((sig) => {
             const tokens = tokenize(`${sig.label} ${sig.value ?? ""} ${sig.implication ?? ""}`);
             if (tokens.length < 5) return true;
+            if (
+              explicitSkillsTokens.some((st) => tokens.every((t) => st.has(t)))
+            ) {
+              return true;
+            }
             const duplicated = detailTokens.some(
               (dt) => tokens.filter((t) => dt.has(t)).length / tokens.length >= 0.6,
             );

@@ -517,7 +517,7 @@ export function detectResumeEntityGroups(
     ];
     out.push({
       entry: {
-        date: r.parsed.date,
+        date: r.parsed.end ? `${r.parsed.date} – ${r.parsed.end}` : r.parsed.date,
         title: r.parsed.title.slice(0, LIMITS.maxFieldLength),
         // No state: a project tenure range is a date fact, not a workflow
         // judgment - the source never says the work is "done" or "on track".
@@ -544,7 +544,7 @@ export function detectResumeEntityGroups(
     const details = rowDetails(detailLines);
     out.push({
       entry: {
-        date: role.date,
+        date: role.end ? `${role.date} – ${role.end}` : role.date,
         title: role.title.slice(0, LIMITS.maxFieldLength),
         // No state: a closed role range ends the tenure, but the badge reads
         // as a delivery judgment the source never makes.

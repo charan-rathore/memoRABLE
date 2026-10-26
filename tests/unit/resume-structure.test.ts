@@ -453,6 +453,113 @@ describe("resume fidelity: no fabricated skill callouts or profile framings", ()
     expect(JSON.stringify(timeline.entries)).not.toMatch(/"state"/);
   });
 
+  it("keeps list-item role headers separate instead of swallowing the next role", () => {
+    // Exact Codex review case (PR90 discussion_r4373966566): role headers
+    // that are themselves list items must not absorb the following role and
+    // its bullets, and each role is emitted exactly once.
+    const raw = [
+      "Alex Priya Example", "alex@example.com | +91 9000000000", "",
+      "# Education", "| Some Institute | BE Computer Science | CGPA: 9.10/10 June 2024 |", "",
+      "# Experience",
+      "- Senior Engineer, Acme January 2024 – Present",
+      "- Led the payments rewrite for 4M users",
+      "- Software Engineer, Beta June 2021 – December 2023",
+      "- Shipped the onboarding revamp across 3 platforms", "",
+      "# Skills", "Product: Discovery, User Research Analytics: SQL, Excel", "",
+      "# Achievements", "- Won the national case competition among 200+ teams",
+    ].join("\n");
+    const r = importSource({ raw, label: "alex-resume.pdf" });
+    if (!r.ok) throw new Error("import failed");
+    const timeline = block<TimelinePayload>(r.value, "timeline");
+    const acme = timeline.entries.find((e) => /Senior Engineer/.test(e.title));
+    const beta = timeline.entries.find((e) => /Software Engineer/.test(e.title));
+    expect(acme).toBeDefined();
+    expect(beta).toBeDefined();
+    expect(acme!.date).toMatch(/Present/);
+    expect(beta!.date).toMatch(/December 2023/);
+    // Ownership: each role keeps only its own accomplishment.
+    expect(JSON.stringify(acme!.details)).toMatch(/payments rewrite/);
+    expect(JSON.stringify(acme!.details)).not.toMatch(/Software Engineer/);
+    expect(JSON.stringify(acme!.details)).not.toMatch(/onboarding revamp/);
+    expect(JSON.stringify(beta!.details)).toMatch(/onboarding revamp/);
+    // Each role appears exactly once.
+    expect(timeline.entries.filter((e) => /Software Engineer, Beta/.test(JSON.stringify(e))).length).toBe(1);
+    expect(JSON.stringify(timeline.entries)).not.toMatch(/"state"/);
+  });
+
+  it("keeps the employer cell in an experience table row", () => {
+    // Exact Codex review case (PR90 discussion_r4373966572):
+    // "| Senior Engineer | Acme Analytics | January 2024 – Present |" must
+    // not collapse to "Senior Engineer" with the employer discarded.
+    const raw = [
+      "Alex Priya Example", "alex@example.com | +91 9000000000", "",
+      "# Education", "| Some Institute | BE Computer Science | CGPA: 9.10/10 June 2024 |", "",
+      "# Experience",
+      "| Senior Engineer | Acme Analytics | January 2024 – Present |",
+      "- Led the payments rewrite for 4M users", "",
+      "# Skills", "Product: Discovery, User Research Analytics: SQL, Excel", "",
+      "# Achievements", "- Won the national case competition among 200+ teams",
+    ].join("\n");
+    const r = importSource({ raw, label: "alex-resume.pdf" });
+    if (!r.ok) throw new Error("import failed");
+    const timeline = block<TimelinePayload>(r.value, "timeline");
+    const entry = timeline.entries.find((e) => /Senior Engineer/.test(e.title));
+    expect(entry).toBeDefined();
+    expect(entry!.title).toMatch(/Acme Analytics/);
+    expect(entry!.date).toMatch(/Present/);
+    expect(JSON.stringify(entry!.details)).toMatch(/payments rewrite/);
+  });
+
+  it("keeps every descriptive cell in related row shapes, never link labels", () => {
+    const raw = [
+      "Alex Priya Example", "alex@example.com | +91 9000000000", "",
+      "# Education", "| Some Institute | BE Computer Science | CGPA: 9.10/10 June 2024 |", "",
+      "# Experience",
+      "| Senior Engineer | Live Demo | Acme Analytics | January 2024 – Present |",
+      "- Led the payments rewrite for 4M users",
+      "| Platform Engineer | Core team June 2021 – December 2023 | Beta Systems |",
+      "- Shipped the onboarding revamp", "",
+      "# Skills", "Product: Discovery, User Research Analytics: SQL, Excel", "",
+      "# Achievements", "- Won the national case competition among 200+ teams",
+    ].join("\n");
+    const r = importSource({ raw, label: "alex-resume.pdf" });
+    if (!r.ok) throw new Error("import failed");
+    const timeline = block<TimelinePayload>(r.value, "timeline");
+    const first = timeline.entries.find((e) => /Senior Engineer/.test(e.title));
+    expect(first).toBeDefined();
+    expect(first!.title).toMatch(/Acme Analytics/);
+    expect(first!.title).not.toMatch(/Live Demo/);
+    const second = timeline.entries.find((e) => /Platform Engineer/.test(e.title));
+    expect(second).toBeDefined();
+    expect(second!.title).toMatch(/Beta Systems/);
+    expect(second!.date).toMatch(/December 2023/);
+  });
+
+  it("stops a table row's details at a following list-item role header", () => {
+    const raw = [
+      "Alex Priya Example", "alex@example.com | +91 9000000000", "",
+      "# Education", "| Some Institute | BE Computer Science | CGPA: 9.10/10 June 2024 |", "",
+      "# Experience",
+      "| Senior Engineer | Acme Analytics | January 2024 – Present |",
+      "- Led the payments rewrite for 4M users",
+      "- Software Engineer, Beta June 2021 – December 2023",
+      "- Shipped the onboarding revamp", "",
+      "# Skills", "Product: Discovery, User Research Analytics: SQL, Excel", "",
+      "# Achievements", "- Won the national case competition among 200+ teams",
+    ].join("\n");
+    const r = importSource({ raw, label: "alex-resume.pdf" });
+    if (!r.ok) throw new Error("import failed");
+    const timeline = block<TimelinePayload>(r.value, "timeline");
+    const acme = timeline.entries.find((e) => /Senior Engineer/.test(e.title));
+    expect(acme).toBeDefined();
+    expect(JSON.stringify(acme!.details)).toMatch(/payments rewrite/);
+    expect(JSON.stringify(acme!.details)).not.toMatch(/Software Engineer/);
+    expect(JSON.stringify(acme!.details)).not.toMatch(/onboarding revamp/);
+    const beta = timeline.entries.find((e) => /Software Engineer/.test(e.title));
+    expect(beta).toBeDefined();
+    expect(JSON.stringify(beta!.details)).toMatch(/onboarding revamp/);
+  });
+
   it("joins ordinary syllable wraps while keeping real compounds", () => {
     expect(dehyphenateText("the imple- mentation of")).toBe("the implementation of");
     expect(dehyphenateText("the classi- fication step")).toBe("the classification step");

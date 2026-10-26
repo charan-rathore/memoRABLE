@@ -410,14 +410,20 @@ export function parseResumeProjectRow(
     if (after.length > 0) trailing = after;
   }
   if (!date) return null;
-  const name = cells.find(
-    (c) => !TENURE_RANGE.test(c) && !LINK_CELL(c) && c.trim().length > 1,
-  );
+  // Every descriptive cell is a fact (role, employer, …): the first names
+  // the entity and the rest stay in the title instead of being discarded.
+  const descriptive = cells
+    .filter((c) => !TENURE_RANGE.test(c) && !LINK_CELL(c) && c.trim().length > 1)
+    .map((c) => c.trim());
+  const name = descriptive[0];
   if (!name) return null;
+  const extra = descriptive.slice(1);
   return {
     date,
     end,
-    title: type ? `${name.trim()} — ${type}` : name.trim(),
+    title: type
+      ? `${name} — ${type}${extra.length > 0 ? `, ${extra.join(", ")}` : ""}`
+      : [name, ...extra].join(", "),
     state,
     ...(trailing ? { trailing } : {}),
   };
@@ -488,7 +494,13 @@ export function collectResumeProjectRows(
       j++;
     }
     const detailLines: GroupLine[] = [];
-    while (j < lines.length && isListLike(lines[j]!.text)) {
+    // A following list item that is itself a recognizable role header owns
+    // its bullets - never absorb it (and its work) into this entity.
+    while (
+      j < lines.length &&
+      isListLike(lines[j]!.text) &&
+      !parseResumeRoleHeader(plainContentOf(lines[j]!.text))
+    ) {
       detailLines.push(lines[j]!);
       j++;
     }
@@ -535,19 +547,26 @@ export function detectResumeEntityGroups(
       consumed: r.consumed,
     });
   }
+  const locallyConsumed = new Set<number>();
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]!;
-    if (alreadyConsumed.has(line.lineNo) || rowLines.has(line.lineNo)) continue;
+    if (alreadyConsumed.has(line.lineNo) || rowLines.has(line.lineNo) || locallyConsumed.has(line.lineNo)) continue;
     const role = parseResumeRoleHeader(plainContentOf(line.text));
     if (!role) continue;
     let j = i + 1;
     const consumed = [line.lineNo];
     const detailLines: GroupLine[] = [];
-    while (j < lines.length && isListLike(lines[j]!.text)) {
+    // List-item role headers are list-like too: stop at the next one so a
+    // role never absorbs a following role and its accomplishments.
+    while (
+      j < lines.length &&
+      isListLike(lines[j]!.text) &&
+      !parseResumeRoleHeader(plainContentOf(lines[j]!.text))
+    ) {
       detailLines.push(lines[j]!);
       j++;
     }
-    if (detailLines.some((d) => alreadyConsumed.has(d.lineNo) || rowLines.has(d.lineNo))) continue;
+    if (detailLines.some((d) => alreadyConsumed.has(d.lineNo) || rowLines.has(d.lineNo) || locallyConsumed.has(d.lineNo))) continue;
     consumed.push(...detailLines.map((d) => d.lineNo));
     const details = rowDetails(detailLines);
     out.push({
@@ -561,6 +580,7 @@ export function detectResumeEntityGroups(
       lineNo: line.lineNo,
       consumed,
     });
+    for (const n of consumed) locallyConsumed.add(n);
   }
   return out;
 }

@@ -304,6 +304,49 @@ describe("resume fidelity: no fabricated skill callouts or profile framings", ()
     expect(JSON.stringify(timeline.entries)).not.toMatch(/Shelter App/);
   });
 
+  it("keeps an undated emphasized project title with bullets as one project card", () => {
+    // Exact Codex review case (PR90 r4373675417): an undated emphasized
+    // project title with accomplishment bullets must survive as one action
+    // card; rerouting the heading-claimed section to timeline would drop it.
+    const raw = [
+      "Alex Priya Example", "alex@example.com | +91 9000000000", "",
+      "# Education", "| Some Institute | BE Computer Science | CGPA: 9.10/10 June 2024 |", "",
+      "# Experience", "Beta Systems | Data Intern June 2023 – December 2023", "",
+      "# Community Projects", "**Shelter App**", "- Built a shelter-finding workflow for 3 local NGOs", "- Improved matching accuracy by 40% through iterative user testing", "",
+      "# Skills", "Product: Discovery, User Research Analytics: SQL, Excel", "",
+      "# Achievements", "- Won the national case competition among 200+ teams",
+    ].join("\n");
+    const r = importSource({ raw, label: "alex-resume.pdf" });
+    if (!r.ok) throw new Error("import failed");
+    const d = r.value;
+    const actions = block<ActionsPayload>(d, "actions");
+    const cards = JSON.stringify(actions.entries);
+    expect(cards).toMatch(/Shelter App/);
+    expect(cards).toMatch(/shelter-finding workflow/);
+    expect(cards).toMatch(/matching accuracy by 40%/);
+    const timeline = block<TimelinePayload>(d, "timeline");
+    expect(JSON.stringify(timeline.entries)).not.toMatch(/Shelter App/);
+  });
+
+  it("keeps a project name containing the word Code out of the link-cell reject", () => {
+    // Exact Codex review case (PR90 r4373675421): | Code Review Assistant |
+    // Internal Tool | June 2024 – Present | must title the card
+    // "Code Review Assistant", not "Internal Tool".
+    const raw = [
+      "Alex Priya Example", "alex@example.com | +91 9000000000", "",
+      "# Education", "| Some Institute | BE Computer Science | CGPA: 9.10/10 June 2024 |", "",
+      "# Experience", "Beta Systems | Data Intern June 2023 – December 2023", "",
+      "# Projects", "| Code Review Assistant | Internal Tool | June 2024 – Present |", "",
+      "# Skills", "Product: Discovery, User Research Analytics: SQL, Excel", "",
+      "# Achievements", "- Won the national case competition among 200+ teams",
+    ].join("\n");
+    const r = importSource({ raw, label: "alex-resume.pdf" });
+    if (!r.ok) throw new Error("import failed");
+    const actions = block<ActionsPayload>(r.value, "actions");
+    expect(JSON.stringify(actions.entries)).toMatch(/Code Review Assistant/);
+    expect(JSON.stringify(actions.entries)).not.toMatch(/"title":"Internal Tool"/);
+  });
+
   it("keeps a project name containing the word App out of the link-cell reject", () => {
     const d = doc();
     const actions = block<ActionsPayload>(d, "actions");
@@ -319,5 +362,8 @@ describe("resume fidelity: no fabricated skill callouts or profile framings", ()
     expect(dehyphenateText("a high- priority queue")).toBe("a high-priority queue");
     expect(dehyphenateText("a fine- tuning run")).toBe("a fine-tuning run");
     expect(dehyphenateText("state- of- the- art results")).toBe("state-of-the-art results");
+    // Exact Codex review cases (PR90 r4373675412).
+    expect(dehyphenateText("the infor- mation age")).toBe("the information age");
+    expect(dehyphenateText("the configu- ration file")).toBe("the configuration file");
   });
 });

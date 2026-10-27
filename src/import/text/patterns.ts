@@ -128,6 +128,13 @@ const DATE_ATOM = [
 ].join("|");
 
 const DATE_TOKEN = new RegExp(`^(${DATE_ATOM})\\b`, "i");
+/** Global scanner to count the date tokens inside one table cell. */
+const DATE_SCAN = new RegExp(DATE_ATOM, "gi");
+/** A trailing status cell whose wording a negation-blind state parse would
+ * misread ("Not done" -> done) or whose condition it cannot honor ("If
+ * approved"): the row keeps its prior behavior instead. */
+const NEGATED_OR_CONDITIONAL_STATUS =
+  /\bnot\b|n't|\bnever\b|\bif\b|\bunless\b|\bwhen\b|\bprovided\b|\bproviding\b|\bassuming\b|\bin\s+case\b/i;
 /** Mid-line dates omit bare month names ("May need…") to avoid false hits. */
 const DATE_EMBEDDED = [
   "(?:today|tomorrow|yesterday|tonight)",
@@ -898,6 +905,52 @@ export function parseTimelineLine(raw: string): TimelineEntry | null {
     if (/^ticket$/i.test(cells[0]!)) return null;
     const state = /priorit/i.test(cells[2] ?? "") ? "planned" : stateFromText(cells[2] ?? "") ?? "planned";
     return { date: cells[0]!, title: cells[1]!, state };
+  }
+  // Dated table rows with the date in a later cell: the cells are
+  // structure — a single pure date cell becomes the date and the
+  // remaining cells join as the title, never the raw pipe markup. Rows
+  // with several date cells keep the existing date-first behavior above
+  // (multi-date precedence is a deferred lane). Conservative declines:
+  // markup naive splitting cannot read (escaped pipes, code spans), ANY
+  // date token anywhere else in the row (the whole row must hold exactly
+  // one), and a negated or conditional trailing status cell all keep the
+  // prior behavior unchanged. The title repair never changes state:
+  // entries keep the prior "planned" rather than parsing status words.
+  if (
+    cells &&
+    cells.length >= 2 &&
+    !(cells[0] && looksLikeDate(cells[0])) &&
+    !/[\\`]/.test(raw)
+  ) {
+    const tokenCount = (cell: string) => cell.match(DATE_SCAN)?.length ?? 0;
+    const totalDateTokens = cells.reduce((n, cell) => n + tokenCount(cell), 0);
+    const dateCells = cells
+      .map((cell, index) => ({ cell: cell.trim(), index }))
+      .filter(
+        ({ cell }) =>
+          cell !== "" &&
+          isEntirelyDate(cell) &&
+          tokenCount(cell) === 1 &&
+          !startsWithQuantityFraction(cell),
+      );
+    const statusCell = (cells[cells.length - 1] ?? "").trim();
+    if (
+      totalDateTokens === 1 &&
+      dateCells.length === 1 &&
+      !NEGATED_OR_CONDITIONAL_STATUS.test(statusCell)
+    ) {
+      const rest = cells.map((c) => c.trim()).filter((c, i) => c !== "" && i !== dateCells[0]!.index);
+      // Ordinary separator: joined cell text is user-visible display text.
+      const title = rest.join(" - ");
+      if (title.length >= 2) {
+        return {
+          date: dateCells[0]!.cell,
+          title,
+          state: "planned",
+          ...inferArtifact(rest.join(". ")),
+        };
+      }
+    }
   }
   const text = (item ? item.text : raw).trim();
 

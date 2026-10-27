@@ -42,11 +42,27 @@ export interface Statement {
   listItem: boolean;
   /** Checkbox state when the line was a task marker ("- [ ]" / "- [x]"). */
   task?: "open" | "done";
+  /**
+   * Timeline-local segmentation only: real character offsets of this
+   * statement's segment inside the original statement text. Present only
+   * when one admitted fused statement was split into self-qualified
+   * segments; lineNo still points at the real source line, never a fake.
+   */
+  segmentStart?: number;
+  segmentEnd?: number;
+  /** The full original statement when this evidence is one segment of it. */
+  statementText?: string;
 }
 
 export interface Inferred<T> {
   value: T;
   evidence: Statement;
+  /**
+   * Timeline-local segmentation only: the single fused admission the
+   * segment group replaces. The merge admits the whole group or this
+   * fallback — never a partial group.
+   */
+  fusedFallback?: T;
 }
 
 export interface InferredSignal {

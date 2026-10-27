@@ -424,7 +424,17 @@ export function readRisk(text: string): InferredRisk | null {
 
   if (consequenceMatch) {
     observation = unpunctuated(flat.slice(0, consequenceMatch.index));
-    consequence = sentenceCase(clampWords(unpunctuated(consequenceMatch[1]!), 18));
+    // A split that lands mid-verb-phrase strands an auxiliary on the
+    // observation ("Failure to comply will", "Access may not"). Every
+    // stranded modal carries source meaning - futurity, obligation,
+    // uncertainty, negation - that a "causing" rendering cannot keep, so
+    // the split is always declined and the sentence stays whole.
+    const stranded = /\s+(?:(?:will|would|shall|should|can|could|may|might|must)(?:\s+not|n['’]t)?|(?:wo|ca|sha)n['’]t)$/i.exec(observation);
+    if (stranded) {
+      observation = flat;
+    } else {
+      consequence = sentenceCase(clampWords(unpunctuated(consequenceMatch[1]!), 18));
+    }
   }
   if (whyMatch && whyMatch.index > 0) {
     const reason = sentenceCase(clampWords(unpunctuated(whyMatch[1]!), 18));

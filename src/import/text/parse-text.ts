@@ -1347,13 +1347,80 @@ function mergeRisks(built: Collected<RiskEntry>, ctx: BuildContext, notes: strin
 function mergeTimeline(built: Collected<TimelineEntry>, ctx: BuildContext, notes: string[]): void {
   if (ctx.understanding.archetype.timelineMode === "none") return;
   let added = 0;
-  for (const candidate of ctx.understanding.timeline) {
+  // Segment identity stays timeline-local: real line number plus the real
+  // segment offset. A line claimed by an explicit entry or a non-segment
+  // candidate still blocks later candidates exactly as before.
+  const segmentClaims = new Set<string>();
+  const processedGroups = new Set<number>();
+  const candidates = ctx.understanding.timeline;
+  for (const candidate of candidates) {
     const { value, evidence } = candidate;
+    if (evidence.segmentStart !== undefined) {
+      // A segment group is admitted atomically: every segment or the single
+      // fused fallback — never a partial replacement.
+      if (processedGroups.has(evidence.lineNo)) continue;
+      processedGroups.add(evidence.lineNo);
+      const group = candidates.filter(
+        (c) => c.evidence.segmentStart !== undefined && c.evidence.lineNo === evidence.lineNo,
+      );
+      const fused = group[0]?.fusedFallback;
+      const fits =
+        added + group.length <= INFERRED_BUDGET &&
+        built.entries.length + group.length <= LIMITS.maxEntriesPerBlock;
+      const lineClaimed =
+        alreadyUsed(evidence.lineNo, built) &&
+        ![...segmentClaims].some((k) => k.startsWith(`${evidence.lineNo}:`));
+      const allClear =
+        fits &&
+        !lineClaimed &&
+        fused !== undefined &&
+        group.every(
+          (c) =>
+            !built.entries.some((e) => e.date === c.value.date && saysTheSame(e.title, c.value.title)),
+        );
+      if (allClear) {
+        for (const c of group) {
+          built.entries.push({
+            date: c.value.date,
+            title: c.value.title,
+            state: c.value.state ?? "planned",
+            ...(c.value.produces ? { produces: c.value.produces } : {}),
+            ...(c.value.requires ? { requires: c.value.requires } : {}),
+          });
+          built.lineOf.push(evidence.lineNo);
+          segmentClaims.add(`${evidence.lineNo}:${c.evidence.segmentStart!}`);
+          added++;
+        }
+        dropNote(notes, evidence.statementText ?? evidence.text);
+        continue;
+      }
+      // Fused fallback under the unchanged single-candidate rules.
+      if (fused === undefined) continue;
+      const existing = built.entries.findIndex((_, i) => built.lineOf[i] === evidence.lineNo);
+      if (existing >= 0) continue;
+      if (alreadyUsed(evidence.lineNo, built)) continue;
+      if (added >= INFERRED_BUDGET) continue;
+      if (built.entries.length >= LIMITS.maxEntriesPerBlock) break;
+      if (built.entries.some((e) => e.date === fused.date && saysTheSame(e.title, fused.title))) {
+        continue;
+      }
+      built.entries.push({
+        date: fused.date,
+        title: fused.title,
+        state: fused.state ?? "planned",
+        ...(fused.produces ? { produces: fused.produces } : {}),
+        ...(fused.requires ? { requires: fused.requires } : {}),
+      });
+      built.lineOf.push(evidence.lineNo);
+      dropNote(notes, evidence.statementText ?? evidence.text);
+      added++;
+      continue;
+    }
     const existing = built.entries.findIndex((_, i) => built.lineOf[i] === evidence.lineNo);
     if (existing >= 0) continue;
+    if (alreadyUsed(evidence.lineNo, built)) continue;
     if (added >= INFERRED_BUDGET) continue;
     if (built.entries.length >= LIMITS.maxEntriesPerBlock) break;
-    if (alreadyUsed(evidence.lineNo, built)) continue;
     if (built.entries.some((e) => e.date === value.date && saysTheSame(e.title, value.title))) {
       continue;
     }

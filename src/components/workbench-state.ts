@@ -164,7 +164,14 @@ export function workbenchReducer(state: WorkbenchState, action: WorkbenchAction)
     case "blockSelected":
       return { ...state, selectedBlockId: action.blockId };
     case "sourceEdited":
-      return { ...state, sourceText: action.sourceText };
+      // Hand-edited or pasted text is no longer the file or example the
+      // label names: provenance must follow the actual source. The file
+      // flows re-label on their own "imported" dispatch right after this.
+      return {
+        ...state,
+        sourceText: action.sourceText,
+        sourceLabel: action.sourceText.trim().length > 0 ? "Pasted notes" : "",
+      };
     case "published":
       return { ...state, publishedAt: action.at };
     case "publishClosed":

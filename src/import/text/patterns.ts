@@ -849,11 +849,14 @@ const LEG_LABEL = /^(departure|arrival|depart(?:s|ing)?|arriv(?:e|es|al|ing)?)\s
 
 /**
  * Title remainder once a mid-sentence date is lifted out. The date's lead-in
- * preposition ("on", "by", "in"…) goes with it when what follows is the end,
- * punctuation, or another preposition - a colon starts a new segment, so a
- * preposition before it governed the vanished date ("Late fee after <date>:
- * Rs 1,300" keeps no "after"). No doubled commas or stranded punctuation are
- * left behind.
+ * preposition ("on", "by", "in"…) or connector ("or", "and", "nor", "for")
+ * goes with it when what follows is the end, punctuation, or another
+ * preposition - a colon starts a new segment, so a word before it governed
+ * the vanished date ("Late fee after <date>: Rs 1,300" keeps no "after";
+ * "due at 20,000 km or <date>, whichever is earlier" keeps no dangling
+ * "or"). A connector that joins surviving text is untouched ("Pay rent or
+ * utilities on <date>" keeps "rent or utilities"). No doubled commas or
+ * stranded punctuation are left behind.
  */
 export function titleAroundRemovedDate(text: string, index: number, length: number): string {
   const after = text.slice(index + length);
@@ -870,7 +873,10 @@ export function titleAroundRemovedDate(text: string, index: number, length: numb
   const before = strippable
     ? text
         .slice(0, index)
-        .replace(/\s+(?:on|by|from|at|in|before|after|until|to)\s*$/i, "")
+        .replace(
+          /\s+(?:on|by|from|at|in|before|after|until|to|or|and|nor|for)\s*$/i,
+          "",
+        )
     : text.slice(0, index);
   return `${before} ${after}`
     .replace(/\s+/g, " ")

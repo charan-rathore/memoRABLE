@@ -5,7 +5,7 @@ import type {
   SignalEntry,
   TimelineEntry,
 } from "@/domain/memory/schema";
-import { isDecorativeLine, isTableSeparator, plainContentOf, splitListItem } from "@/import/text/patterns";
+import { isDecorativeLine, isTableSeparator, plainContentOf, splitListItem, splitTableRow } from "@/import/text/patterns";
 import { kindClaimedByHeading } from "@/import/text/sections";
 import { classifyArchetype, type ArchetypeResult } from "./archetype";
 import { extractConcepts, type Concept } from "./concepts";
@@ -329,16 +329,50 @@ function dedupeExact<T>(items: readonly T[], textOf: (item: T) => string): T[] {
 }
 
 /** The document's own first real paragraph, used only when composition fails. */
+/**
+ * Flag the lines that belong to a real markdown table block: a row line
+ * immediately followed by a separator row (the header), and the
+ * consecutive row lines that follow the separator. Anything else carrying
+ * a "|" is ordinary prose and must not be skipped. Local to the opening
+ * scan; table admission elsewhere is unchanged.
+ */
+function tableBlockRowFlags(lines: readonly { text: string }[]): boolean[] {
+  const flags = new Array<boolean>(lines.length).fill(false);
+  let inTable = false;
+  for (let i = 0; i < lines.length; i++) {
+    const text = lines[i]!.text;
+    if (isTableSeparator(text)) continue;
+    if (!inTable) {
+      if (splitTableRow(text) && isTableSeparator(lines[i + 1]?.text ?? "")) {
+        flags[i] = true;
+        inTable = true;
+      }
+      continue;
+    }
+    if (splitTableRow(text)) {
+      flags[i] = true;
+      continue;
+    }
+    inTable = false;
+  }
+  return flags;
+}
+
 function firstProseParagraph(sections: readonly UnderstandingSection[]): string {
   for (const section of sections) {
     const prose: string[] = [];
-    for (const line of section.lines) {
-      const text = line.text;
+    const tableRows = tableBlockRowFlags(section.lines);
+    for (let i = 0; i < section.lines.length; i++) {
+      const text = section.lines[i]!.text;
       if (text.trim() === "") {
         if (prose.length > 0) break;
         continue;
       }
-      if (splitListItem(text) || isTableSeparator(text) || isDecorativeLine(text)) {
+      // Table rows in a real table block are structure, not prose: a
+      // header row must never become the document's opening
+      // ("| Phase | Deliverable | ..."). A lone "|" in ordinary prose
+      // (bitwise "a | b", math "|x|", a shell pipeline) is not a table.
+      if (splitListItem(text) || tableRows[i] || isTableSeparator(text) || isDecorativeLine(text)) {
         if (prose.length > 0) break;
         continue;
       }

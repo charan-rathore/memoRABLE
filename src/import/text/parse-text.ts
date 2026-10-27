@@ -54,6 +54,8 @@ import {
   isDecisionChrome,
   sameDecision,
   saysTheSame,
+  sentenceCase,
+  shortenWholeSentences,
 } from "@/understanding/language";
 import { LIMITS } from "@/domain/memory/limits";
 import { capExcerpt } from "../json/import-json";
@@ -1490,7 +1492,14 @@ function buildSnapshotPayload(
   // summary. Recall goes first; the original prose moves down into the notes
   // where nothing is lost and nothing pretends to be a memory.
   const opening = paragraphs.shift() ?? "";
-  const summary = recall?.summary || opening;
+  // Recall's summary can be honestly empty: an overlong opening is omitted
+  // whole rather than cut mid-sentence. The fallback must stay bounded
+  // without undoing the omission — no unbounded opening, and no word-count
+  // clamp either: cutting a conditional authorization after "only after
+  // legal counsel has …" reads as unconditional. Whole sentences within the
+  // same 22-word budget recall gives an opening-derived framing, or the
+  // honest empty-summary line below. The full text stays in the notes.
+  const summary = recall?.summary || sentenceCase(shortenWholeSentences(opening, 22));
   if (recall?.composed && opening !== "" && notes.length < LIMITS.maxNotesPerBlock) {
     notes.push(opening);
     ctx.keptOnPurpose += 1;

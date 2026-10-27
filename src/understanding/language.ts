@@ -321,6 +321,56 @@ export function shorten(text: string, maxWords: number): string {
   return unpunctuated(out);
 }
 
+const SENTENCE_ABBREV = new Set([
+  "dr", "mr", "mrs", "ms", "prof", "sr", "jr", "st", "vs", "etc", "rs",
+  "no", "fig", "dept", "est", "approx", "jan", "feb", "mar", "apr", "jun",
+  "jul", "aug", "sep", "sept", "oct", "nov", "dec",
+  "incl", "corp", "co", "ltd", "inc", "gov", "ave", "avg", "min", "max",
+  "al", "cf", "esp", "ca",
+]);
+
+/**
+ * Shorten for a summary at sentence boundaries: whole sentences that fit the
+ * budget, never a sentence cut mid-way. A cut tail ("Return rate worsened",
+ * "Continue the nasal", "do not use if you") reads as the whole claim — the
+ * numbers, the instruction, or the condition simply vanish. A first sentence
+ * that alone exceeds the budget is omitted whole for the same reason.
+ */
+export function shortenWholeSentences(text: string, maxWords: number): string {
+  const trimmed = text.trim();
+  if (wordCount(trimmed) <= maxWords) return unpunctuated(trimmed);
+  const sentences: string[] = [];
+  let start = 0;
+  const boundary = /[.!?]+\s+/g;
+  let m: RegExpExecArray | null;
+  while ((m = boundary.exec(trimmed)) !== null) {
+    const punct = m[0].match(/^[.!?]+/)![0].length;
+    const token = trimmed.slice(start, m.index).match(/([\p{L}]+)$/u)?.[1]?.toLowerCase() ?? "";
+    // An abbreviation or a single initial ends no sentence: "Dr. Rao",
+    // "S. Iyer", "e.g. entries" keep their boundary in the middle of one.
+    if (SENTENCE_ABBREV.has(token) || /^[\p{L}]$/u.test(token)) continue;
+    sentences.push(trimmed.slice(start, m.index + punct));
+    start = m.index + m[0].length;
+  }
+  sentences.push(trimmed.slice(start));
+  let out = "";
+  for (const sentence of sentences) {
+    const candidate = out === "" ? sentence : `${out} ${sentence}`;
+    // Contiguous prefix, whole sentences only: stop at the first sentence
+    // that does not fit. Skipping ahead would pack later sentences without
+    // their context — a dependent instruction ("Only then continue the
+    // medication") must never appear without its prerequisite, and good
+    // news must never be packed after dropping the bad.
+    if (wordCount(candidate) > maxWords) break;
+    out = candidate;
+  }
+  // Whole or omitted, first sentence too: an overlong opening is dropped
+  // whole rather than cut at a comma or dash — a cut clinical condition
+  // ("do not use if you …") reads as the complete instruction.
+  if (out === "") return "";
+  return unpunctuated(out);
+}
+
 const SPELLED = [
   "no", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten",
   "eleven", "twelve",

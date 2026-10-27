@@ -108,6 +108,10 @@ const DATE_ATOM = [
   `H[12](?:[ /]?${YEAR})?`,
   `FY\\s*'?\\d{2,4}`,
   // Calendar forms already supported
+  // Day-first ("18 November 2026", "7 December") - the dominant
+  // Indian/international shape - sits before the month-first forms so the
+  // whole span is one token and the day is never orphaned in the title.
+  `\\d{1,2}\\s+${MONTH}\\.?(?:\\s*,?\\s*${YEAR})?`,
   `${MONTH}\\.?\\s+\\d{1,2}(?:,\\s*${YEAR})?`,
   `${MONTH}\\.?\\s+${YEAR}`,
   `${MONTH}\\.?`,
@@ -133,6 +137,7 @@ const DATE_EMBEDDED = [
   `${MONTH}\\.?\\s*[-–—]\\s*${MONTH}\\.?(?:\\s+${YEAR})?`,
   `H[12](?:[ /]?${YEAR})?`,
   `FY\\s*'?\\d{2,4}`,
+  `\\d{1,2}\\s+${MONTH}\\.?(?:\\s*,?\\s*${YEAR})?`,
   `${MONTH}\\.?\\s+\\d{1,2}(?:,\\s*${YEAR})?`,
   `${MONTH}\\.?\\s+${YEAR}`,
   `Q[1-4](?:[ /]?${YEAR})?`,
@@ -150,11 +155,14 @@ const DATE_ENTIRE = new RegExp(`^(?:${DATE_EMBEDDED})$`, "i");
 
 /** True when the whole string is a date phrase ("January 2024"), unlike a name that starts with one ("May Lee"). */
 export function isEntirelyDate(text: string): boolean {
-  return DATE_ENTIRE.test(text.trim());
+  const trimmed = text.trim();
+  return DATE_ENTIRE.test(trimmed) && !structurallyUnusableDate(trimmed, 0, trimmed.length);
 }
 
 export function looksLikeDate(text: string): boolean {
-  return DATE_TOKEN.test(text.trim());
+  const trimmed = text.trim();
+  const match = DATE_TOKEN.exec(trimmed);
+  return match !== null && !unusableDateToken(trimmed, 0, match[0].length);
 }
 
 /** True when the match at `index` is really the numeric tail of a
@@ -209,6 +217,254 @@ function startsWithQuantityFraction(text: string): boolean {
   return m !== null && isQuantityFraction(text, 0, m[0].length);
 }
 
+const MONTH_LENGTHS: Record<string, number> = {
+  jan: 31, feb: 28, mar: 31, apr: 30, may: 31, jun: 30,
+  jul: 31, aug: 31, sep: 30, oct: 31, nov: 31, dec: 31,
+};
+
+function isLeapYear(year: number): boolean {
+  return (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+}
+
+/**
+ * A matched token with a day number must name a day that exists: "31
+ * February 2026", "32 January 2026", "0 May 2026" and "29 February 2027"
+ * are not dates, whatever the pattern matched. February 29 without a year
+ * cannot be disproved, so it stands; with a year it needs a leap year.
+ */
+function invalidCalendarDate(token: string): boolean {
+  const trimmed = token.trim();
+  const dayFirst = /^(\d{1,2})\s+([A-Za-z]+)\.?(?:\s*,?\s*((?:19|20)\d{2}))?$/.exec(trimmed);
+  const monthFirst = /^([A-Za-z]+)\.?\s+(\d{1,2})(?:,\s*((?:19|20)\d{2}))?$/.exec(trimmed);
+  let dayText: string | undefined;
+  let monthText: string | undefined;
+  let yearText: string | undefined;
+  if (dayFirst) {
+    [, dayText, monthText, yearText] = dayFirst;
+  } else if (monthFirst) {
+    [, monthText, dayText, yearText] = monthFirst;
+  } else {
+    return false;
+  }
+  const length = MONTH_LENGTHS[monthText!.toLowerCase().replace(/\.$/, "").slice(0, 3)];
+  if (length === undefined) return false;
+  const day = Number(dayText);
+  if (day < 1) return true;
+  if (day <= length) return false;
+  if (day === 29 && monthText!.toLowerCase().startsWith("feb")) {
+    return yearText !== undefined && !isLeapYear(Number(yearText));
+  }
+  return true;
+}
+
+/**
+ * A day-first span ("31 May", "18 November 2026") is a date only on
+ * structural evidence, never on the token alone. The evidence is bounded
+ * and positional: a label colon ("Check-in: 7 December after 14:00"), a
+ * weekday prefix ("Sunday, 7 December 2026"), or a date-governing
+ * preposition right before it ("by 15 June 2027", "due 15 January 2027",
+ * "after 18 November 2026"); at the very start of a line, closing
+ * punctuation or the line end must pin it down ("19 October: picked up").
+ * Mid-line without such a lead-in, the span must carry its year and be
+ * closed by punctuation or the line end ("given 12 September 2026, no
+ * reactions").
+ * Anything else - a quantity, a version number, a modal "may" - keeps its
+ * words: "We sold 31 May products", "Version 1 May, improve performance",
+ * "We shipped 18 November 2026 widgets". Misses fail toward no date,
+ * never toward consumed words.
+ */
+const DAY_FIRST_SHAPE = new RegExp(`^\\d{1,2}\\s+${MONTH}\\.?(?:\\s*,?\\s*${YEAR})?$`, "i");
+// Positional evidence for a day-first span. A trailing closure (punctuation
+// or the line end) pins a year-ful span anywhere ("given 12 September 2026,
+// no reactions"; "Delivery by 18 November 2026") and a year-less span at the
+// start of a line ("19 October:", "2 October, Swiggy"). An unclosed span
+// needs an explicit bounded date label: a bare colon, preposition, weekday,
+// or line position alone is not evidence, so "Version: 1 may improve
+// performance", "Change from 1 May improve throughput", "We shipped 18
+// November 2026 widgets", and "We sold 31 May. Revenue rose" are never
+// dates. Obligation lines are governed by their label, so
+// parseObligationDateLine pins a calendar-valid head date without a closure.
+// Misses fail toward no date, never toward consumed words.
+const DATE_LABEL_COLON =
+  /(?:^|[\s(])(?:(?:payment\s+)?due(?:\s+date)?|dated|date|effective(?:\s+date)?|invoice\s+date|as\s+of|check-in|check-out|departure|arrival|deadline)\s*:\s*$/i;
+const LINE_CLOSURE = /^\s*[,;.:\-—–)]/;
+const CLOCK_SUFFIX = /^\s+at\s+(\d{2}):(\d{2})/i;
+
+/** A complete, valid clock closes a year-bearing day-first date the way
+ * punctuation does: "Return flight 17 November 2026 at 19:45". The clock
+ * must be exactly two-digit HH:MM, a real time (00:00-23:59), and a
+ * standalone token: it ends the line or meets the ordinary punctuation
+ * closure, where the punctuation is not itself a numeric extension —
+ * seconds ("06:10:30"), malformed colon tails ("06:10:99", "06:10:",
+ * "06:10:1234"), decimals ("06:10.123"), and ranges ("06:10-99") never
+ * close, while "06:10, from HYD" and "06:10: approval needed" do. A
+ * location, AM/PM, a timezone, a partial clock, or any further words
+ * after the clock leave the date unclosed. The clock text is never
+ * consumed here; it stays in the surrounding words. */
+function closedByClock(after: string): boolean {
+  const clock = CLOCK_SUFFIX.exec(after);
+  if (!clock) return false;
+  if (Number(clock[1]) > 23 || Number(clock[2]) > 59) return false;
+  const rest = after.slice(clock[0].length);
+  if (/^\s*$/.test(rest)) return true;
+  if (!LINE_CLOSURE.test(rest)) return false;
+  // The boundary is inspected with whitespace normalized: spacing never
+  // turns a numeric continuation into prose. A digit after the clock
+  // punctuation, however spaced, is a malformed numeric extension
+  // ("06:10: 30", "06:10 :99", "06:10 .123", "06:10 -99"), and a
+  // dangling terminal colon is malformed with or without a space
+  // ("06:10:", "06:10 :"); neither closes the date. Punctuation followed
+  // by prose still closes under the original contract. Source and title
+  // are never normalized.
+  if (/^\s*:\s*$/.test(rest)) return false;
+  return !/^\s*[,;.:\-—–)]\s*\d/.test(rest);
+}
+
+function dayFirstWithoutEvidence(text: string, index: number, length: number): boolean {
+  const token = text.slice(index, index + length);
+  if (!DAY_FIRST_SHAPE.test(token)) return false;
+  // An explicit bounded date label governs its span, closed or not:
+  // "Check-in: 7 December, after 14:00".
+  if (DATE_LABEL_COLON.test(text.slice(0, index))) return false;
+  const after = text.slice(index + length);
+  const closed = /^\s*$/.test(after) || LINE_CLOSURE.test(after);
+  if (new RegExp(`${YEAR}$`).test(token)) return !(closed || closedByClock(after));
+  if (closed) return index !== 0;
+  return true;
+}
+
+/** A bare quarter/half token with no year ("Q3", "H2"): the weakest date. */
+const BARE_PERIOD = /^(?:Q[1-4]|H[12])$/i;
+
+/** The calendar-anchored subset of DATE_ATOM: digit-bearing tokens that
+ * name a specific usable calendar date or month — day+month forms,
+ * month+year, ISO dates, and numeric day/month or month/year forms.
+ * Everything else people write is deliberately excluded: relative phrases
+ * ("in 2 weeks", "next week"), numbered cycles ("Week 4", "Sprint 5"),
+ * fiscal and period tokens ("FY26", "H2 2026", "Q4 2027"), month ranges,
+ * bare years, and bare months (a bare month is never returned mid-line and
+ * must not become a candidate: "May Lee" and modal "may" are not dates). */
+const CALENDAR_DATE = new RegExp(
+  `^(?:` +
+    `\\d{1,2}\\s+${MONTH}\\.?(?:\\s*,?\\s*${YEAR})?` +
+    `|${MONTH}\\.?\\s+\\d{1,2}(?:,\\s*${YEAR})?` +
+    `|${MONTH}\\.?\\s+${YEAR}` +
+    `|${YEAR}-\\d{2}-\\d{2}` +
+    `|(?:0?[1-9]|1[0-2])[\\/-]${YEAR}` +
+    `|\\d{1,2}\\/\\d{1,2}(?:\\/\\d{2,4})?` +
+  `)$`,
+  "i",
+);
+
+/** invalidCalendarDate covers the named-month forms; the ISO and numeric
+ * shapes need the same rigor before one can be promoted over a period
+ * token — "2026-02-31" and "32/13/2026" are not dates. */
+function impossibleCalendarDate(token: string): boolean {
+  const iso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(token);
+  if (iso) {
+    const year = Number(iso[1]);
+    const month = Number(iso[2]);
+    const day = Number(iso[3]);
+    if (month < 1 || month > 12 || day < 1) return true;
+    const lengths = [31, isLeapYear(year) ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+    return day > lengths[month - 1]!;
+  }
+  const numeric = /^(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?$/.exec(token);
+  if (numeric) {
+    const first = Number(numeric[1]);
+    const second = Number(numeric[2]);
+    // Ambiguous order: the second field must be a possible month, the
+    // first a possible day; when the first cannot be a month it is the
+    // day, so it is checked against that month's length. Yearless dates
+    // are checked against the leap-permissive length, so "31/04" and
+    // "30/02" are impossible every year while "29/02" stays possible.
+    if (second < 1 || second > 12 || first < 1 || first > 31) return true;
+    if (first > 12) {
+      const year = numeric[3] ? Number(numeric[3].length === 2 ? `20${numeric[3]}` : numeric[3]) : undefined;
+      const feb = year === undefined ? 29 : isLeapYear(year) ? 29 : 28;
+      const lengths = [31, feb, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+      return first > lengths[second - 1]!;
+    }
+  }
+  return false;
+}
+
+/** A fiscal token ("FY 2025", "FY26") or a bare year ("2027") is a
+ * period, not a usable calendar date — the same weakest-date class as a
+ * bare quarter/half. Written alone it stays the date ("FY26 results
+ * declared", "Target 2027 for the full rollout"); it never outranks a
+ * specific calendar date later in the same line. */
+const FISCAL_YEAR = /^FY\s*(?:(?:19|20)\d{2}|\d{2})$/i;
+const BARE_YEAR_TOKEN = new RegExp(`^${YEAR}$`);
+function weakTimelineFirstDate(token: string): boolean {
+  const t = token.trim();
+  return BARE_PERIOD.test(t) || FISCAL_YEAR.test(t) || BARE_YEAR_TOKEN.test(t);
+}
+
+/** Timeline date selection: a weak token never outranks a specific
+ * calendar date later in the same line — "File Q3 GST by 10 November 2026"
+ * is due 10 November 2026 and the quarter stays in the title as words;
+ * "Interest for FY 2025-26 at 8.25% credited October 10, 2026" is dated
+ * October 10, 2026 and the whole fiscal range stays in the title as words
+ * (admitting "FY 2025" also left the "-26" residue dangling). A later
+ * token counts only when it matches CALENDAR_DATE exactly and is a
+ * possible calendar date: relative phrases, numbered cycles, fiscal/period
+ * tokens, bare months, bare years, and impossible dates ("2026-02-31",
+ * "32/13/2026") never displace the first token, and a line-leading marker
+ * ("Q3: …") is untouched here. */
+function findTimelineDateToken(text: string): { date: string; index: number; length: number } | null {
+  const first = findDateToken(text);
+  if (!first || !weakTimelineFirstDate(first.date)) return first;
+  let offset = first.index + first.length;
+  while (offset < text.length) {
+    const next = findDateToken(text.slice(offset));
+    if (!next) break;
+    const candidate = {
+      date: next.date,
+      index: offset + next.index,
+      length: next.length,
+    };
+    const candidateText = candidate.date.trim();
+    if (CALENDAR_DATE.test(candidateText) && !impossibleCalendarDate(candidateText)) {
+      return candidate;
+    }
+    offset = candidate.index + candidate.length;
+  }
+  return first;
+}
+
+/**
+ * A 4+ digit run right after a year-less day-bearing token is the author's
+ * year, whether or not it parsed ("29 February 2100", "18 November
+ * 20261", "18 November 2026abc"). Never silently drop it and keep the day.
+ */
+const YEARLESS_DAY_BEARING = new RegExp(
+  `^(?:\\d{1,2}\\s+${MONTH}\\.?|${MONTH}\\.?\\s+\\d{1,2})$`,
+  "i",
+);
+const YEAR_LIKE_AFTER = /^\s*,?\s*\d{4}\w*/;
+
+/** Position-independent guards every date-token consumer shares: not a
+ * measured quantity ("1/2 teaspoon"), a real calendar date, and no dropped
+ * bare year after a year-less span ("18 November 20261"). */
+function structurallyUnusableDate(text: string, index: number, length: number): boolean {
+  if (isQuantityFraction(text, index, length)) return true;
+  const token = text.slice(index, index + length);
+  if (invalidCalendarDate(token)) return true;
+  return (
+    YEARLESS_DAY_BEARING.test(token) &&
+    YEAR_LIKE_AFTER.test(text.slice(index + length))
+  );
+}
+
+/** Shared guard for every date-token consumer. */
+function unusableDateToken(text: string, index: number, length: number): boolean {
+  return (
+    structurallyUnusableDate(text, index, length) ||
+    dayFirstWithoutEvidence(text, index, length)
+  );
+}
+
 /** Find a date/time phrase anywhere in text; returns the matched span. */
 export function findDateToken(text: string): { date: string; index: number; length: number } | null {
   const anywhere = new RegExp(DATE_ANYWHERE.source, "gi");
@@ -217,6 +473,7 @@ export function findDateToken(text: string): { date: string; index: number; leng
     if (insideIdentifier(text, match.index)) continue;
     if (isQuantityFraction(text, match.index, match[0].length)) continue;
     if (isPhoneLikeNumber(text, match.index, match[0])) continue;
+    if (unusableDateToken(text, match.index, match[0].length)) continue;
     return {
       date: match[1]!.replace(/\.$/, "").replace(/\s+/g, " ").trim(),
       index: match.index,
@@ -585,15 +842,18 @@ const ORDINAL_DATE =
 
 /** Invoice / policy obligation date labels. */
 const OBLIGATION_DATE_LABEL =
-  /^(due(?:\s+date)?|dated|date|effective(?:\s+date)?|invoice\s+date|payment\s+due|as\s+of)\s*[:—–-]?\s*(.+)$/i;
+  /^(due(?:\s+date)?|dated|date|effective(?:\s+date)?|invoice\s+date|payment\s+due(?:\s+date)?|as\s+of)\s*[:—–-]?\s*(.+)$/i;
 
 /** Ticket / itinerary leg labels. */
 const LEG_LABEL = /^(departure|arrival|depart(?:s|ing)?|arriv(?:e|es|al|ing)?)\s*[:—–-]?\s*(.+)$/i;
 
 /**
  * Title remainder once a mid-sentence date is lifted out. The date's lead-in
- * preposition ("on", "by", "in"…) goes with it, and no doubled commas or
- * stranded punctuation are left behind.
+ * preposition ("on", "by", "in"…) goes with it when what follows is the end,
+ * punctuation, or another preposition - a colon starts a new segment, so a
+ * preposition before it governed the vanished date ("Late fee after <date>:
+ * Rs 1,300" keeps no "after"). No doubled commas or stranded punctuation are
+ * left behind.
  */
 export function titleAroundRemovedDate(text: string, index: number, length: number): string {
   const after = text.slice(index + length);
@@ -605,7 +865,7 @@ export function titleAroundRemovedDate(text: string, index: number, length: numb
   const rest = after.trimStart();
   const strippable =
     rest === "" ||
-    /^[,;.]/.test(rest) ||
+    /^[,;.:]/.test(rest) ||
     /^(?:on|by|from|at|in|before|after|until|to|for|with)\b/i.test(rest);
   const before = strippable
     ? text
@@ -614,9 +874,15 @@ export function titleAroundRemovedDate(text: string, index: number, length: numb
     : text.slice(0, index);
   return `${before} ${after}`
     .replace(/\s+/g, " ")
-    .replace(/\s+([,;:])/g, "$1")
+    .replace(/\s+([,;:.])/g, "$1")
     .replace(/,\s*,+/g, ",")
-    .replace(/^\s*[:—–-]\s*|\s*[:—–-]\s*$/g, "")
+    // "Check-in: <date>, after 14:00" reads "Check-in: after 14:00".
+    .replace(/([:;]),/g, "$1")
+    .replace(/^[\s,.:—–-]+|[\s,:—–-]+$/g, "")
+    // A separator left right before the line's terminal period is residue of
+    // the removed date: "Next due: <date>." reads "Next due.", never "Next
+    // due:.".
+    .replace(/([:;,—–-])\.$/, ".")
     .trim();
 }
 
@@ -662,12 +928,16 @@ export function parseTimelineLine(raw: string): TimelineEntry | null {
   const dateMatch = DATE_TOKEN.exec(text);
   let date: string;
   let rest: string;
-  if (dateMatch && !isQuantityFraction(text, 0, dateMatch[0].length)) {
+  if (
+    dateMatch &&
+    !isQuantityFraction(text, 0, dateMatch[0].length) &&
+    !unusableDateToken(text, 0, dateMatch[0].length)
+  ) {
     date = dateMatch[1]!.replace(/\.$/, "").replace(/\s+/g, " ").trim();
-    rest = text.slice(dateMatch[0].length).replace(/^\s*[:—–-]\s*/, "").trim();
+    rest = text.slice(dateMatch[0].length).replace(/^\s*[:—–,-]\s*/, "").trim();
   } else {
     // "Ship the beta next week" — the time phrase sits in the sentence.
-    const found = findDateToken(text);
+    const found = findTimelineDateToken(text);
     if (!found) return null;
     date = found.date;
     rest = titleAroundRemovedDate(text, found.index, found.length);
@@ -697,10 +967,23 @@ export function parseObligationDateLine(text: string): TimelineEntry | null {
   if (!match) return null;
   const label = match[1]!.trim();
   const remainder = match[2]!.trim();
-  const found = findDateToken(remainder) ?? (looksLikeDate(remainder) && !startsWithQuantityFraction(remainder) ? { date: remainder, index: 0, length: remainder.length } : null);
+  // The label is the date evidence for the remainder's head: a calendar-valid
+  // date there needs no closure ("Date: 2 December 2026 and 3 December 2026"
+  // lifts the first date). A later date uses the ordinary guarded scan.
+  const head = DATE_TOKEN.exec(remainder);
+  // The head shortcut needs an unambiguous calendar head. A bare month name
+  // carries no digit and can be a modal instead ("Payment due: May be
+  // extended to November 10, 2026"); the guarded scan omits bare months for
+  // exactly this reason, so leave those to it.
+  const found = (head && /\d/.test(head[1]!) && !structurallyUnusableDate(remainder, 0, head[0].length) ? { date: head[1]!, index: 0, length: head[0].length } : null) ??
+    findDateToken(remainder) ?? (looksLikeDate(remainder) && !startsWithQuantityFraction(remainder) ? { date: remainder, index: 0, length: remainder.length } : null);
   if (!found) return null;
-  const title =
-    `${label.replace(/\b\w/g, (c) => c.toUpperCase())}: ${remainder}`.slice(0, 200) || remainder;
+  // The date lives in the date field; repeating it in the title reads as a
+  // copy error ("Due Date: 5 November 2026"). When the remainder holds
+  // nothing but the date, the label alone is the title.
+  const residue = titleAroundRemovedDate(remainder, found.index, found.length);
+  const base = label.replace(/\b\w/g, (c) => c.toUpperCase());
+  const title = (residue ? `${base}: ${residue}` : base).slice(0, 200) || remainder;
   return {
     date: found.date,
     title,
@@ -906,12 +1189,16 @@ export function parseActionLine(raw: string): ActionEntry | null {
     // An owner that IS a date (or range fragment) is an entity title, but a
     // person named May/June/August must survive: reject date SEGMENTS and
     // bare-month range fragments ("Role - January - June 2025"), not names.
-    const bareMonthOwner = /^(jan|feb|mar|apr|may|june?|july?|aug|sep|sept|oct|nov|dec)[a-z]*\.?$/i.test(owner);
+    // The month set is exact: a name that merely starts like a month
+    // ("Jane", "Marsh", "Augusta") is a person, not a fragment.
+    const MONTH_WORD =
+      "(?:jan|january|feb|february|mar|march|apr|april|may|jun|june|jul|july|aug|august|sep|sept|september|oct|october|nov|november|dec|december)";
+    const bareMonthOwner = new RegExp(`^${MONTH_WORD}\\.?$`, "i").test(owner);
     // A segment that BEGINS with an unambiguous date (month + year) is a
     // range start with metadata, not a person: "January 2024 (Remote)".
     // A name like "May Lee" has no year and survives.
-    const datePrefixedOwner = /^(jan|feb|mar|apr|may|june?|july?|aug|sep|sept|oct|nov|dec)[a-z]*\.?\s+\d{4}\b/i.test(owner);
-    if (looksLikeDate(due) && !isEntirelyDate(owner) && !bareMonthOwner && !datePrefixedOwner && owner.length <= 60 && task.length >= 3) {
+    const datePrefixedOwner = new RegExp(`^${MONTH_WORD}\\.?\\s+\\d{4}\\b`, "i").test(owner);
+    if (looksLikeDate(due) && !DATE_ENTIRE.test(owner.trim()) && !bareMonthOwner && !datePrefixedOwner && owner.length <= 60 && task.length >= 3) {
       return { task, owner, due, status };
     }
   }
@@ -924,7 +1211,7 @@ export function parseActionLine(raw: string): ActionEntry | null {
     }
     const ownerMatch = /^@?([A-Z][\w.]*(?:\s+[A-Z][\w.]*){0,2})/.exec(tail!);
     const dueMatch = DATE_TOKEN.exec(tail!);
-    if (ownerMatch && dueMatch && !isQuantityFraction(tail!, 0, dueMatch[0].length) && task!.length >= 3) {
+    if (ownerMatch && dueMatch && !unusableDateToken(tail!, 0, dueMatch[0].length) && task!.length >= 3) {
       return {
         task: task!,
         owner: ownerMatch[1]!,
@@ -1041,6 +1328,6 @@ export function parseActionLineLenient(raw: string): ActionEntry | null {
   const item = splitListItem(raw);
   const entry: ActionEntry = { task: text, status: inferReadiness(text, { checked: item?.done }) };
   const dueMatch = DATE_TOKEN.exec(text);
-  if (dueMatch && !isQuantityFraction(text, 0, dueMatch[0].length)) entry.due = dueMatch[1]!.replace(/\.$/, "");
+  if (dueMatch && !unusableDateToken(text, 0, dueMatch[0].length)) entry.due = dueMatch[1]!.replace(/\.$/, "");
   return entry;
 }

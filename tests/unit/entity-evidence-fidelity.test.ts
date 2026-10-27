@@ -210,6 +210,24 @@ describe("Codex round 3: date-prefixed owners, section boundaries, all completio
     expect(out.owner).toBe("May Lee");
   });
 
+  it("keeps an owner whose name merely starts like a month", async () => {
+    const { parseActionLine } = await import("@/import/text/patterns");
+    for (const name of ["Jane", "Marsh", "Augusta", "Janice"]) {
+      const out = parseActionLine(`Submit tax return — ${name} — 18 November 2026`);
+      if (!out) throw new Error(`expected an action for ${name}`);
+      expect(out.owner).toBe(name);
+      expect(out.due).toBe("18 November 2026");
+    }
+  });
+
+  it("still rejects a bare month word as an owner segment", async () => {
+    const { parseActionLine } = await import("@/import/text/patterns");
+    for (const month of ["January", "Jan", "March", "May", "June", "August", "September", "Sept"]) {
+      const out = parseActionLine(`Product Analyst — ${month} – June 2025`);
+      expect(out === null || out.owner !== month).toBe(true);
+    }
+  });
+
   it("stops a completion bucket at the section boundary", () => {
     const doc = `# Notes
 

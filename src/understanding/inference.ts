@@ -253,7 +253,7 @@ const CONSIDERED =
   /\b(?:could|might|may want to|consider|perhaps|maybe|one option|another option|optionally|if you (?:like|prefer|want)|worth (?:trying|considering)|possibly|it (?:can|may) help|you can also|feel free to|ideally)\b/i;
 
 /** An instruction in a document whose whole job is to instruct. */
-const IMPERATIVE =
+export const IMPERATIVE =
   /^(use|build|create|write|run|start|open|clean|check|add|remove|keep|make|set|pick|choose|avoid|prefer|ensure|define|split|group|send|ship|test|map|draft|treat|store|apply|focus|begin|repeat|validate|verify|export|document|measure|track|break|combine|separate|standardi[sz]e|expand|reduce|extend|move|migrate|adopt|retire|replace|enforce|restrict|allow|require|drop|cache|batch|isolate|centrali[sz]e|deprecate)\b/i;
 
 /** "so that X" / "to avoid Y" — the reason a decision was taken. */

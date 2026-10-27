@@ -32,6 +32,18 @@ describe("timeline titles after mid-sentence date removal", () => {
     expect(titles[0]).not.toMatch(/\s(by|on|at|from|before|after|until|in)$/i);
   });
 
+  it("does not leave a space before a terminal period", () => {
+    // Varied-document sweep (Oct 27): "due November 15.", "on October 20.",
+    // "to next week." all produced titles ending " ." - the whitespace
+    // collapse class covered , ; : but not the period itself.
+    const out = inferTimeline([
+      stmt("Billed 18 hours at Rs 2,200/hour, total Rs 39,600, due November 15."),
+    ]);
+    const titles = out.map((o) => o.value.title);
+    expect(titles.length).toBeGreaterThan(0);
+    expect(titles.some((t) => /\s[.,;:]/.test(t))).toBe(false);
+  });
+
   it("does not glue two prepositions together", () => {
     const out = inferTimeline([
       stmt("Check in at Hotel Khetri House on December 18 after 14:00"),

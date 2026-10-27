@@ -1024,7 +1024,11 @@ export function parseObligationDateLine(text: string): TimelineEntry | null {
   // date there needs no closure ("Date: 2 December 2026 and 3 December 2026"
   // lifts the first date). A later date uses the ordinary guarded scan.
   const head = DATE_TOKEN.exec(remainder);
-  const found = (head && !structurallyUnusableDate(remainder, 0, head[0].length) ? { date: head[1]!, index: 0, length: head[0].length } : null) ??
+  // The head shortcut needs an unambiguous calendar head. A bare month name
+  // carries no digit and can be a modal instead ("Payment due: May be
+  // extended to November 10, 2026"); the guarded scan omits bare months for
+  // exactly this reason, so leave those to it.
+  const found = (head && /\d/.test(head[1]!) && !structurallyUnusableDate(remainder, 0, head[0].length) ? { date: head[1]!, index: 0, length: head[0].length } : null) ??
     findDateToken(remainder) ?? (looksLikeDate(remainder) && !startsWithQuantityFraction(remainder) ? { date: remainder, index: 0, length: remainder.length } : null);
   if (!found) return null;
   // The date lives in the date field; repeating it in the title reads as a

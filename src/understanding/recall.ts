@@ -250,6 +250,23 @@ const ENABLEMENT = /^(?:enable|deliver|provide|support|build|create)\b/i;
 const UNSETTLED_OPEN =
   /^(?:we|i|the team|you|they|he|she|it|probably|possibly|maybe|perhaps|likely|not|won't|will|would|can|can't|cannot|should|could|might)\b/i;
 
+/**
+ * A stated requirement ("must", "shall", "required to", "needs to") keeps
+ * its own words when a claim survives every guard — "Enable the system
+ * must keep" is not English.
+ */
+const STATED_REQUIREMENT = /\b(?:must|shall|is required to|are required to|needs? to)\b/i;
+/**
+ * A stated affirmative requirement names the same obligation whoever the
+ * subject is: "We must encrypt …" obliges exactly as "The system must
+ * encrypt …" does. Narrow on purpose: the modal must directly follow the
+ * subject (a hedge in between — "We probably must …" — unsettles it), and
+ * hedged or negated claims stay rejected (a prohibition or a negated
+ * decision is no goal). Reader instructions ("You must …") never match.
+ */
+const AFFIRMATIVE_REQUIREMENT = /^(?:we|i|the team)\s+(?:must|shall|needs? to|are required to)\b/i;
+const NEGATED_CLAIM = /\b(?:not|never)\b|n't\b/i;
+
 
 function goalClaim(text: string): string {
   if (NOT_A_GOAL.test(text)) return "";
@@ -261,14 +278,22 @@ function goalClaim(text: string): string {
   if (PROMISE_PREFIX.test(text) && HEDGED_OR_CONDITIONAL.test(settled)) return "";
   const claim = sentenceCase(settled);
   if (readsAsFragment(claim)) return "";
-  if (UNSETTLED_OPEN.test(claim.trim())) return "";
+  if (
+    UNSETTLED_OPEN.test(claim.trim()) &&
+    !(
+      AFFIRMATIVE_REQUIREMENT.test(claim.trim()) &&
+      !HEDGED_OR_CONDITIONAL.test(claim) &&
+      !NEGATED_CLAIM.test(claim)
+    )
+  )
+    return "";
   if (MISFORTUNE_OPEN.test(claim.trim())) return "";
   // Whole or not at all: a claim that needs truncating is omitted, because a
   // cut condition reads as unconditional. Conditions stay verbatim.
   if (wordCount(claim) > 30) return "";
   // A stated requirement keeps its own words — "Enable the system must keep"
   // is not English.
-  if (/\b(?:must|shall|is required to|are required to|needs? to)\b/i.test(claim)) return claim;
+  if (STATED_REQUIREMENT.test(claim)) return claim;
   // A stated decision whose marker governs a verb phrase ("We will hold
   // ...", "We decided to freeze ...") reads as its settled action; only a
   // noun-phrase remainder earns "Enable ...".

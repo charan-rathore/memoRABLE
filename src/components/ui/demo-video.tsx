@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 
 /**
- * First-visit (and on-demand) demo: play the 1-minute reel with sound,
+ * On-demand demo: play the 1-minute reel with sound,
  * or switch to the silent GIF if the visitor prefers a quiet preview.
  */
 export function DemoVideo({ onClose }: { onClose: () => void }) {

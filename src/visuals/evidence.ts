@@ -37,7 +37,7 @@ export function visualReading(doc:MemoryDocument, source:string):VisualReading {
    if(!invalid&&rows.length>=2&&rows.length<=8&&totals.length===1){
     const m=/^Amount due:\s*([$€£])([\d,.]+)\s*$/i.exec(totals[0]!.text)!;
     const sum=rows.reduce((n,r)=>n+r.value,0),total=Number(m[2]!.replace(/,/g,""));
-    const matching=doc.blocks.some(b=>{ if(b.kind!=="signals"||!("entries"in b.payload)) return false; const entries=b.payload.entries; return rows.every(r=>entries.some(e=>"label"in e&&e.label===r.label&&"financialRole"in e&&e.financialRole==="line-item"&&"value"in e&&String(e.value)===`${currency}${r.value.toLocaleString("en-US")}`)); });
+    const matching=doc.blocks.some(b=>{ if(b.kind!=="signals"||!("entries"in b.payload)) return false; const entries=b.payload.entries; return rows.every(r=>entries.some(e=>"label"in e&&e.label===r.label&&"financialRole"in e&&e.financialRole==="line-item"&&"value"in e&&typeof e.value==="string"&&e.value.startsWith(currency)&&/^[$€£][\d,]+(?:\.\d{2})?$/.test(e.value)&&Number(e.value.slice(1).replace(/,/g,""))===r.value)); });
     if(currency===m[1]&&sum>0&&Math.abs(sum-total)<0.005&&matching)return {kind:"comparison",title:"Line items reconcile with the stated amount due.",rows,summary:span(totals[0]!),currency};
    }
   }
@@ -58,7 +58,7 @@ export function visualReading(doc:MemoryDocument, source:string):VisualReading {
   return {kind:"dependency",title:`Phase ${m[3]} blocks Phase ${m[1]}, as stated.`,before:first.text.replace(/^[-*]\s+/,""),after:line.text.replace(/^[-*]\s+/,""),span:{start:first.start,end:line.end,quote:source.slice(first.start,line.end)}};
  }
  const selected:{label:string;span:SourceSpan}[]=[];let heading="Source";
- for(const line of lines){const m=/^#{1,6}\s+(.+)$/.exec(line.text);if(m){heading=m[1]!;continue;}if(/^(Hypothesis|Results|Limitations)$/i.test(heading)&&selected.length<4&&line.text.trim())selected.push({label:heading,span:span(line)});}
+ for(const line of lines){const m=/^#{1,6}\s+(.+)$/.exec(line.text);if(m){heading=m[1]!;continue;}if(/^(Hypothesis|Results|Limitations)$/i.test(heading)&&line.text.trim())selected.push({label:heading,span:span(line)});}
  if(!selected.length){const l=lines.find(l=>!/^#/.test(l.text)&&l.text.trim());if(l)selected.push({label:"Source excerpt",span:span(l)});}
  return {kind:"evidence",title:"Keep the source's claims in context.",reason:"No comparable measurement set or explicit supported dependency was established. No chart or inferred relationship was added.",spans:selected};
 }

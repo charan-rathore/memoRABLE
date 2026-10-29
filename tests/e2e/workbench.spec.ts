@@ -53,15 +53,18 @@ async function openMobileTab(page: Page, tab: "Bring" | "Memories" | "Publish", 
 }
 
 test.describe("home screen", () => {
-  test("offers exactly two ways in, and nothing else", async ({ page }) => {
+  test("offers file and paste entry with a real sample and clear purpose", async ({ page }) => {
     await page.goto("/");
     await dismissOverlays(page);
 
     const home = page.getByTestId("home-screen");
-    await expect(home.getByRole("heading", { name: "Turn information into memory." })).toBeVisible();
+    await expect(home.getByRole("heading", { name: "One document. A clearer next step." })).toBeVisible();
     await expect(home.locator(".home-card")).toHaveCount(2);
     await expect(home.getByText("Drop a file")).toBeVisible();
     await expect(home.getByText("Paste text")).toBeVisible();
+    await expect(home.getByRole("button", {name: "Open this sample"})).toBeVisible();
+    await expect(home.getByText("SAMPLE / FICTIONAL INVOICE", {exact:true})).toBeVisible();
+    await expect(home.getByRole("img", {name: /Sample rendered invoice/})).toBeVisible();
 
     // None of the workbench is on show before there is anything to work on.
     await expect(page.locator(".shell")).toHaveCount(0);
@@ -355,5 +358,40 @@ test.describe("mobile shell", () => {
 
     await tabs.getByRole("button", { name: "Bring" }).click();
     await expect(page.getByRole("button", { name: /Bring something else/ })).toBeVisible();
+  });
+});
+
+test.describe("source-backed entry and AI request contract", () => {
+  for (const id of ["research", "invoice"]) test(`${id} AI improvement sends a valid semantic candidate`, async ({ page, isMobile }) => {
+    let outgoing: unknown;
+    await page.route("**/api/extract", async route => {
+      if (route.request().method() === "GET") return route.fulfill({json:{enabled:true}});
+      outgoing = route.request().postDataJSON();
+      await route.fulfill({status:503,json:{ok:false,message:"Test provider unavailable; local result unchanged."}});
+    });
+    await page.goto("/"); await dismissOverlays(page);
+    await page.getByLabel("Choose a PDF, JSON, Markdown or text file").setInputFiles(`tests/fixtures/archetypes/${id}.md`);
+    await expect(page.locator(".shell")).toBeVisible();
+    await openMobileTab(page,"Bring",isMobile);
+    await page.getByRole("button",{name:/Bring something else/}).click();
+    await page.getByRole("button",{name:"Improve with AI (explicit)",exact:true}).click();
+    await expect.poll(()=>outgoing!==undefined).toBe(true);
+    const request = outgoing as {sourceText:string;candidate:{version:number;blocks:Array<{kind:string;payload:unknown}>}};
+    expect(request.sourceText.length).toBeGreaterThan(0);
+    expect(request.candidate.blocks.map(b=>b.kind).sort()).toEqual(["actions","decisions","risks","signals","snapshot","timeline"]);
+    expect(JSON.stringify(request.candidate)).toContain(id==="research"?"research-finding":"invoice-date");
+    expect((outgoing as {candidate:{version:number}}).candidate.version).toBe(2);
+    await expect(page.locator(".shell")).toBeVisible();
+  });
+  test("a slow sample cannot replace a later pasted document",async({page})=>{
+    let release!:()=>void; const delayed=new Promise<void>(r=>{release=r});
+    await page.route("**/examples/sample-invoice.md",async route=>{await delayed;try{await route.fulfill({body:"# Old sample invoice"})}catch{}});
+    await page.goto("/"); await dismissOverlays(page);
+    await page.getByRole("button",{name:"Open this sample",exact:true}).click();
+    await page.getByText("Paste text",{exact:true}).click();
+    await page.getByRole("textbox",{name:"Paste JSON, Markdown or plain text"}).fill("# Newer user source\n\n## Signals\n- Revenue: $42");
+    await page.getByRole("button",{name:"Remember this",exact:true}).click();
+    await expect(page.locator(".shell")).toBeVisible(); release();
+    await expect(page.locator(".doc-title .t")).toContainText("Newer user source");
   });
 });

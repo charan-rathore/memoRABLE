@@ -5,6 +5,7 @@ import type { MemoryBlock, MemoryDocument } from "@/domain/memory/schema";
 import { OUTPUT_MODES, type OutputMode } from "@/domain/memory/types";
 import { importSource } from "@/import/import-source";
 import type { KnowledgeGraph } from "@/domain/memory/schema";
+import { toMemorySource } from "@/render/export-source";
 import { importJson } from "@/import/json/import-json";
 import { getExample, hasVerifiedExtraction, verifiedExtractionFor } from "@/import/examples/catalog";
 import { renderMode, type ModeOutput } from "@/render/render-bundle";
@@ -235,12 +236,7 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           sourceText: state.sourceText.slice(0, 51_200),
-          candidate: {
-            version: 1,
-            title: state.document.title,
-            ...(["research", "invoice"].includes(state.document.archetype?.id ?? "") ? { archetype: state.document.archetype, relations: state.document.relations } : {}),
-            blocks: state.document.blocks.map((b) => ({ kind: b.kind, title: b.title, payload: b.payload })),
-          },
+          candidate: toMemorySource(state.document),
         }),
       });
       const body = (await response.json()) as { ok?: boolean; improved?: unknown; message?: string };

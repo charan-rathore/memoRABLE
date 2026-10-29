@@ -12,6 +12,7 @@ import {escapeHtml,inlineLink} from "./safe-inline";
 /** Purpose-built compositions, only for source-backed shapes. Unknowns keep the ordinary renderer. */
 const verifiedContexts = new WeakMap<MemoryDocument, {source:string;hash:string;valid:boolean}>();
 export function buildInsightRoot(doc:MemoryDocument,mode:OutputMode,theme:PublishTheme,source:string):BuiltRoot|null {
+ if(doc.archetype?.id!=="invoice"&&doc.archetype?.id!=="research"&&!/^[-*]\s+Phase \d+:.+blocked by Phase \d+/im.test(source))return null;
  const reading=visualReading(doc,source);
  const research=doc.archetype?.id==="research"&&doc.blocks.some(b=>b.kind==="signals"&&"entries"in b.payload&&b.payload.entries.some(e=>"claimKind"in e&&e.claimKind==="hypothesis"));
  if(reading.kind==="evidence"&&!research)return null;

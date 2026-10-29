@@ -95,7 +95,7 @@ describe("importJson — all-or-nothing errors", () => {
 
   it("rejects unsupported versions explicitly", () => {
     const bad = JSON.parse(ATLAS_JSON_SOURCE) as { version: number };
-    bad.version = 2;
+    bad.version = 3;
     const result = importJson({ text: JSON.stringify(bad), label: "bad.json" });
     expect(result.ok).toBe(false);
     if (result.ok) return;

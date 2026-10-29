@@ -5,6 +5,7 @@ import type { MemoryBlock, MemoryDocument } from "@/domain/memory/schema";
 import { OUTPUT_MODES, type OutputMode } from "@/domain/memory/types";
 import { importSource } from "@/import/import-source";
 import type { KnowledgeGraph } from "@/domain/memory/schema";
+import { toMemorySource } from "@/render/export-source";
 import { importJson } from "@/import/json/import-json";
 import { getExample, hasVerifiedExtraction, verifiedExtractionFor } from "@/import/examples/catalog";
 import { renderMode, type ModeOutput } from "@/render/render-bundle";
@@ -14,6 +15,7 @@ import { JourneyStrip, type SourceMeta } from "./journey-strip";
 import { ImportPanel } from "./import/import-panel";
 import { BlocksPanel } from "./blocks/blocks-panel";
 import { Inspector } from "./blocks/inspector";
+import { VisualReadingPanel } from "./preview/visual-reading";
 import { PreviewPane } from "./preview/preview-pane";
 import { SourceModal } from "./preview/source-modal";
 import { PublishPanel } from "./export/publish-panel";
@@ -51,6 +53,7 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
     initial,
     (init) => initialWorkbenchState({ ...init, at: init.at }),
   );
+  const [visualSourceReady, setVisualSourceReady] = useState(true);
   const [announcement, setAnnouncement] = useState("");
   const [sourceModal, setSourceModal] = useState<MemoryBlock | null>(null);
   const [publishOpen, setPublishOpen] = useState(false);
@@ -83,6 +86,7 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
     setImportProgress(null);
   }, []);
   const editSource = useCallback((text: string) => {
+    setVisualSourceReady(false);
     invalidateWork();
     dispatch({ type: "sourceEdited", sourceText: text });
   }, [invalidateWork]);
@@ -154,6 +158,7 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
         ...(meta?.parsedByDocling ? { parsedByDocling: true } : {}),
       });
       if (result.ok) {
+        setVisualSourceReady(true);
         await mark("arranging");
         if (!operation.isCurrent()) return;
         setSourceMeta({
@@ -175,7 +180,7 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
         setMobileTab("publish");
         await mark("publishing");
         if (!operation.isCurrent()) return;
-        scheduleLazyRenders(result.value, [], "document", themeRef.current, dispatch);
+        scheduleLazyRenders(result.value, [], "document", themeRef.current, dispatch, text);
         announce(
           quiet
             ? `Refined memories from ${label}.`
@@ -190,6 +195,7 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
           pages: meta?.pages ?? null,
           parseStatus: "failed",
         });
+        setVisualSourceReady(false);
         dispatch({ type: "importFailed", sourceText: text, sourceLabel: label, errors: [...result.errors] });
         announce(
           `We couldn't understand this. Nothing was changed. ${result.errors.length} ${result.errors.length === 1 ? "error" : "errors"}.`,
@@ -230,11 +236,7 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           sourceText: state.sourceText.slice(0, 51_200),
-          candidate: {
-            version: 1,
-            title: state.document.title,
-            blocks: state.document.blocks.map((b) => ({ kind: b.kind, title: b.title, payload: b.payload })),
-          },
+          candidate: toMemorySource(state.document),
         }),
       });
       const body = (await response.json()) as { ok?: boolean; improved?: unknown; message?: string };
@@ -444,7 +446,7 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
         onThemeChange={(theme) => {
           dispatch({ type: "themeChanged", theme });
           announce(`Preset: ${theme}. Outputs recomposed with Elements.`);
-          if (state.document) scheduleLazyRenders(state.document, [], state.mode, theme, dispatch);
+          if (state.document) scheduleLazyRenders(state.document, [], state.mode, theme, dispatch, state.sourceText);
         }}
         onOpenRecent={(text, label) => void runImport(text, label, { filename: label, parseStatus: "reopened from library" })}
         aiEnabled={aiEnabled}
@@ -537,6 +539,7 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
           role="region"
           aria-label="Output preview"
         >
+          {visualSourceReady && !replay.active && state.errors.length === 0 && state.document && state.sourceText ? <VisualReadingPanel key={state.document.contentHash} document={state.document} source={state.sourceText} /> : null}
           {html || !error ? (
             <PreviewPane
               mode={state.mode}
@@ -634,6 +637,7 @@ function scheduleLazyRenders(
   activeMode: OutputMode,
   theme: PublishThemeId,
   dispatch: React.Dispatch<WorkbenchAction>,
+  source?: string,
 ) {
   if (!doc) return;
   const remaining = OUTPUT_MODES.filter((m) => m !== activeMode);
@@ -641,7 +645,7 @@ function scheduleLazyRenders(
   setTimeout(() => {
     const filled: Partial<Record<OutputMode, ModeOutput>> = {};
     for (const m of remaining) {
-      const output = renderMode(doc, m, theme);
+      const output = renderMode(doc, m, theme, source);
       filled[m] = output;
     }
     dispatch({ type: "lazyRendered", outputs: filled, cache: [] });

@@ -36,7 +36,8 @@ const MAX_EDGES_PER_MEMORY = 2;
 export function buildRelations(blocks: readonly MemoryBlock[]): MemoryRelation[] {
   const signals = entriesOf<SignalEntry>(blocks, "signals");
   const decisions = entriesOf<DecisionEntry>(blocks, "decisions");
-  const timeline = entriesOf<TimelineEntry>(blocks, "timeline");
+  const timeline = entriesOf<TimelineEntry>(blocks, "timeline")
+    .filter(({ entry }) => entry.observationKind === undefined);
   const risks = entriesOf<RiskEntry>(blocks, "risks");
   const actions = entriesOf<ActionEntry>(blocks, "actions");
 
@@ -168,7 +169,12 @@ function link<A, B>(
       .map(({ target, tokens: right }) => {
         let shared = 0;
         for (const token of left) if (right.has(token)) shared++;
-        const score = left.size && right.size && shared >= MIN_SHARED_TOKENS
+        const sourceValue = source.entry as Record<string, unknown>;
+        const targetValue = target.entry as Record<string, unknown>;
+        const sourceClaim = String(sourceValue.implication ?? sourceValue.text ?? textOfA(source.entry));
+        const targetClaim = String(targetValue.implication ?? targetValue.text ?? textOfB(target.entry));
+        const sameClaim = normalizeKey(sourceClaim) === normalizeKey(targetClaim);
+        const score = !sameClaim && left.size && right.size && shared >= MIN_SHARED_TOKENS
           ? shared / Math.min(left.size, right.size) : 0;
         return { target, score };
       })

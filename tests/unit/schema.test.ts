@@ -31,7 +31,7 @@ describe("memorySourceSchema (strict)", () => {
   });
 
   it("rejects unsupported versions", () => {
-    expect(memorySourceSchema.safeParse({ ...validSource, version: 2 }).success).toBe(false);
+    expect(memorySourceSchema.safeParse({ ...validSource, version: 3 }).success).toBe(false);
     expect(memorySourceSchema.safeParse({ ...validSource, version: "1" }).success).toBe(false);
   });
 

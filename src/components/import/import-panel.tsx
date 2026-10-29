@@ -332,14 +332,14 @@ export function ImportPanel({
         )}
 
         {errors.length === 0 && warnings.length > 0 && (
-          <div className="warning-box">
-            <p className="wt">Understood, with notes</p>
+          <details className="warning-box">
+            <summary className="wt">Reading notes and limits ({warnings.length})</summary>
             <ul>
               {warnings.map((warning, i) => (
                 <li key={i}>{warning.message}</li>
               ))}
             </ul>
-          </div>
+          </details>
         )}
       </div>
     </section>

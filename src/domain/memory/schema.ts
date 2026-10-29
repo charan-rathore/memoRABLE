@@ -50,6 +50,10 @@ const textField = (max: number) => z.string().min(1).max(max);
 export const signalEntrySchema = z
   .object({
     label: textField(120),
+    /** Present only when the source explicitly files this claim as a hypothesis. */
+    claimKind: z.enum(["hypothesis"]).optional(),
+    /** Explicit invoice label role, never inferred from amount magnitude. */
+    financialRole: z.enum(["line-item", "subtotal", "amount-due"]).optional(),
     value: z.union([z.string().min(1).max(120), z.number().finite()]).optional(),
     delta: z.union([z.string().max(120), z.number().finite()]).optional(),
     trend: z.enum(["up", "flat", "down"]).optional(),
@@ -80,7 +84,8 @@ export const timelineEntrySchema = z
   .object({
     date: textField(80),
     title: textField(LIMITS.maxFieldLength),
-    state: z.enum(["shipped", "on-track", "planned", "done"]),
+    state: z.enum(["shipped", "on-track", "planned", "done"]).optional(),
+    observationKind: z.enum(["research-finding", "invoice-date"]).optional(),
     produces: textField(240).optional(),
     requires: textField(240).optional(),
     /** Detail lines the source filed under this entry, verbatim. */
@@ -153,6 +158,7 @@ export const snapshotPayloadSchema = z
     summary: textField(LIMITS.maxFieldLength),
     hook: textField(300).optional(),
     goal: textField(LIMITS.maxFieldLength).optional(),
+    goalKind: z.enum(["hypothesis"]).optional(),
     problem: textField(LIMITS.maxFieldLength).optional(),
     outcome: textField(LIMITS.maxFieldLength).optional(),
     byline: textField(240).optional(),
@@ -403,9 +409,33 @@ export const sourceBlockSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("actions"), ...sourceBlockBase, payload: actionsPayloadSchema }).strict(),
 ]);
 
+/** Missing workflow state is legal only for explicitly typed research observations.
+ * Legacy entries with valid workflow state stay readable; this is not a migration.
+ */
+function validateTimelineSemantics(
+  doc: { archetype?: { id: string }; blocks: Array<{ kind: string; payload: unknown }> },
+  ctx: z.RefinementCtx,
+) {
+  for (const [bi, block] of doc.blocks.entries()) {
+    if (block.kind !== "timeline") continue;
+    const payload = block.payload as z.infer<typeof timelinePayloadSchema>;
+    for (const [ei, entry] of payload.entries.entries()) {
+      const observation = entry.observationKind !== undefined;
+      const legalObservation = observation && ((entry.observationKind === "research-finding" && doc.archetype?.id === "research" && entry.date === "Finding") || (entry.observationKind === "invoice-date" && doc.archetype?.id === "invoice" && /^\d{4}-\d{2}-\d{2}$/.test(entry.date) && /^(Dated|Due Date): /.test(entry.title) && entry.title.split(": ")[1] === entry.date)) &&
+        entry.state === undefined &&
+        entry.requires === undefined && entry.produces === undefined;
+      if ((observation && !legalObservation) || (!observation && entry.state === undefined)) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom,
+          path: ["blocks", bi, "payload", "entries", ei],
+          message: "A timeline needs a valid workflow state; only typed research findings or invoice dates may omit state, without workflow dependencies." });
+      }
+    }
+  }
+}
+
 export const memorySourceSchema = z
   .object({
-    version: z.literal(1),
+    version: z.union([z.literal(1), z.literal(2)]),
     title: textField(LIMITS.maxTitleLength),
     blocks: z.array(sourceBlockSchema).min(1).max(LIMITS.maxBlocks),
     /** Optional: edges between memories, recomputed when absent. */
@@ -413,7 +443,16 @@ export const memorySourceSchema = z
     /** Optional: drives UI bucket labels after projection. */
     archetype: documentArchetypeInfoSchema.optional(),
   })
-  .strict();
+  .strict().superRefine(validateTimelineSemantics).superRefine((doc, ctx) => {
+    if (doc.version !== 1) return;
+    for (const [bi, block] of doc.blocks.entries()) {
+      const payload = block.payload as Record<string, unknown>;
+      if ("goalKind" in payload) ctx.addIssue({code:z.ZodIssueCode.custom,path:["blocks",bi,"payload","goalKind"],message:"Semantic metadata requires version 2."});
+      if (Array.isArray(payload.entries)) for (const [ei, entry] of payload.entries.entries()) {
+        for (const key of ["claimKind","financialRole","observationKind"]) if (key in entry) ctx.addIssue({code:z.ZodIssueCode.custom,path:["blocks",bi,"payload","entries",ei,key],message:"Semantic metadata requires version 2."});
+      }
+    }
+  });
 
 export type SourceBlock = z.infer<typeof sourceBlockSchema>;
 export type MemorySource = z.infer<typeof memorySourceSchema>;
@@ -476,7 +515,7 @@ export const memoryDocumentSchema = z
      */
     knowledgeGraph: knowledgeGraphSchema.optional(),
   })
-  .strict();
+  .strict().superRefine(validateTimelineSemantics);
 
 export type MemoryBlock = z.infer<typeof memoryBlockSchema>;
 export type MemoryDocument = z.infer<typeof memoryDocumentSchema>;

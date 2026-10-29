@@ -1,3 +1,4 @@
+import {sha256Hex} from "@/utils/sha256";
 import type { Diagnostic } from "@/reliability/diagnostics";
 import type { MemoryDocument } from "@/domain/memory/schema";
 import { reorderBlocks } from "@/domain/memory/normalize";
@@ -101,7 +102,7 @@ export function workbenchReducer(state: WorkbenchState, action: WorkbenchAction)
       // Only this mode renders synchronously; the other two are deferred so the
       // UI responds before the heavy Elements SSR.
       const preferred: OutputMode = "document";
-      const { outputs, cache } = renderAll(action.document, state.cache, preferred, state.theme, preferred);
+      const { outputs, cache } = renderAll(action.document, state.cache, preferred, state.theme, preferred, action.sourceText);
       return {
         ...state,
         sourceText: action.sourceText,
@@ -137,7 +138,7 @@ export function workbenchReducer(state: WorkbenchState, action: WorkbenchAction)
       [nextIds[index], nextIds[target]] = [nextIds[target]!, nextIds[index]!];
       const reordered = reorderBlocks(state.document, nextIds);
       // Only render the active mode synchronously; defer the other two.
-      const { outputs, cache } = renderAll(reordered, state.cache, state.mode, state.theme, state.mode);
+      const { outputs, cache } = renderAll(reordered, state.cache, state.mode, state.theme, state.mode, state.sourceText);
       return {
         ...state,
         document: reordered,
@@ -151,7 +152,7 @@ export function workbenchReducer(state: WorkbenchState, action: WorkbenchAction)
       return { ...state, mode: action.mode };
     case "themeChanged": {
       if (!state.document || state.theme === action.theme) return { ...state, theme: action.theme };
-      const { outputs, cache } = renderAll(state.document, [], state.mode, action.theme, state.mode);
+      const { outputs, cache } = renderAll(state.document, [], state.mode, action.theme, state.mode, state.sourceText);
       return {
         ...state,
         theme: action.theme,
@@ -205,6 +206,7 @@ export function renderAll(
   activeMode: OutputMode,
   theme: PublishThemeId = "editorial",
   onlyMode?: OutputMode,
+  source?: string,
 ): { outputs: Record<OutputMode, ModeOutput>; cache: RenderCacheEntry[] } {
   const orderedModes = onlyMode
     ? [onlyMode]
@@ -212,13 +214,13 @@ export function renderAll(
   const outputs = {} as Record<OutputMode, ModeOutput>;
   let nextCache = [...cache];
   for (const mode of orderedModes) {
-    const key = `${doc.contentHash}:${mode}:${theme}`;
+    const key = `${doc.contentHash}:${mode}:${theme}:${source ? sha256Hex(source) : ""}`;
     const hit = nextCache.find((e) => e.key === key);
     if (hit) {
       outputs[mode] = hit.output;
       nextCache = [hit, ...nextCache.filter((e) => e.key !== key)];
     } else {
-      const output = renderMode(doc, mode, theme);
+      const output = renderMode(doc, mode, theme, source);
       outputs[mode] = output;
       nextCache = [{ key, output }, ...nextCache].slice(0, RENDER_CACHE_SIZE);
     }

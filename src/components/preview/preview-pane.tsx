@@ -15,7 +15,7 @@ export function PreviewPane({
   html,
   stale,
   error,
-  documentTitle,
+  documentTitle: _documentTitle,
   blockCount,
   theme = "editorial",
 }: {
@@ -59,6 +59,7 @@ export function PreviewPane({
           doc.getElementById(id) ||
           doc.querySelector(`a[name="${CSS.escape(id)}"]`);
         if (target) {
+          if (id === "inspect-source") { const details = doc.querySelector("#source-inspector") as HTMLDetailsElement | null; if (details) details.open = true; }
           target.scrollIntoView({ behavior: "smooth", block: "start" });
         }
       };
@@ -83,7 +84,7 @@ export function PreviewPane({
     return () => iframe.removeEventListener("load", wire);
   }, [displayed, mode]);
 
-  const addr = `memorable.local/${mode}/${documentTitle.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
+
 
   return (
     <div>
@@ -105,14 +106,6 @@ export function PreviewPane({
       )}
       {displayed && (
         <div className={`preview-frame ${mode === "email" ? "email" : ""}`}>
-          <div className="bar" aria-hidden="true">
-            <span className="dots">
-              <span className="dot" style={{ display: "inline-block", marginRight: 5 }} />
-              <span className="dot" style={{ display: "inline-block", marginRight: 5 }} />
-              <span className="dot" style={{ display: "inline-block" }} />
-            </span>
-            <span className="addr">{addr}</span>
-          </div>
           <iframe
             ref={iframeRef}
             title={`${OUTPUT_MODE_LABELS[mode]} output preview`}
@@ -128,7 +121,7 @@ export function PreviewPane({
         <span aria-hidden="true">·</span>
         <span>rendered with Unlayer Elements 0.1.20</span>
       </div>
-      <ElementsStory mode={mode} blockCount={blockCount} theme={theme} />
+      <details className="composition-about"><summary>About this output</summary><ElementsStory mode={mode} blockCount={blockCount} theme={theme} /></details>
     </div>
   );
 }

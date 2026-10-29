@@ -20,12 +20,13 @@ import {
  */
 export function renderSignalsRows(block: MemoryBlock, ctx: BlockRenderContext): ReactElement[] {
   const payload = block.payload as SignalsPayload;
-  const entries = payload.entries;
+  const summaries = payload.entries.filter(e => e.financialRole === "subtotal" || e.financialRole === "amount-due");
+  const entries = payload.entries.filter(e => e.financialRole !== "subtotal" && e.financialRole !== "amount-due");
   const notes = payload.notes ?? [];
   const rows: ReactElement[] = [...sectionLabelRow(block, ctx)];
   const pad = padFor(ctx.theme);
 
-  if (entries.length === 0) {
+  if (entries.length === 0 && summaries.length === 0) {
     rows.push(
       emptyBlockRow(block, "No signals were recognized in this source. Nothing was invented.", ctx.surface, ctx.theme),
     );
@@ -63,7 +64,7 @@ export function renderSignalsRows(block: MemoryBlock, ctx: BlockRenderContext): 
         <Column>
           {withMeaning.map((entry, i) =>
             asideParagraph(
-              `What ${entry.label} tends to mean: ${entry.implication}`,
+              `Source context: ${entry.implication}`,
               `${block.id}-impl-${i}`,
               ctx.theme,
             ),
@@ -73,6 +74,9 @@ export function renderSignalsRows(block: MemoryBlock, ctx: BlockRenderContext): 
     );
   }
 
+  for (const entry of summaries) {
+    rows.push(<Row key={`${block.id}-${entry.financialRole}`} layout={ColumnLayouts.OneColumn} padding={pad.body} backgroundColor={ctx.surface}><Column><Paragraph html={inlineText(`Invoice summary · ${entry.label}: ${entry.value ?? ""}`)} fontFamily={ctx.theme.fonts.sans} fontSize="14px" color={ctx.theme.colors.ink} /></Column></Row>);
+  }
   rows.push(...notesRows(block, notes, ctx.surface, ctx.theme));
   return rows;
 }
@@ -138,7 +142,7 @@ function kpiRow(
         >
           {entry.value !== undefined || entry.implication ? (
             <Paragraph
-              html={inlineText(entry.label.toUpperCase())}
+              html={inlineText((entry.claimKind === "hypothesis" ? "Hypothesis under test" : entry.label).toUpperCase())}
               fontFamily={f.mono}
               fontSize={scaledPx(10, scale)}
               color={c.ink3}

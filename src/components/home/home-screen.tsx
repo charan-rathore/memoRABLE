@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { createAsyncOperation } from "../async-operation";
 import type { Diagnostic } from "@/reliability/diagnostics";
@@ -212,9 +213,10 @@ export function HomeScreen({
           </span>
         </button>
 
-        <StaggerTitle text="Turn information into memory." className="home-title sweep" />
+        <div className="home-entry-grid"><section className="home-entry" aria-label="Bring a document">
+        <StaggerTitle text="One document. A clearer next step." className="home-title sweep" />
         <p className="home-sub rise-in">
-          Bring one document. Leave with reusable memories. Every memory stays linked to its source.
+          Turn a report, research paper or brief into source-linked insights. Read it, question it, then reuse it as email, web or a document.
         </p>
 
         {understanding ? (
@@ -321,6 +323,23 @@ export function HomeScreen({
           </p>
           </>
         )}
+
+        </section>
+        <section className="home-real-sample" aria-labelledby="home-sample-title">
+          <div><small>SAMPLE / FICTIONAL INVOICE</small><h2 id="home-sample-title">See what comes out.</h2><p>A real rendered output from a synthetic invoice. Two line items reconcile to the stated total; every amount has a source passage.</p><button type="button" className="btn pri" onClick={async()=>{const operation=fileWork.begin();setReadError(null);try{const response=await fetch("/examples/sample-invoice.md",{signal:operation.signal});if(!response.ok)throw Error();const text=await response.text();if(!operation.isCurrent())return;void onImport(text,"sample-invoice.md");}catch{if(operation.isCurrent())setReadError("The sample could not load. Bring a file or try again.");}}}>Open this sample</button><a href="/examples/sample-invoice.md" download>Read the synthetic source</a></div>
+          <Image unoptimized src="/examples/sample-invoice-preview.png" width={872} height={605} alt="Sample rendered invoice: $12,000 and $3,500 line items, a proportional bar and evidence links reconcile to $15,500. Fictional source." />
+        </section>
+
+        </div>
+
+        <div className="home-output-strip" aria-label="What you can make">
+          <span>01 / Bring a document</span><span>02 / Inspect the insight</span><span>03 / Make it useful</span>
+        </div>
+        <div className="home-outcomes">
+          <article><small>FOR A READER</small><h2>A brief worth forwarding.</h2><p>Email with the claim, its limits and the source passage.</p></article>
+          <article><small>FOR A DECISION</small><h2>The structure behind it.</h2><p>Line items, dependencies or evidence. A visual only when the source supports it.</p></article>
+          <article><small>FOR THE RECORD</small><h2>A document you can keep.</h2><p>Readable print and web outputs. Your original stays in reach.</p></article>
+        </div>
 
         <input
           ref={fileInput}

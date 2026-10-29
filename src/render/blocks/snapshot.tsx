@@ -355,7 +355,7 @@ function primaryFrame(
   },
 ): ReactElement[] {
   const rows: Array<[string, string | undefined]> = [
-    ["Primary goal", payload.goal],
+    [payload.goalKind === "hypothesis" ? "Hypothesis under test" : "Primary goal", payload.goal],
     ["Primary problem", payload.problem],
     ["Primary business outcome", payload.outcome],
   ];

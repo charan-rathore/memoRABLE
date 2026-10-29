@@ -403,15 +403,7 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
 
   const finishSplash = useCallback(() => {
     setSplash(false);
-    // First visit in this browser: offer the short demo after the brand moment.
-    try {
-      if (window.sessionStorage.getItem("memorable.demo.seen") !== "1") {
-        window.sessionStorage.setItem("memorable.demo.seen", "1");
-        setDemoOpen(true);
-      }
-    } catch {
-      setDemoOpen(true);
-    }
+
   }, []);
 
   if (view === "home") {

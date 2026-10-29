@@ -31,13 +31,9 @@ function memNames(page: Page) {
  */
 async function dismissOverlays(page: Page) {
   // The brand splash covers the page while it plays; under reduced motion this
-  // is a short hold. The first-visit demo may then open on top.
+  // is a short hold. The demo must only open by an explicit request.
   await page.getByTestId("brand-splash").waitFor({ state: "detached" });
-  const demo = page.getByTestId("demo-video");
-  if (await demo.count()) {
-    await demo.getByRole("button", { name: "Close demo" }).click();
-    await demo.waitFor({ state: "detached" });
-  }
+  await expect(page.getByTestId("demo-video")).toHaveCount(0);
 }
 
 async function enterWorkbench(page: Page) {
@@ -71,6 +67,30 @@ test.describe("home screen", () => {
     await expect(page.locator(".shell")).toHaveCount(0);
     await expect(page.locator(".journey")).toHaveCount(0);
     await expect(page.locator("iframe")).toHaveCount(0);
+  });
+
+  test("the demo is opt-in on first visit and after reload", async ({ page }) => {
+    await page.goto("/");
+    await dismissOverlays(page);
+    await expect(page.getByTestId("home-screen")).toBeVisible();
+    await page.getByTestId("watch-demo").click();
+    await expect(page.getByTestId("demo-video")).toBeVisible();
+    await page.getByRole("button", { name: "Close demo" }).click();
+    await page.reload();
+    await dismissOverlays(page);
+    await expect(page.getByTestId("home-screen")).toBeVisible();
+  });
+
+  test("denied session storage does not force a demo", async ({ page }) => {
+    await page.addInitScript(() => {
+      Object.defineProperty(window, "sessionStorage", {
+        configurable: true,
+        get() { throw new DOMException("Storage denied", "SecurityError"); },
+      });
+    });
+    await page.goto("/");
+    await dismissOverlays(page);
+    await expect(page.getByTestId("home-screen")).toBeVisible();
   });
 
   test("the brand splash plays every time the home screen loads", async ({ page }) => {

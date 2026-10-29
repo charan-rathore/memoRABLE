@@ -69,7 +69,7 @@ export function finalizeDocument(input: DocumentInput): MemoryDocument {
     sourceLabel: input.sourceLabel,
     contentHash: "",
     blocks,
-    relations: input.relations ? [...input.relations] : buildRelations(blocks),
+    relations: input.relations ? [...input.relations] : input.archetype?.id === "research" ? [] : buildRelations(blocks),
     warnings: input.warnings,
     ...(input.archetype ? { archetype: input.archetype } : {}),
     ...(input.knowledgeGraph ? { knowledgeGraph: input.knowledgeGraph } : {}),

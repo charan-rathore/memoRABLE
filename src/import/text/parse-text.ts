@@ -402,6 +402,41 @@ export function parseText(input: TextImportInput): Result<MemoryDocument> {
     BLOCK_KINDS.map((kind) => built.get(kind)!),
     understanding.archetype.archetype,
   );
+  if (understanding.archetype.archetype === "invoice") {
+    // A printed invoice date is an observation, not task completion or readiness.
+    for (const block of blocks) {
+      if (block.kind !== "timeline" || !("entries" in block.payload)) continue;
+      for (const entry of block.payload.entries as TimelineEntry[]) {
+        if (!/^(Dated|Due Date): /.test(entry.title)) continue;
+        const exact = sections.some(section => section.lines.some(line => {
+          const text = plainContentOf(line.text);
+          const m = /^(Dated|Due date):\s*(\d{4}-\d{2}-\d{2})\s*$/i.exec(text);
+          return !!m && m[2] === entry.date && entry.title.toLowerCase() === `${m[1]}: ${m[2]}`.toLowerCase();
+        }));
+        if (exact) { delete entry.state; entry.observationKind = "invoice-date"; }
+      }
+    }
+    const declared = new Map<string, "line-item" | "subtotal" | "amount-due">();
+    for (const section of sections) {
+      for (const line of section.lines) {
+        const value = plainContentOf(line.text);
+        const summary = /^(Subtotal|Amount due):\s*([$€£][\d,.]+)\s*$/i.exec(value);
+        if (summary) declared.set(`${summary[1]!.toLowerCase()}|${summary[2]}`, /^subtotal$/i.test(summary[1]!) ? "subtotal" : "amount-due");
+        if (/^line items$/i.test(section.headingText?.trim() ?? "")) {
+          const item = /^[-*]\s+(.+?)\s+[—–-]\s+([$€£][\d,.]+)\s*$/.exec(line.text);
+          if (item && !/^(subtotal|amount due|total)\b/i.test(item[1]!)) declared.set(`${item[1]!.toLowerCase()}|${item[2]}`, "line-item");
+        }
+      }
+    }
+    for (const block of blocks) {
+      if (block.kind !== "signals" || !("entries" in block.payload)) continue;
+      for (const entry of block.payload.entries) {
+        if (!("label" in entry) || !("value" in entry)) continue;
+        const role = declared.get(`${entry.label.toLowerCase()}|${String(entry.value)}`);
+        if (role) (entry as SignalEntry).financialRole = role;
+      }
+    }
+  }
   if (!isResearch) linkActionsToDecisions(blocks);
   warnings.push(...understandingWarnings(understanding));
   warnings.push(...graphWarnings(graph, segmented.segments.length));
@@ -426,6 +461,8 @@ export function parseText(input: TextImportInput): Result<MemoryDocument> {
       scores,
       ...(reasons.length > 0 ? { reasons: [...reasons] } : {}),
     },
+    // Literal PRD structure is not authority for causal vocabulary-overlap edges.
+    ...(/^Product Requirements\b/i.test(title) && sections.some(s => /^Timeline$/i.test(s.headingText ?? "")) ? { relations: [] } : {}),
     ...(researchGraph ? { knowledgeGraph: researchGraph } : {}),
   });
   return ok(

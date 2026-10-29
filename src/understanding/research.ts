@@ -320,6 +320,7 @@ function metricLabelFromBefore(before: string): string {
   const slice = words.slice(-6);
   let label = slice.join(" ").replace(/\s*\(\s*$/g, "").trim();
   // "on event type classification" → "Event type classification"
+  label = label.replace(/^(?:and\s+)?(?:reduced?\s+)?/i, "").replace(/\s+by$/i, "").trim();
   label = label.replace(/^(?:on|of|for|in|at|to|with)\s+/i, "").trim();
   if (!label) return "Measured result";
   if (!/^[A-Z]/.test(label)) label = label.charAt(0).toUpperCase() + label.slice(1);
@@ -475,6 +476,7 @@ function inferKeyFindings(summaries: readonly SectionSummary[]): TimelineEntry[]
   );
   const ranked = pool
     .filter((sentence) => !isTableDump(sentence))
+    .filter((sentence) => !/^(?:we study whether|whether|how\b|what\b|can\b|does\b|do\b|is\b|are\b)/i.test(sentence) && !/\?$/.test(sentence))
     .filter(
       (sentence) =>
         !/^we\s+(?:use|compare|conduct|employ|evaluate|focus|test four|present)\b/i.test(sentence),
@@ -500,7 +502,7 @@ function inferKeyFindings(summaries: readonly SectionSummary[]): TimelineEntry[]
     ) {
       continue;
     }
-    findings.push({ date: "Finding", title: finding, state: "done" });
+    findings.push({ date: "Finding", title: finding, observationKind: "research-finding" });
     if (findings.length >= Math.min(8, LIMITS.maxEntriesPerBlock)) break;
   }
   return findings;
@@ -510,8 +512,14 @@ function inferEvidence(summaries: readonly SectionSummary[]): SignalEntry[] {
   const pool = textsOf(summaries, ["results", "method", "abstract", "hypothesis"]);
   const evidence: SignalEntry[] = [];
   let setupCount = 0;
+  const hypotheses = new Set(textsOf(summaries.filter(s => /^hypothesis$/i.test(s.heading?.trim() ?? "")), ["hypothesis"]));
   for (const sentence of pool) {
     if (isGarbledProse(sentence)) continue;
+    if (hypotheses.has(sentence)) {
+      evidence.push({ label: "Hypothesis", implication: clamp(sentence), claimKind: "hypothesis" });
+      if (evidence.length >= 8) return evidence;
+      continue;
+    }
     // Table rows → Evidence metrics (not Findings).
     if (isTableDump(sentence)) {
       for (const entry of extractMetrics(sentence)) {
@@ -784,6 +792,7 @@ export function buildResearchWorldModel(input: {
       summary: question.summary,
       ...(question.hook ? { hook: question.hook } : {}),
       ...(question.goal ? { goal: question.goal } : {}),
+      ...(question.goal && textsOf(summaries.filter(s => /^hypothesis$/i.test(s.heading?.trim() ?? "")), ["hypothesis"]).some(t => clamp(cleanResearchSentence(t)) === question.goal) ? { goalKind: "hypothesis" as const } : {}),
       ...(question.problem ? { problem: question.problem } : {}),
       byline: "Inferred research question · not a paper paraphrase",
     },

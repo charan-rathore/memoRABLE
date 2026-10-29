@@ -1,3 +1,4 @@
+import { buildInsightRoot } from "./insight-composition";
 import { cloneElement, isValidElement, type ReactElement } from "react";
 import {
   Button,
@@ -49,7 +50,10 @@ export function buildRoot(
   doc: MemoryDocument,
   mode: OutputMode,
   theme: PublishTheme = resolveTheme("editorial"),
+  source?: string,
 ): BuiltRoot {
+  const insight = source ? buildInsightRoot(doc, mode, theme, source) : null;
+  if (insight) return insight;
   const palette = theme.colors;
   const type = theme.fonts;
   const renderedBlocks = doc.blocks.map((block, position) => {

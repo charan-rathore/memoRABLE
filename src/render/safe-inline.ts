@@ -4,8 +4,8 @@
  * Imported/model content is ALWAYS escaped before it enters an Elements
  * `html` prop. The only tags that ever appear in rendered output are
  * app-generated (`<b>`, `<i>`) wrapped around already-escaped text.
- * Imported HTML is never passed through, and the `Html` tool is never used
- * for user content.
+ * Imported HTML is never passed through. The source inspector builds an
+ * app-authored details wrapper around escaped plain imported text.
  */
 
 const ESCAPES: Record<string, string> = {

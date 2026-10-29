@@ -31,10 +31,10 @@ export interface RenderBundle {
 }
 
 /** Render every mode independently. Never throws. */
-export function renderBundle(doc: MemoryDocument): RenderBundle {
+export function renderBundle(doc: MemoryDocument, source?: string): RenderBundle {
   const outputs = {} as Record<OutputMode, ModeOutput>;
   for (const mode of OUTPUT_MODES) {
-    outputs[mode] = renderMode(doc, mode);
+    outputs[mode] = renderMode(doc, mode, "editorial", source);
   }
   return {
     contentHash: doc.contentHash,
@@ -49,6 +49,7 @@ export function renderMode(
   doc: MemoryDocument,
   mode: OutputMode,
   themeId: PublishThemeId = "editorial",
+  source?: string,
 ): ModeOutput {
   const base: ModeOutput = {
     mode,
@@ -60,7 +61,7 @@ export function renderMode(
     designJsonError: null,
   };
   try {
-    const built = buildRoot(doc, mode, resolveTheme(themeId));
+    const built = buildRoot(doc, mode, resolveTheme(themeId), source);
     base.usedRecoveryRows = built.blocks.some((b) => b.recovered);
     base.html = renderToHtml(built.root);
     try {

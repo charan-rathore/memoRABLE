@@ -54,11 +54,11 @@ export function importJson(input: JsonImportInput): Result<MemoryDocument> {
     ]);
   }
   const root = parsed as Record<string, unknown>;
-  if ("version" in root && root.version !== 1) {
+  if ("version" in root && root.version !== 1 && root.version !== 2) {
     return err([
       diagnostic(
         "json.unsupported-version",
-        `This file uses version ${JSON.stringify(root.version)}. memoRABLE understands version 1.`,
+        `This file uses version ${JSON.stringify(root.version)}. memoRABLE understands versions 1 and 2.`,
         { path: "$.version" },
       ),
     ]);
@@ -181,7 +181,7 @@ function issueToDiagnostic(issue: z.ZodIssue): Diagnostic {
   if (issue.code === "invalid_literal" && cleaned === "$.version") {
     return diagnostic(
       "json.unsupported-version",
-      `This file uses version ${JSON.stringify(issue.received)}. memoRABLE understands version 1.`,
+      `This file uses version ${JSON.stringify(issue.received)}. memoRABLE understands versions 1 and 2.`,
       { path: cleaned },
     );
   }

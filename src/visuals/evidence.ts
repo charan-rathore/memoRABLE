@@ -3,7 +3,7 @@ import type { MemoryDocument } from "@/domain/memory/schema";
 /** Offsets index the exact imported JS string (UTF-16 code units), never PDF bytes. */
 export interface SourceSpan { start: number; end: number; quote: string }
 export type VisualReading =
- | { kind: "comparison"; title: string; rows: { label: string; value: number; span: SourceSpan }[]; summary: SourceSpan; currency: string }
+ | { kind: "comparison"; title: string; rows: { label: string; value: number; span: SourceSpan }[]; summary: SourceSpan; currency: string; context: SourceSpan[] }
  | { kind: "dependency"; title: string; before: string; after: string; span: SourceSpan }
  | { kind: "evidence"; title: string; reason: string; spans: { label: string; span: SourceSpan }[] };
 function linesOf(source: string) {
@@ -38,7 +38,7 @@ export function visualReading(doc:MemoryDocument, source:string):VisualReading {
     const m=/^Amount due:\s*([$€£])([\d,.]+)\s*$/i.exec(totals[0]!.text)!;
     const sum=rows.reduce((n,r)=>n+r.value,0),total=Number(m[2]!.replace(/,/g,""));
     const matching=doc.blocks.some(b=>{ if(b.kind!=="signals"||!("entries"in b.payload)) return false; const entries=b.payload.entries; return rows.every(r=>entries.some(e=>"label"in e&&e.label===r.label&&"financialRole"in e&&e.financialRole==="line-item"&&"value"in e&&typeof e.value==="string"&&e.value.startsWith(currency)&&/^[$€£][\d,]+(?:\.\d{2})?$/.test(e.value)&&Number(e.value.slice(1).replace(/,/g,""))===r.value)); });
-    if(currency===m[1]&&sum>0&&Math.abs(sum-total)<0.005&&matching)return {kind:"comparison",title:"Line items reconcile with the stated amount due.",rows,summary:span(totals[0]!),currency};
+    if(currency===m[1]&&sum>0&&Math.abs(sum-total)<0.005&&matching)return {kind:"comparison",title:"Line items reconcile with the stated amount due.",rows,summary:span(totals[0]!),currency,context:lines.filter(l=>/\b(?:currency|amounts?\s+(?:are\s+)?in|USD|CAD|AUD|NZD|SGD|HKD|EUR|GBP|INR|JPY)\b/i.test(l.text)).map(span)};
    }
   }
  }

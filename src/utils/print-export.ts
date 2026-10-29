@@ -55,6 +55,11 @@ function escapeAttribute(value: string): string {
  * A Word-openable document. The `mso` block tells Word to open in print view
  * at A4 rather than guessing a web layout.
  */
+function expandedDisclosures(html: string): string {
+  return html.replace(/<details\b([^>]*)>/gi, (tag, attrs:string) =>
+    /(?:^|\s)open(?:\s|=|$)/i.test(attrs) ? tag : `<details${attrs} open>`);
+}
+
 export function buildWordDocument(html: string, title: string): string {
   return `<!DOCTYPE html>
 <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
@@ -69,7 +74,7 @@ body { font-family: Georgia, "Times New Roman", serif; }
 </style>
 </head>
 <body>
-${bodyOf(html)}
+${expandedDisclosures(bodyOf(html))}
 </body>
 </html>
 `;
@@ -77,6 +82,7 @@ ${bodyOf(html)}
 
 /** The preview HTML with a print stylesheet appended, ready for the print dialog. */
 export function buildPrintDocument(html: string): string {
+  html = expandedDisclosures(html);
   const style = `<style>${PAGE_CSS}</style>`;
   if (/<\/head>/i.test(html)) return html.replace(/<\/head>/i, `${style}</head>`);
   return `${style}${html}`;

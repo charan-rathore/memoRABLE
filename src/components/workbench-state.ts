@@ -61,7 +61,7 @@ export type WorkbenchAction =
         mode: OutputMode;
       };
     }
-  | { type: "lazyRendered"; outputs: Partial<Record<OutputMode, ModeOutput>>; cache: RenderCacheEntry[] };
+  | { type: "lazyRendered"; documentHash: string; theme: PublishThemeId; sourceText: string; outputs: Partial<Record<OutputMode, ModeOutput>>; cache: RenderCacheEntry[] };
 
 export function initialWorkbenchState(init: {
   sourceText: string;
@@ -183,6 +183,7 @@ export function workbenchReducer(state: WorkbenchState, action: WorkbenchAction)
         selectedBlockId: null,
       };
     case "lazyRendered":
+      if (!state.document || action.documentHash !== state.document.contentHash || action.theme !== state.theme || action.sourceText !== state.sourceText) return state;
       return {
         ...state,
         outputs: { ...state.outputs, ...action.outputs },

@@ -648,7 +648,7 @@ function scheduleLazyRenders(
       const output = renderMode(doc, m, theme, source);
       filled[m] = output;
     }
-    dispatch({ type: "lazyRendered", outputs: filled, cache: [] });
+    dispatch({ type: "lazyRendered", documentHash: doc.contentHash, theme, sourceText: source ?? "", outputs: filled, cache: [] });
   }, 0);
 }
 

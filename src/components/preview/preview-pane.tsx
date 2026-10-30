@@ -40,6 +40,9 @@ export function PreviewPane({
       }, 150);
       return () => clearTimeout(t);
     }
+    // A cancelled transition can return to the already displayed source.
+    // Its timer was cleared, so settle the fade explicitly.
+    setFading(false);
     return undefined;
   }, [html, displayed]);
 

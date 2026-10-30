@@ -140,6 +140,7 @@ describe("lazyRendered action", () => {
     // Now lazy-render the remaining modes.
     const afterLazy = workbenchReducer(afterReorder, {
       type: "lazyRendered",
+      documentHash: afterReorder.document!.contentHash, theme: afterReorder.theme, sourceText: afterReorder.sourceText,
       outputs: {
         web: afterReorder.outputs.document!, // reuse for test purposes
         email: afterReorder.outputs.document!,

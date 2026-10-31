@@ -70,7 +70,7 @@ export function importJson(input: JsonImportInput): Result<MemoryDocument> {
   // 5. Strict schema validation.
   const parsedSource = memorySourceSchema.safeParse(parsed);
   if (!parsedSource.success) {
-    return err(parsedSource.error.issues.map(issueToDiagnostic));
+    return err(parsedSource.error.issues.map((issue) => issueToDiagnostic(issue, parsed)));
   }
 
   // 6. Semantics: exactly one of each of the six kinds.
@@ -149,9 +149,29 @@ function checkBlockSemantics(kinds: readonly BlockKind[]): Diagnostic[] {
   return problems;
 }
 
-function issueToDiagnostic(issue: z.ZodIssue): Diagnostic {
+// Zod 4 issue shapes: enum and literal mismatches are "invalid_value" (with
+// the allowed `values`), an unknown discriminator is an "invalid_union", size
+// limits carry `origin` instead of `type`, and the offending input is no
+// longer echoed on the issue, so it is read back from the parsed document.
+function valueAt(root: unknown, path: ReadonlyArray<PropertyKey>): unknown {
+  let cur: unknown = root;
+  for (const seg of path) {
+    if (cur === null || typeof cur !== "object") return undefined;
+    cur = (cur as Record<PropertyKey, unknown>)[seg as string];
+  }
+  return cur;
+}
+
+function describe(v: unknown): string {
+  if (v === null) return "null";
+  if (Array.isArray(v)) return "array";
+  return typeof v;
+}
+
+function issueToDiagnostic(issue: z.core.$ZodIssue, input: unknown): Diagnostic {
   const path = "$" + (issue.path.length ? "." + issue.path.map(formatPathSegment).join(".") : "");
   const cleaned = path.replace(/\.\[/g, "[");
+  const received = valueAt(input, issue.path);
   if (issue.code === "unrecognized_keys") {
     const keys = issue.keys.map((k) => `"${k}"`).join(", ");
     // Distinguish an unknown block kind from other unknown keys.
@@ -164,49 +184,49 @@ function issueToDiagnostic(issue: z.ZodIssue): Diagnostic {
       { path: cleaned },
     );
   }
-  if (issue.code === "invalid_enum_value" && cleaned.endsWith(".kind")) {
+  if (issue.code === "invalid_value" && cleaned.endsWith(".kind")) {
     return diagnostic(
       "json.unknown-kind",
-      `"${String(issue.received)}" is not a memory kind. Use one of: ${BLOCK_KINDS.join(", ")}.`,
+      `"${String(received)}" is not a memory kind. Use one of: ${BLOCK_KINDS.join(", ")}.`,
       { path: cleaned },
     );
   }
-  if (issue.code === "invalid_union_discriminator") {
+  if (issue.code === "invalid_union" && (issue as { note?: string }).note === "No matching discriminator") {
     return diagnostic(
       "json.unknown-kind",
       `Unknown memory kind. Use one of: ${BLOCK_KINDS.join(", ")}.`,
       { path: cleaned },
     );
   }
-  if (issue.code === "invalid_literal" && cleaned === "$.version") {
+  if (issue.code === "invalid_value" && cleaned === "$.version") {
     return diagnostic(
       "json.unsupported-version",
-      `This file uses version ${JSON.stringify(issue.received)}. memoRABLE understands versions 1 and 2.`,
+      `This file uses version ${JSON.stringify(received)}. memoRABLE understands versions 1 and 2.`,
       { path: cleaned },
     );
   }
-  if (issue.code === "too_big" && issue.type === "array") {
+  if (issue.code === "too_big" && issue.origin === "array") {
     return diagnostic(
       "input.too-many-entries",
       `This list has more than ${issue.maximum} entries. split the content or shorten it.`,
       { path: cleaned },
     );
   }
-  return diagnostic("json.invalid-field", friendlyIssueMessage(issue), { path: cleaned });
+  return diagnostic("json.invalid-field", friendlyIssueMessage(issue, received), { path: cleaned });
 }
 
-function friendlyIssueMessage(issue: z.ZodIssue): string {
+function friendlyIssueMessage(issue: z.core.$ZodIssue, received: unknown): string {
   switch (issue.code) {
     case "invalid_type":
-      return `Expected ${issue.expected} but found ${issue.received}.`;
+      return `Expected ${issue.expected} but found ${received === undefined ? "nothing" : describe(received)}.`;
     case "too_small":
-      return issue.type === "string"
+      return issue.origin === "string"
         ? "This field must not be empty."
-        : `This needs at least ${issue.minimum} ${issue.type === "array" ? "entries" : "characters"}.`;
+        : `This needs at least ${issue.minimum} ${issue.origin === "array" ? "entries" : "characters"}.`;
     case "too_big":
       return `This is longer than the ${issue.maximum}-character limit.`;
-    case "invalid_enum_value":
-      return `"${String(issue.received)}" is not one of the allowed values: ${issue.options.map((o) => `"${String(o)}"`).join(", ")}.`;
+    case "invalid_value":
+      return `"${String(received)}" is not one of the allowed values: ${issue.values.map((o) => `"${String(o)}"`).join(", ")}.`;
     case "invalid_union":
       return "This does not match any of the six memory payload shapes.";
     default:
@@ -214,8 +234,8 @@ function friendlyIssueMessage(issue: z.ZodIssue): string {
   }
 }
 
-function formatPathSegment(segment: string | number): string {
-  return typeof segment === "number" ? `[${segment}]` : segment;
+function formatPathSegment(segment: PropertyKey): string {
+  return typeof segment === "number" ? `[${segment}]` : String(segment);
 }
 
 /** Best-effort line/column extraction for JSON.parse failures. */

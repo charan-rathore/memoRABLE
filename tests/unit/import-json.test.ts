@@ -58,6 +58,17 @@ describe("importJson — all-or-nothing errors", () => {
     expect(result.errors[0]!.message).toContain("unexpected");
   });
 
+  it("names the wrong type in plain language (zod 4 no longer echoes the input)", () => {
+    const bad = JSON.parse(ATLAS_JSON_SOURCE) as Record<string, unknown>;
+    bad.title = 42;
+    const result = importJson({ text: JSON.stringify(bad), label: "bad.json" });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    const typeError = result.errors.find((e) => e.code === "json.invalid-field");
+    expect(typeError?.path).toBe("$.title");
+    expect(typeError?.message).toBe("Expected string but found number.");
+  });
+
   it("rejects unknown block kinds with a path", () => {
     const bad = JSON.parse(ATLAS_JSON_SOURCE) as { blocks: { kind: string }[] };
     bad.blocks[0]!.kind = "metrics";

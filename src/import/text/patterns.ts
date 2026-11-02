@@ -413,7 +413,7 @@ export function parseDecisionLine(raw: string): DecisionEntry | null {
     ref = refMatch[1];
     rest = rest.slice(refMatch[0].length).trim();
   }
-  let status: DecisionEntry["status"] = "proposed";
+  let status: DecisionEntry["status"];
   let foundStatus = false;
   let explicitCommitment: DecisionEntry["commitment"] | undefined;
   const { body, suffix } = extractParenSuffix(rest);
@@ -451,7 +451,8 @@ export function parseDecisionLine(raw: string): DecisionEntry | null {
   // both kept — compressing them into one field loses the cognitive layer.
   const commitment =
     explicitCommitment ?? (status === "approved" ? "committed" : readCommitment(rest));
-  const entry: DecisionEntry = { text: rest, status, commitment };
+  // A workflow state only when the line states one.
+  const entry: DecisionEntry = { text: rest, ...(status ? { status } : {}), commitment };
   if (ref) entry.ref = ref;
   return entry;
 }
@@ -478,7 +479,6 @@ export function parseAcceptanceCriterionLine(raw: string): DecisionEntry | null 
   if (!procedural && !/^[A-Z]/.test(text)) return null;
   return {
     text: text.slice(0, 500),
-    status: "proposed",
     commitment: "committed",
     because: "Acceptance criterion",
   };
@@ -581,7 +581,8 @@ function parsePriorityMatrixRow(raw: string): DecisionEntry | null {
     : `${priority}: ${feature}`;
   return {
     text,
-    status: /^P0\b/i.test(priority) ? "approved" : "proposed",
+    // A priority is not an approval: P0 says how much it matters, not
+    // that anyone signed it off.
     commitment: "committed",
     ref: /^P\d\b/i.exec(priority)?.[0]?.toUpperCase(),
   };
@@ -1027,8 +1028,9 @@ export function parseDecisionLineLenient(raw: string): DecisionEntry | null {
   if (!splitListItem(raw)) return null;
   // A bare noun ("Redis") is an item in a list, not a position someone took.
   if (text.split(/\s+/).length < 2) return null;
-  // Preserve commitment metadata; never invent approved/rejected.
-  return { text, status: "proposed", commitment: readCommitment(text) };
+  // Preserve commitment metadata; the source gave no workflow state, so
+  // none is recorded (not even "proposed").
+  return { text, commitment: readCommitment(text) };
 }
 
 export function parseTimelineLineLenient(raw: string): TimelineEntry | null {

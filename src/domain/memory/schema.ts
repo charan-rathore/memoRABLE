@@ -36,6 +36,47 @@ export type ProvenanceMethod = z.infer<typeof provenanceMethodSchema>;
 
 const textField = (max: number) => z.string().min(1).max(max);
 
+/**
+ * What a record IS when it is not a decision, risk, action or plan phase.
+ *
+ * The six memories are slots a renderer knows how to lay out; a resume's
+ * Education section still lands in the decisions slot and its Projects in
+ * the actions slot. `facet` says what the entry actually is, so nothing
+ * downstream (export, search, relations, an AI reading the JSON) mistakes a
+ * degree for a proposed decision or an achievement for a risk. A faceted
+ * entry carries no workflow field (decision status, commitment, timeline
+ * state, action status, risk severity): those describe plans, and a record
+ * of what happened has none unless the source writes one.
+ *
+ * `insight` marks an interpretation the parser drew from the text, kept
+ * apart from facts the source states.
+ */
+export const ENTRY_FACETS = [
+  "employment",
+  "education",
+  "credential",
+  "project",
+  "achievement",
+  "skill",
+  "insight",
+] as const;
+export const entryFacetSchema = z.enum(ENTRY_FACETS);
+export type EntryFacet = z.infer<typeof entryFacetSchema>;
+
+/** A faceted record states no workflow field. */
+const noWorkflowOnFacet =
+  (fields: readonly string[]) =>
+  (entry: Record<string, unknown>, ctx: z.RefinementCtx) => {
+    if (!entry.facet) return;
+    for (const f of fields)
+      if (entry[f] !== undefined)
+        ctx.addIssue({
+          code: "custom",
+          path: [f],
+          message: `A ${String(entry.facet)} record has no ${f}; it is not a plan or a decision.`,
+        });
+  };
+
 /* ---------------------------------- payloads --------------------------------- */
 
 /**
@@ -58,6 +99,7 @@ export const signalEntrySchema = z
     delta: z.union([z.string().max(120), z.number().finite()]).optional(),
     trend: z.enum(["up", "flat", "down"]).optional(),
     implication: textField(LIMITS.maxFieldLength).optional(),
+    facet: entryFacetSchema.optional(),
   })
   .strict();
 
@@ -70,11 +112,17 @@ export const decisionEntrySchema = z
   .object({
     ref: textField(40).optional(),
     text: textField(LIMITS.maxFieldLength),
-    status: z.enum(["approved", "requested", "proposed", "rejected"]),
+    /**
+     * Workflow state, only as the source states it. Absent means the source
+     * never said whether this was approved, requested, proposed or rejected.
+     */
+    status: z.enum(["approved", "requested", "proposed", "rejected"]).optional(),
     commitment: z.enum(["committed", "considered"]).optional(),
     because: textField(LIMITS.maxFieldLength).optional(),
+    facet: entryFacetSchema.optional(),
   })
-  .strict();
+  .strict()
+  .superRefine(noWorkflowOnFacet(["status", "commitment"]));
 
 /**
  * A phase is remembered by what it leaves behind and what it unblocks, not by
@@ -90,8 +138,10 @@ export const timelineEntrySchema = z
     requires: textField(240).optional(),
     /** Detail lines the source filed under this entry, verbatim. */
     details: z.array(textField(LIMITS.maxFieldLength)).max(LIMITS.maxEntriesPerBlock).optional(),
+    facet: entryFacetSchema.optional(),
   })
-  .strict();
+  .strict()
+  .superRefine(noWorkflowOnFacet(["state"]));
 
 /**
  * `severity` and `mitigation` are optional because most real documents state a
@@ -108,8 +158,10 @@ export const riskEntrySchema = z
     mitigation: textField(LIMITS.maxFieldLength).optional(),
     because: textField(LIMITS.maxFieldLength).optional(),
     consequence: textField(LIMITS.maxFieldLength).optional(),
+    facet: entryFacetSchema.optional(),
   })
-  .strict();
+  .strict()
+  .superRefine(noWorkflowOnFacet(["severity", "mitigation"]));
 
 /**
  * Action readiness, in the words a person would use.
@@ -130,7 +182,8 @@ export const actionEntrySchema = z
     task: textField(LIMITS.maxFieldLength),
     owner: textField(120).optional(),
     due: textField(80).optional(),
-    status: actionStatusSchema,
+    /** Required for work items; absent on a faceted record (a resume project). */
+    status: actionStatusSchema.optional(),
     /** The decision this action carries out, by `ref` or by its exact text. */
     from: textField(LIMITS.maxFieldLength).optional(),
     /**
@@ -139,8 +192,14 @@ export const actionEntrySchema = z
      * invented; absent when the entry stood alone.
      */
     details: z.array(textField(LIMITS.maxFieldLength)).max(LIMITS.maxEntriesPerBlock).optional(),
+    facet: entryFacetSchema.optional(),
   })
-  .strict();
+  .strict()
+  .superRefine((entry, ctx) => {
+    noWorkflowOnFacet(["status", "owner", "due"])(entry, ctx);
+    if (!entry.facet && entry.status === undefined)
+      ctx.addIssue({ code: "custom", path: ["status"], message: "An action needs a status." });
+  });
 
 const notesSchema = z.array(z.string().max(LIMITS.maxFieldLength)).max(LIMITS.maxNotesPerBlock);
 
@@ -409,7 +468,8 @@ export const sourceBlockSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("actions"), ...sourceBlockBase, payload: actionsPayloadSchema }).strict(),
 ]);
 
-/** Missing workflow state is legal only for explicitly typed research observations.
+/** Missing workflow state is legal only for explicitly typed research observations
+ * and for faceted resume records.
  * Legacy entries with valid workflow state stay readable; this is not a migration.
  */
 function validateTimelineSemantics(
@@ -424,6 +484,11 @@ function validateTimelineSemantics(
       const legalObservation = observation && ((entry.observationKind === "research-finding" && doc.archetype?.id === "research" && entry.date === "Finding") || (entry.observationKind === "invoice-date" && doc.archetype?.id === "invoice" && /^\d{4}-\d{2}-\d{2}$/.test(entry.date) && /^(Dated|Due Date): /.test(entry.title) && entry.title.split(": ")[1] === entry.date)) &&
         entry.state === undefined &&
         entry.requires === undefined && entry.produces === undefined;
+      // A resume record (a job, a degree) states dates, not a plan state.
+      const legalRecord =
+        entry.facet !== undefined && doc.archetype?.id === "resume" && entry.state === undefined &&
+        entry.requires === undefined && entry.produces === undefined && !observation;
+      if (legalRecord) continue;
       if ((observation && !legalObservation) || (!observation && entry.state === undefined)) {
         ctx.addIssue({ code: z.ZodIssueCode.custom,
           path: ["blocks", bi, "payload", "entries", ei],

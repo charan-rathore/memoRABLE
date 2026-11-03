@@ -1,7 +1,8 @@
 import type { ReactElement } from "react";
 import { Column, ColumnLayouts, Paragraph, Row } from "@unlayer/react-elements";
 import type { ActionEntry, ActionsPayload, MemoryBlock } from "@/domain/memory/schema";
-import { hairline, statusLabel, themedStatusColor } from "../tokens";
+import { hairline, statusLabel,
+  facetLabel, themedStatusColor } from "../tokens";
 import { inlineBold, inlineText } from "../safe-inline";
 import {
   emptyBlockRow,
@@ -107,5 +108,6 @@ function assignment(entry: ActionEntry): string {
 function actionStanceLabel(entry: ActionEntry): string | null {
   if (/^persona\s*:/i.test(entry.task)) return "Source: Persona";
   if (/^user story\s*:/i.test(entry.task)) return "Source: User Story";
-  return statusLabel(entry.status).toUpperCase();
+  if (entry.facet) return facetLabel(entry.facet).toUpperCase();
+  return statusLabel(entry.status).toUpperCase() || null;
 }

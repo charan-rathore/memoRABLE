@@ -1,7 +1,8 @@
 import type { ReactElement } from "react";
 import { Column, ColumnLayouts, Paragraph, Row } from "@unlayer/react-elements";
 import type { DecisionEntry, MemoryBlock, DecisionsPayload } from "@/domain/memory/schema";
-import { hairline, statusLabel, themedStatusColor } from "../tokens";
+import { hairline, statusLabel,
+  facetLabel, themedStatusColor } from "../tokens";
 import { inlineBold, inlineText } from "../safe-inline";
 import {
   emptyBlockRow,
@@ -98,7 +99,11 @@ function decisionRow(
  * Show both only when they add information; never "PROPOSED ." over "COMMITTED".
  */
 function formatDecisionStance(entry: DecisionEntry): string {
+  // A record (a degree, a credential, an inferred insight) has no stance.
+  if (entry.facet) return facetLabel(entry.facet);
   const status = statusLabel(entry.status);
+  // The source never gave a workflow state: show the commitment alone.
+  if (!entry.status) return entry.commitment ? statusLabel(entry.commitment) : "";
   if (entry.status === "approved" || entry.status === "rejected" || !entry.commitment) {
     return status;
   }

@@ -36,7 +36,7 @@ import {
   buildResearchKnowledgeGraph,
   mergeKnowledgeGraphs,
 } from "@/understanding/knowledge-graph";
-import type { KnowledgeGraph } from "@/domain/memory/schema";
+import type { EntryFacet, KnowledgeGraph } from "@/domain/memory/schema";
 import {
   blocksDecisionInference,
   harvestSingleLegLine,
@@ -55,6 +55,7 @@ import { LIMITS } from "@/domain/memory/limits";
 import { capExcerpt } from "../json/import-json";
 import {
   classifyHeading,
+  resumeFacetForHeading,
   inferKindFromLines,
   isStructuralLine,
   matchHeading,
@@ -125,6 +126,8 @@ interface Section {
   headingLine: number | null;
   /** True when an unnamed sub-heading inherited its parent section's kind. */
   inherited: boolean;
+  /** Resume record type of this section (its own heading, or its parent's). */
+  facet: EntryFacet | null;
   lines: SourceLine[];
 }
 
@@ -170,6 +173,7 @@ export function parseText(input: TextImportInput): Result<MemoryDocument> {
     headingText: string | null,
     headingLine: number | null,
     inherited = false,
+    facet: EntryFacet | null = null,
   ): Section => {
     const section: Section = {
       kind,
@@ -177,6 +181,7 @@ export function parseText(input: TextImportInput): Result<MemoryDocument> {
       headingText,
       headingLine,
       inherited,
+      facet,
       lines: [],
     };
     sections.push(section);
@@ -188,7 +193,7 @@ export function parseText(input: TextImportInput): Result<MemoryDocument> {
    * ("### memoRABLE — …" under "## Projects") belongs to the nearest
    * enclosing claimed section — the heading owns its bullets.
    */
-  const claimedStack: Array<{ level: number; kind: BlockKind }> = [];
+  const claimedStack: Array<{ level: number; kind: BlockKind; facet: EntryFacet | null }> = [];
 
   for (let i = 0; i < rawLines.length; i++) {
     if (i === titleConsumedLine) continue;
@@ -209,19 +214,21 @@ export function parseText(input: TextImportInput): Result<MemoryDocument> {
       if (pendingOrdinal && !pendingOrdinal.title) pendingOrdinal.title = heading.text;
       let kind = classifyHeading(heading.text);
       let inherited = false;
+      let facet = resumeFacetForHeading(heading.text);
       if (kind !== null) {
         while (claimedStack.length > 0 && claimedStack[claimedStack.length - 1]!.level >= heading.level) {
           claimedStack.pop();
         }
-        claimedStack.push({ level: heading.level, kind });
+        claimedStack.push({ level: heading.level, kind, facet });
       } else {
         const parent = [...claimedStack].reverse().find((c) => c.level < heading.level);
         if (parent) {
           kind = parent.kind;
           inherited = true;
+          facet = parent.facet;
         }
       }
-      current = startSection(kind, heading.text, i + 1, inherited);
+      current = startSection(kind, heading.text, i + 1, inherited, facet);
       // Persona headings are evidence — keep them inside the section body too.
       if (/^as an?\s+/i.test(heading.text)) {
         current.lines.push({ text: `- Persona: ${heading.text}`, lineNo: i + 1 });
@@ -974,6 +981,7 @@ function buildEntriesPayload(
         salvage: parseSignalSalvage,
       });
       mergeSignals(built, ctx, notes);
+      applyResumeFacets(built, matched, ctx, []);
       // Compress inside the bucket after projection — never before routing.
       built.entries = dedupeByMeaning(built.entries, (e) => `${e.label} ${e.implication ?? ""}`);
       return finish(built);
@@ -985,6 +993,7 @@ function buildEntriesPayload(
         salvage: parseDecisionLineLenient,
       });
       mergeDecisions(built, ctx, notes);
+      applyResumeFacets(built, matched, ctx, ["status", "commitment"]);
       // Compress inside Decisions: Key Requirements ≈ Acceptance Criteria.
       built.entries = compressDecisions(built.entries);
       return finish(built);
@@ -1008,6 +1017,7 @@ function buildEntriesPayload(
       }
       sortByLine(built);
       mergeTimeline(built, ctx, notes);
+      applyResumeFacets(built, matched, ctx, ["state"]);
       if (ctx.extraTimeline.length > 0) {
         const room = LIMITS.maxEntriesPerBlock - built.entries.length;
         for (const extra of ctx.extraTimeline.slice(0, Math.max(0, room))) {
@@ -1023,6 +1033,7 @@ function buildEntriesPayload(
     case "risks": {
       const built = collect(parseRiskLine, parseRiskLineLenient);
       mergeRisks(built, ctx, notes);
+      applyResumeFacets(built, matched, ctx, ["severity", "mitigation"]);
       built.entries = dedupeByMeaning(built.entries, (e) => e.risk);
       return finish(built);
     }
@@ -1128,10 +1139,42 @@ function buildEntriesPayload(
         built.entries.unshift({ task, status: "pending" });
       }
       mergeActions(built, ctx, notes);
+      applyResumeFacets(built, matched, ctx, ["status", "owner", "due"]);
       built.entries = dedupeByMeaning(built.entries, (e) => e.task);
       return finish(built);
     }
   }
+}
+
+/**
+ * A resume's sections still fill the six memory slots for layout, but their
+ * entries are records, not plans: tag each with its section's facet and drop
+ * the workflow fields (a degree is not a "proposed" decision, a job that
+ * ended is not "done" work, a project is not a "pending" todo). Only in a
+ * document read as a resume, and only for entries traced to a source line.
+ */
+function applyResumeFacets<T extends object>(
+  built: Collected<T>,
+  matched: readonly Section[],
+  ctx: BuildContext,
+  strip: readonly string[],
+): void {
+  if (ctx.understanding.archetype.archetype !== "resume") return;
+  const facetOf = new Map<number, EntryFacet>();
+  for (const section of matched) {
+    if (!section.facet) continue;
+    if (section.headingLine !== null) facetOf.set(section.headingLine, section.facet);
+    for (const line of section.lines) facetOf.set(line.lineNo, section.facet);
+  }
+  if (!facetOf.size) return;
+  built.entries.forEach((entry, i) => {
+    const line = built.lineOf[i];
+    const facet = line == null ? undefined : facetOf.get(line);
+    if (!facet) return;
+    const record = entry as Record<string, unknown>;
+    record.facet = facet;
+    for (const field of strip) delete record[field];
+  });
 }
 
 /**
@@ -1249,7 +1292,6 @@ function mergeDecisions(built: Collected<DecisionEntry>, ctx: BuildContext, note
     // Preserve commitment as metadata; status stays honest to the source.
     built.entries.push({
       text: value.text,
-      status: "proposed",
       commitment: value.commitment,
       ...(value.because ? { because: value.because } : {}),
     });
@@ -1367,8 +1409,8 @@ function compressDecisions(entries: readonly DecisionEntry[]): DecisionEntry[] {
 function mergeDecisionPair(a: DecisionEntry, b: DecisionEntry): DecisionEntry {
   const statusRank = { rejected: 0, proposed: 1, requested: 2, approved: 3 } as const;
   const commitmentRank = { considered: 0, committed: 1 } as const;
-  const status =
-    statusRank[a.status] >= statusRank[b.status] ? a.status : b.status;
+  const rank = (x: DecisionEntry["status"]) => (x ? statusRank[x] : -1);
+  const status = rank(a.status) >= rank(b.status) ? a.status : b.status;
   const aCommit = a.commitment ?? "considered";
   const bCommit = b.commitment ?? "considered";
   const commitment =
@@ -1378,7 +1420,7 @@ function mergeDecisionPair(a: DecisionEntry, b: DecisionEntry): DecisionEntry {
   return {
     ...a,
     text,
-    status,
+    ...(status ? { status } : {}),
     ...(commitment ? { commitment } : {}),
     ...(a.because || b.because ? { because: a.because ?? b.because } : {}),
     ...(a.ref || b.ref ? { ref: a.ref ?? b.ref } : {}),

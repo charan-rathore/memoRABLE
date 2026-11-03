@@ -5,7 +5,7 @@
  * import/text/patterns (which already imports decision/risk helpers).
  */
 
-import { kindClaimedByHeading, matchOrdinalHeading } from "@/import/text/sections";
+import { kindClaimedByHeading, matchOrdinalHeading, resumeFacetForHeading } from "@/import/text/sections";
 import {
   findDateToken,
   isTaskTableHeaderRow,
@@ -16,6 +16,7 @@ import {
   titleAroundRemovedDate,
 } from "@/import/text/patterns";
 import type { ActionEntry, BlockKind, TimelineEntry } from "@/domain/memory/schema";
+import type { DocumentArchetype } from "./archetype";
 import { inferReadiness, VERDICT_HEADING, type Inferred, type Statement } from "./inference";
 import { strongestCategory } from "./projection";
 import { clampWords, sentenceCase, unpunctuated, wordCount } from "./language";
@@ -130,6 +131,7 @@ export function inferTimeline(
 export function inferActions(
   statements: readonly Statement[],
   unheadedClaim: BlockKind | null = null,
+  archetype?: DocumentArchetype,
 ): Array<Inferred<InferredAction>> {
   const out: Array<Inferred<InferredAction>> = [];
 
@@ -144,6 +146,9 @@ export function inferActions(
       kindClaimedByHeading(statement.sectionTitle) ??
       (statement.sectionTitle == null ? unheadedClaim : null);
     if (claimed && claimed !== "actions" && claimed !== "snapshot") continue;
+    // A resume's faceted sections hold records (a shipped project), not
+    // outstanding work; their lines are never mined as todos.
+    if (archetype === "resume" && resumeFacetForHeading(statement.sectionTitle)) continue;
     // Verdict prose is the author's resolved opinion, not a todo for the owner.
     if (statement.sectionTitle && VERDICT_HEADING.test(statement.sectionTitle)) continue;
 

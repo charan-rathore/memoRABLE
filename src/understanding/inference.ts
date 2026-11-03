@@ -1,4 +1,4 @@
-import { kindClaimedByHeading } from "@/import/text/sections";
+import { kindClaimedByHeading, resumeFacetForHeading } from "@/import/text/sections";
 import type { Concept } from "./concepts";
 import { labelFor } from "./concepts";
 import type { DocumentArchetype } from "./archetype";
@@ -286,7 +286,7 @@ export function readCommitment(text: string): "committed" | "considered" {
 export function inferDecisions(
   statements: readonly Statement[],
   intent: Intent,
-  _archetype?: DocumentArchetype,
+  archetype?: DocumentArchetype,
 ): Array<Inferred<InferredDecision>> {
   const out: Array<Inferred<InferredDecision>> = [];
 
@@ -300,6 +300,9 @@ export function inferDecisions(
     const claimed = kindClaimedByHeading(statement.sectionTitle);
     if (claimed && claimed !== "decisions" && claimed !== "snapshot") continue;
     if (statement.sectionTitle && VERDICT_HEADING.test(statement.sectionTitle)) continue;
+    // A resume's faceted sections hold records (a degree, a certification),
+    // not commitments; their lines are never mined as decisions.
+    if (archetype === "resume" && resumeFacetForHeading(statement.sectionTitle)) continue;
     // A checkbox is the author's own todo marker. Reading it as a settled
     // commitment turns an open task into a decision nobody made.
     if (statement.task) continue;

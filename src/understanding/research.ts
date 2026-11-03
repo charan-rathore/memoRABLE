@@ -591,7 +591,8 @@ function inferInsights(summaries: readonly SectionSummary[], findings: readonly 
     if (findingsBlob.includes(t.toLowerCase())) return;
     if (relatedWorkChrome.test(t) && !/\b(suggests?|implies?|means that|bottleneck)\b/i.test(t)) return;
     if (insights.some((i) => i.text.toLowerCase() === t.toLowerCase())) return;
-    insights.push({ text: t, status: "proposed", commitment: "considered" });
+    // An interpretation drawn from the paper, not a decision anyone made.
+    insights.push({ text: t, facet: "insight" });
   };
 
   const rankedInsights = interpretive

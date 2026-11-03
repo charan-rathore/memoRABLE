@@ -68,7 +68,17 @@ export interface Recall {
   readingMinutes: number;
 }
 
-export function composeRecall(input: RecallInput): Recall {
+export function composeRecall(raw: RecallInput): Recall {
+  // Records (a degree, a past job, a resume project) are not goals,
+  // problems or outstanding work; recall frames plans and decisions only.
+  const plan = <T extends { facet?: unknown }>(xs: readonly T[]) => xs.filter((x) => !x.facet);
+  const input: RecallInput = {
+    ...raw,
+    decisions: plan(raw.decisions),
+    risks: plan(raw.risks),
+    timeline: plan(raw.timeline),
+    actions: plan(raw.actions),
+  };
   const goal = primaryGoal(input);
   const problem = primaryProblem(input);
   const outcome = primaryOutcome(input);

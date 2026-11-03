@@ -53,7 +53,7 @@ export function hairline(lineColor: string = colors.line) {
 }
 
 /** Status colour that follows the active preset's accent when relevant. */
-export function themedStatusColor(status: string, accent: string = colors.accent): string {
+export function themedStatusColor(status: string | undefined, accent: string = colors.accent): string {
   switch (status) {
     case "approved":
     case "shipped":
@@ -107,7 +107,13 @@ export function statusColor(status: string): string {
   }
 }
 
-export function statusLabel(status: string): string {
+/** What a faceted record is, as a short label ("Education", "Project"). */
+export function facetLabel(facet: string): string {
+  return facet.charAt(0).toUpperCase() + facet.slice(1);
+}
+
+export function statusLabel(status: string | undefined): string {
+  if (!status) return "";
   switch (status) {
     case "on-track":
       return "On track";

@@ -1,4 +1,4 @@
-import type { BlockKind } from "@/domain/memory/schema";
+import type { BlockKind, EntryFacet } from "@/domain/memory/schema";
 import { splitListItem } from "./patterns";
 
 /**
@@ -401,4 +401,46 @@ export function isStructuralLine(line: string): boolean {
   if (/^```/.test(trimmed)) return true; // fence marker
   if (/^<!--\s*(page|image):/i.test(trimmed)) return true; // PDF layout / OCR markers
   return false;
+}
+
+/**
+ * What a resume section's entries ARE. They still route into the six memory
+ * slots above for layout; the facet keeps a degree from reading as a
+ * proposed decision, a project as pending work, an award as a risk.
+ */
+const RESUME_FACETS: Record<string, EntryFacet> = {
+  education: "education",
+  "education history": "education",
+  "academic background": "education",
+  certifications: "credential",
+  certificates: "credential",
+  licenses: "credential",
+  "licenses & certifications": "credential",
+  "work experience": "employment",
+  experience: "employment",
+  employment: "employment",
+  "employment history": "employment",
+  "professional experience": "employment",
+  projects: "project",
+  "side projects": "project",
+  portfolio: "project",
+  achievements: "achievement",
+  awards: "achievement",
+  honors: "achievement",
+  "career highlights": "achievement",
+  "key achievements": "achievement",
+  skills: "skill",
+  "technical skills": "skill",
+  competencies: "skill",
+};
+
+export function resumeFacetForHeading(text: string | null | undefined): EntryFacet | null {
+  if (!text) return null;
+  const key = text
+    .toLowerCase()
+    .replace(/^\d+(\.\d+)*\.?\s*/, "")
+    .replace(/:$/, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  return RESUME_FACETS[key] ?? null;
 }

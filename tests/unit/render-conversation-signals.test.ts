@@ -44,9 +44,11 @@ describe("publication render — conversation, open questions, decision stance",
     expect(html).toMatch(/Open question/i);
   });
 
-  it("renders decision stance as Proposed / committed, not PROPOSED · COMMITTED wrap", () => {
+  it("renders the stance the source states (committed), never an invented Proposed", () => {
     const html = renderBundle(docOf()).outputs.web.html ?? "";
-    expect(html).toMatch(/Proposed\s*\/\s*committed/i);
+    // The source marks the line "committed" and states no workflow status.
+    expect(html).toMatch(/>\s*Committed\s*</);
+    expect(html).not.toMatch(/Proposed\s*\/\s*committed/i);
     expect(html).not.toMatch(/PROPOSED\s*·\s*COMMITTED/);
   });
 });

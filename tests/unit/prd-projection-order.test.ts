@@ -112,6 +112,8 @@ describe("PRD projection order + semantic layers", () => {
       .toLowerCase();
     expect(signalText).toMatch(/should we limit|default approval workflow/);
 
-    expect(decisions.entries.every((e) => e.status && e.commitment)).toBe(true);
+    // Commitment is always read; a workflow status only where the line states
+    // one (a cases rule is approved; a bare bullet is not "proposed").
+    expect(decisions.entries.every((e) => e.commitment)).toBe(true);
   });
 });

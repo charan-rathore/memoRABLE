@@ -124,6 +124,25 @@ const DATE_ATOM = [
 ].join("|");
 
 const DATE_TOKEN = new RegExp(`^(${DATE_ATOM})\\b`, "i");
+/** A span at the start of a line: "2019–2022", "Mar 2021 - present". */
+const SPAN_END = `(?:(?:${MONTH})\\.?\\s+)?${YEAR}|present|current|now|today|ongoing`;
+const YEAR_SPAN = new RegExp(
+  `^((?:(?:${MONTH})\\.?\\s+)?${YEAR})\\s*[–—-]\\s*(${SPAN_END})\\b`,
+  "i",
+);
+/**
+ * What a span itself establishes, read against the current year: it ended
+ * before this year → done; it runs to "present" or through this year →
+ * on-track; it starts after this year → planned. Never "planned" for work
+ * that has already begun.
+ */
+export function spanState(start: string, end: string, year = new Date().getFullYear()): TimelineEntry["state"] {
+  const y = (s: string) => Number(/(?:19|20)\d{2}/.exec(s)?.[0] ?? NaN);
+  if (/present|current|now|today|ongoing/i.test(end)) return "on-track";
+  if (y(end) < year) return "done";
+  if (y(start) > year) return "planned";
+  return "on-track";
+}
 /** Mid-line dates omit bare month names ("May need…") to avoid false hits. */
 const DATE_EMBEDDED = [
   "(?:today|tomorrow|yesterday|tonight)",
@@ -394,7 +413,7 @@ export function parseDecisionLine(raw: string): DecisionEntry | null {
     ref = refMatch[1];
     rest = rest.slice(refMatch[0].length).trim();
   }
-  let status: DecisionEntry["status"] = "proposed";
+  let status: DecisionEntry["status"];
   let foundStatus = false;
   let explicitCommitment: DecisionEntry["commitment"] | undefined;
   const { body, suffix } = extractParenSuffix(rest);
@@ -432,7 +451,8 @@ export function parseDecisionLine(raw: string): DecisionEntry | null {
   // both kept — compressing them into one field loses the cognitive layer.
   const commitment =
     explicitCommitment ?? (status === "approved" ? "committed" : readCommitment(rest));
-  const entry: DecisionEntry = { text: rest, status, commitment };
+  // A workflow state only when the line states one.
+  const entry: DecisionEntry = { text: rest, ...(status ? { status } : {}), commitment };
   if (ref) entry.ref = ref;
   return entry;
 }
@@ -459,7 +479,6 @@ export function parseAcceptanceCriterionLine(raw: string): DecisionEntry | null 
   if (!procedural && !/^[A-Z]/.test(text)) return null;
   return {
     text: text.slice(0, 500),
-    status: "proposed",
     commitment: "committed",
     because: "Acceptance criterion",
   };
@@ -562,7 +581,8 @@ function parsePriorityMatrixRow(raw: string): DecisionEntry | null {
     : `${priority}: ${feature}`;
   return {
     text,
-    status: /^P0\b/i.test(priority) ? "approved" : "proposed",
+    // A priority is not an approval: P0 says how much it matters, not
+    // that anyone signed it off.
     commitment: "committed",
     ref: /^P\d\b/i.exec(priority)?.[0]?.toUpperCase(),
   };
@@ -578,6 +598,9 @@ const TIMELINE_STATE: Array<[RegExp, TimelineEntry["state"]]> = [
 ];
 
 const TRAILING_STATE = /\b(shipped|released|launched|live|done|complete|completed|closed|on[\s-]?track|in\s+progress|underway|planned|upcoming|scheduled)\b/i;
+
+/** The same labels, anchored: the ENTIRE text is one standalone state label. */
+const STANDALONE_STATE = new RegExp(`^${TRAILING_STATE.source}$`, "i");
 
 /** Phase / Step / Stage markers — delivery order without a calendar date. */
 const ORDINAL_DATE =
@@ -657,6 +680,33 @@ export function parseTimelineLine(raw: string): TimelineEntry | null {
     if (!state) state = stateFromText(rest) ?? "planned";
     if (rest.length < 2) rest = marker;
     return { date: marker, title: rest, state, ...inferArtifact(rest) };
+  }
+
+  // "2022–2026 Staff Engineer…", "Mar 2021 - present Lead…": a span, not a
+  // single date followed by a title that starts with the end year.
+  const span = YEAR_SPAN.exec(text);
+  if (span) {
+    const rest = text.slice(span[0].length).replace(/^\s*[:—–,-]\s*/, "").trim();
+    if (rest.length >= 2) {
+      const date = `${span[1]!.trim()}–${span[2]!.trim()}`;
+      // A dash-form state wins over what the years imply only when the ENTIRE
+      // final segment is one standalone state label (an optional terminal
+      // period is allowed). Negation, prose and scope ("not shipped yet",
+      // "docs for planned rollout", "shipped (backend only)") stay in the
+      // title and spanState speaks. The shared single-date helper is
+      // untouched; the parenthesized form keeps its existing priority.
+      const dash = /^(.*?)\s+[—–-]\s+([^—–]{1,40}?)\.?\s*$/.exec(rest);
+      const tail = dash ? dash[2]!.trim().replace(/\.$/, "") : "";
+      const dashState = tail.length > 0 && STANDALONE_STATE.test(tail) ? stateFromText(tail) : undefined;
+      if (dash && dashState && dash[1]!.trim().length >= 2) {
+        const title = dash[1]!.trim();
+        return { date, title, state: dashState, ...inferArtifact(title) };
+      }
+      const { body, suffix } = extractParenSuffix(rest);
+      const said = (suffix && stateFromText(suffix)) || undefined;
+      const title = said ? body : rest;
+      return { date, title, state: said ?? spanState(span[1]!, span[2]!), ...inferArtifact(title) };
+    }
   }
 
   const dateMatch = DATE_TOKEN.exec(text);
@@ -994,8 +1044,9 @@ export function parseDecisionLineLenient(raw: string): DecisionEntry | null {
   if (!splitListItem(raw)) return null;
   // A bare noun ("Redis") is an item in a list, not a position someone took.
   if (text.split(/\s+/).length < 2) return null;
-  // Preserve commitment metadata; never invent approved/rejected.
-  return { text, status: "proposed", commitment: readCommitment(text) };
+  // Preserve commitment metadata; the source gave no workflow state, so
+  // none is recorded (not even "proposed").
+  return { text, commitment: readCommitment(text) };
 }
 
 export function parseTimelineLineLenient(raw: string): TimelineEntry | null {

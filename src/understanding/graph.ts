@@ -35,11 +35,18 @@ const MAX_EDGES_PER_MEMORY = 2;
 
 export function buildRelations(blocks: readonly MemoryBlock[]): MemoryRelation[] {
   const signals = entriesOf<SignalEntry>(blocks, "signals");
-  const decisions = entriesOf<DecisionEntry>(blocks, "decisions");
+  // Records (a degree, a certification, a resume project) sit in the
+  // decisions/actions display slots but are not plan semantics: a faceted
+  // entry is never a relation candidate.
+  const decisions = entriesOf<DecisionEntry>(blocks, "decisions").filter(
+    ({ entry }) => entry.facet === undefined,
+  );
   const timeline = entriesOf<TimelineEntry>(blocks, "timeline")
     .filter(({ entry }) => entry.observationKind === undefined);
   const risks = entriesOf<RiskEntry>(blocks, "risks");
-  const actions = entriesOf<ActionEntry>(blocks, "actions");
+  const actions = entriesOf<ActionEntry>(blocks, "actions").filter(
+    ({ entry }) => entry.facet === undefined,
+  );
 
   const relations: MemoryRelation[] = [];
 

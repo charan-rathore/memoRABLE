@@ -182,7 +182,7 @@ export function understand(
     (input.sourceLabel == null ||
       input.title !== input.sourceLabel.replace(/\.(md|markdown|txt)$/i, ""));
   const actions = dedupeByMeaning(
-    inferActions(statements, titleFromHeading ? kindClaimedByHeading(input.title) : null),
+    inferActions(statements, titleFromHeading ? kindClaimedByHeading(input.title) : null, archetype.archetype),
     (a) => a.value.task,
   );
   const heroInsights = deriveHeroInsights({

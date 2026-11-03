@@ -484,9 +484,10 @@ function validateTimelineSemantics(
       const legalObservation = observation && ((entry.observationKind === "research-finding" && doc.archetype?.id === "research" && entry.date === "Finding") || (entry.observationKind === "invoice-date" && doc.archetype?.id === "invoice" && /^\d{4}-\d{2}-\d{2}$/.test(entry.date) && /^(Dated|Due Date): /.test(entry.title) && entry.title.split(": ")[1] === entry.date)) &&
         entry.state === undefined &&
         entry.requires === undefined && entry.produces === undefined;
-      // A resume record (a job, a degree) states dates, not a plan state.
+      // A record (a job, a degree) states dates, not a plan state. The facet
+      // travels with the entry, so an exported resume reimports unchanged.
       const legalRecord =
-        entry.facet !== undefined && doc.archetype?.id === "resume" && entry.state === undefined &&
+        entry.facet !== undefined && entry.state === undefined &&
         entry.requires === undefined && entry.produces === undefined && !observation;
       if (legalRecord) continue;
       if ((observation && !legalObservation) || (!observation && entry.state === undefined)) {

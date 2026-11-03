@@ -599,6 +599,9 @@ const TIMELINE_STATE: Array<[RegExp, TimelineEntry["state"]]> = [
 
 const TRAILING_STATE = /\b(shipped|released|launched|live|done|complete|completed|closed|on[\s-]?track|in\s+progress|underway|planned|upcoming|scheduled)\b/i;
 
+/** The same labels, anchored: the ENTIRE text is one standalone state label. */
+const STANDALONE_STATE = new RegExp(`^${TRAILING_STATE.source}$`, "i");
+
 /** Phase / Step / Stage markers — delivery order without a calendar date. */
 const ORDINAL_DATE =
   /^(phase|step|stage|milestone|sprint|task|iteration)\s+([0-9]{1,3}|[a-z]|[ivxlc]+)\b/i;
@@ -686,6 +689,19 @@ export function parseTimelineLine(raw: string): TimelineEntry | null {
     const rest = text.slice(span[0].length).replace(/^\s*[:—–,-]\s*/, "").trim();
     if (rest.length >= 2) {
       const date = `${span[1]!.trim()}–${span[2]!.trim()}`;
+      // A dash-form state wins over what the years imply only when the ENTIRE
+      // final segment is one standalone state label (an optional terminal
+      // period is allowed). Negation, prose and scope ("not shipped yet",
+      // "docs for planned rollout", "shipped (backend only)") stay in the
+      // title and spanState speaks. The shared single-date helper is
+      // untouched; the parenthesized form keeps its existing priority.
+      const dash = /^(.*?)\s+[—–-]\s+([^—–]{1,40}?)\.?\s*$/.exec(rest);
+      const tail = dash ? dash[2]!.trim().replace(/\.$/, "") : "";
+      const dashState = tail.length > 0 && STANDALONE_STATE.test(tail) ? stateFromText(tail) : undefined;
+      if (dash && dashState && dash[1]!.trim().length >= 2) {
+        const title = dash[1]!.trim();
+        return { date, title, state: dashState, ...inferArtifact(title) };
+      }
       const { body, suffix } = extractParenSuffix(rest);
       const said = (suffix && stateFromText(suffix)) || undefined;
       const title = said ? body : rest;

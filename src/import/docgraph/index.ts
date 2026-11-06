@@ -18,7 +18,10 @@ export {
   type DoclingSelectInput,
 } from "./select";
 export {
+  composePdfReadNote,
+  ocrProvenanceNote,
   readPdfQuick,
+  refinedReadNote,
   scheduleDoclingRefine,
   type ProgressivePdfQuick,
 } from "./progressive-pdf";

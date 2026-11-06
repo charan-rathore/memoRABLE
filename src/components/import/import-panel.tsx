@@ -12,6 +12,7 @@ import { isPdfFile } from "@/import/read-pdf";
 import {
   isDoclingRefinementBetter,
   readPdfQuick,
+  refinedReadNote,
   scheduleDoclingRefine,
 } from "@/import/docgraph";
 import type { KnowledgeGraph } from "@/domain/memory/schema";
@@ -168,6 +169,7 @@ export function ImportPanel({
               sizeBytes: file.size,
               pages: refined.pages ?? quick.pages,
               parseStatus: refined.cache === "hit" ? "Docling refine (cached)" : "Docling refine",
+              readNote: refinedReadNote(quick, refined.markdown),
               parsedByDocling: true,
               quiet: true,
             });

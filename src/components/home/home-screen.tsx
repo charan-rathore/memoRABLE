@@ -13,6 +13,7 @@ import { isPdfFile } from "@/import/read-pdf";
 import {
   isDoclingRefinementBetter,
   readPdfQuick,
+  refinedReadNote,
   scheduleDoclingRefine,
 } from "@/import/docgraph";
 import { importSource } from "@/import/import-source";
@@ -166,6 +167,7 @@ export function HomeScreen({
               sizeBytes: file.size,
               pages: refined.pages ?? quick.pages,
               parseStatus: refined.cache === "hit" ? "Docling refine (cached)" : "Docling refine",
+              readNote: refinedReadNote(quick, refined.markdown),
               parsedByDocling: true,
               quiet: true,
             });

@@ -5,7 +5,7 @@ import { HomeScreen } from "@/components/home/home-screen";
 import { ImportPanel } from "@/components/import/import-panel";
 import { ATLAS_NOTES_SOURCE } from "@/import/examples/catalog";
 const hooks = vi.hoisted(() => ({ schedule: vi.fn(), quick: vi.fn() }));
-vi.mock("@/import/docgraph", () => ({ readPdfQuick: hooks.quick, scheduleDoclingRefine: hooks.schedule, isDoclingRefinementBetter: () => true }));
+vi.mock("@/import/docgraph", () => ({ readPdfQuick: hooks.quick, scheduleDoclingRefine: hooks.schedule, isDoclingRefinementBetter: () => true, refinedReadNote: () => undefined }));
 vi.mock("@/import/read-pdf", () => ({ isPdfFile: () => true }));
 const props = { sourceLabel: "A.pdf", sourceOk: false, sourceText: ATLAS_NOTES_SOURCE, errors: [], warnings: [], hasVerified: true, aiEnabled: false, onUseExample: vi.fn(), onUseVerified: vi.fn(), onImproveWithAi: vi.fn(), aiBusy: false };
 const upload=(container:HTMLElement)=>fireEvent.change(container.querySelector('input[type="file"]')!,{target:{files:[new File(["pdf"],"A.pdf")]}});

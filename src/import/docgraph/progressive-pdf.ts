@@ -82,6 +82,21 @@ export function composePdfReadNote(result: {
 }
 
 /**
+ * Reading note to carry across a Docling refinement. A refine is accepted on
+ * structural heuristics only; it never proves scan/OCR limitations are gone.
+ * Keep the no-text note while the refined output still has no readable text,
+ * and keep the verify-numbers warning whenever the quick pass used OCR.
+ */
+export function refinedReadNote(
+  quick: { note?: string; ocrBlocks?: number },
+  refinedMarkdown: string,
+): string | undefined {
+  const refinedEmpty = refinedMarkdown.replace(/<!--\s*page:\d+\s*-->/g, "").trim() === "";
+  if (refinedEmpty) return quick.note;
+  return ocrProvenanceNote(quick.ocrBlocks ?? 0);
+}
+
+/**
  * Fire-and-forget Docling refinement. Call after the fast import has rendered.
  * Invokes `onRefine` only when the selective heuristic matches and quality improves.
  */

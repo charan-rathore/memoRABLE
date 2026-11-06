@@ -75,3 +75,42 @@ describe("OCR provenance in the workbench import panel", () => {
     expect(view.queryByText(/Reading notes and limits/)).toBeNull();
   });
 });
+
+describe("OCR provenance across Docling refine", () => {
+  const uploadQuick = async (quick: unknown) => {
+    hooks.quick.mockResolvedValue(quick);
+    hooks.schedule.mockClear();
+    const onImport = vi.fn();
+    const view = render(<HomeScreen errors={[]} onImport={onImport} onUseExample={vi.fn()} />);
+    fireEvent.change(view.container.querySelector('input[type="file"]')!, { target: { files: [new File(["pdf"], "scan.pdf")] } });
+    await waitFor(() => expect(onImport).toHaveBeenCalled());
+    expect(hooks.schedule).toHaveBeenCalled();
+    return { onImport, request: hooks.schedule.mock.calls.at(-1)![0] };
+  };
+
+  it("retains the verify-numbers note when a structural refine replaces OCR text", async () => {
+    const note = ocrProvenanceNote(1);
+    const { onImport, request } = await uploadQuick({ text: ATLAS_NOTES_SOURCE, pages: 12, truncated: false, images: 1, ocrBlocks: 1, note });
+    await request.onRefine({ markdown: "# Abstract\n\n" + ATLAS_NOTES_SOURCE, pages: 12 });
+    await waitFor(() => expect(onImport).toHaveBeenCalledTimes(2));
+    const meta = onImport.mock.calls.at(-1)![2];
+    expect(meta.readNote).toMatch(/scan or photo/);
+    expect(meta.readNote).toMatch(/[Cc]heck names and numbers/);
+  });
+
+  it("retains the no-text note when the refined output is still empty", async () => {
+    const { onImport, request } = await uploadQuick({ text: "<!-- page:1 -->", pages: 1, truncated: false, images: 1, ocrBlocks: 0, note: "No readable text found in this PDF. If it is a scan or photo, its text could not be read." });
+    await request.onRefine({ markdown: "<!-- page:1 -->", pages: 1 });
+    await waitFor(() => expect(onImport).toHaveBeenCalledTimes(2));
+    const meta = onImport.mock.calls.at(-1)![2];
+    expect(meta.readNote).toMatch(/No readable text/);
+  });
+
+  it("drops nothing for a clean text PDF (no note to carry)", async () => {
+    const { onImport, request } = await uploadQuick({ text: ATLAS_NOTES_SOURCE, pages: 12, truncated: false, images: 0, ocrBlocks: 0, note: undefined });
+    await request.onRefine({ markdown: "# Abstract\n\n" + ATLAS_NOTES_SOURCE, pages: 12 });
+    await waitFor(() => expect(onImport).toHaveBeenCalledTimes(2));
+    const meta = onImport.mock.calls.at(-1)![2];
+    expect(meta.readNote).toBeUndefined();
+  });
+});

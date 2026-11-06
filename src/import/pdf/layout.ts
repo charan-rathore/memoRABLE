@@ -95,20 +95,65 @@ export function detectColumnGutter(items: readonly PdfTextItem[]): number | null
   const leftPeak = Math.min(primary.x, secondary.x);
   const rightPeak = Math.max(primary.x, secondary.x);
 
-  // Gutter = lowest-mass bin between peaks (not the arithmetic midpoint).
-  // Midpoint is too far left when left-column lines continue past center.
-  let gutter = (leftPeak + rightPeak) / 2;
-  let bestMass = Number.POSITIVE_INFINITY;
-  for (const [x, mass] of sorted) {
-    if (x <= leftPeak + 30 || x >= rightPeak - 30) continue;
-    if (mass < bestMass || (mass === bestMass && Math.abs(x - gutter) < 20)) {
-      bestMass = mass;
-      gutter = x;
+  // Gutter = the cut the fewest parts STRADDLE (x < cut < x+w), swept across
+  // the inter-peak range in 5pt steps, preferring the rightmost minimum. A
+  // true gutter is whitespace crossed by almost no text run - and it rarely
+  // coincides with a start bin, so candidate cuts must cover empty space too.
+  // A mid-column cut splits every long line crossing it (p18-short2 p4's
+  // lowest-mass pick of x=180 spliced left text into the right column); a cut
+  // left of a right column's hanging indents splits its lines.
+  const spans: Array<readonly [number, number]> = [];
+  for (const item of items) {
+    if (!(item.str ?? "").trim()) continue;
+    const l = item.transform[4] ?? 0;
+    spans.push([l, l + (item.width || 0)]);
+  }
+  // Tie-break equal-straddle cuts by CLEARANCE - the smaller of the distances
+  // to the nearest run on each side. A true gutter is the widest whitespace:
+  // short outdented runs that end before the right peak straddle nothing, so
+  // straddle count alone cannot tell an inter-column gap from an internal
+  // right-column whitespace pocket. Rightmost wins any remaining tie.
+  let gutter: number | null = null;
+  let bestStraddle = Number.POSITIVE_INFINITY;
+  let bestClearance = -1;
+  for (let cut = leftPeak + 30; cut <= rightPeak - 5; cut += 5) {
+    let n = 0;
+    let leftDist = Number.POSITIVE_INFINITY;
+    let rightDist = Number.POSITIVE_INFINITY;
+    for (const [l, r] of spans) {
+      if (l < cut - 2 && r > cut + 2) {
+        n++;
+        continue;
+      }
+      if (r <= cut) leftDist = Math.min(leftDist, cut - r);
+      if (l >= cut) rightDist = Math.min(rightDist, l - cut);
+    }
+    const clearance = Math.min(
+      leftDist === Number.POSITIVE_INFINITY ? 50 : leftDist,
+      rightDist === Number.POSITIVE_INFINITY ? 50 : rightDist,
+    );
+    if (
+      n < bestStraddle ||
+      (n === bestStraddle && clearance > bestClearance) ||
+      (n === bestStraddle && clearance === bestClearance)
+    ) {
+      bestStraddle = n;
+      bestClearance = clearance;
+      gutter = cut;
     }
   }
-  // Bias slightly toward the right peak so left-column wrap fragments
-  // that start mid-line (x≈230) stay left of the cut.
-  gutter = Math.min(gutter + 30, rightPeak - 40);
+  if (gutter === null) {
+    let bestMass = Number.POSITIVE_INFINITY;
+    gutter = (leftPeak + rightPeak) / 2;
+    for (const [x, mass] of sorted) {
+      if (x <= leftPeak + 30 || x >= rightPeak - 30) continue;
+      if (mass < bestMass || (mass === bestMass && Math.abs(x - gutter) < 20)) {
+        bestMass = mass;
+        gutter = x;
+      }
+    }
+    gutter = Math.min(gutter + 30, rightPeak - 40);
+  }
 
   // Both sides of the gutter must carry real body mass.
   let leftMass = 0;

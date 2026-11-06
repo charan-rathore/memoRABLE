@@ -1,7 +1,12 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { buildLayoutDocument, joinSoftWrap, type PdfTextItem } from "@/import/pdf/layout";
+import {
+  buildLayoutDocument,
+  joinSoftWrap,
+  reconstructPageLines,
+  type PdfTextItem,
+} from "@/import/pdf/layout";
 
 /**
  * Source-fidelity regression from the production gauntlet (9 public research
@@ -147,6 +152,61 @@ describe("gauntlet source fidelity", () => {
     const md2 = buildLayoutDocument([{ page: 1, items: [base, sub, sup, ...pad] }]).markdown;
     expect(md1).toBe(md2);
     expect(md1).toMatch(/x[_^][a-z0-9][_^][a-z0-9]/);
+  });
+
+  it("two-column pages keep columns separate: no cross-column wrap splice", async () => {
+    const md = await layoutMarkdown("p18-short2.pdf", 5);
+    expect(md).toContain("mapping frequent words to distinct matrices");
+    expect(md).not.toMatch(/we ping frequent words/);
+    expect(md).not.toMatch(/map-\s*K\. As K increases/);
+  }, 30_000);
+
+  it("right-column hanging indents stay in the right column (gutter straddle control)", () => {
+    // Left column x=80 w=170 (right edge 250); dominant right starts x=310
+    // w=200; a minority of right-column lines hang at x=260 w=240.
+    // 20 lines per column (left right-edges <= 226); 6 right-column lines
+    // hang at x=240 (a substantial minority, per review). The lowest-mass-bin
+    // rule cuts at ~260 and files them left; the straddle sweep keeps them
+    // right.
+    const items: PdfTextItem[] = [];
+    let y = 900;
+    for (let i = 0; i < 20; i++) {
+      const jitter = (i % 4) * 7; // real pages do not share one exact left edge
+      items.push(T(`Left column line number ${i} of the body text.`, 80 + jitter, y, 125));
+      items.push(T(`Right column line number ${i} of the body text.`, 310 - jitter, y, 180));
+      y -= 14;
+    }
+    for (let i = 0; i < 6; i++) {
+      items.push(T(`Hanging indent right line ${i} continues far right.`, 240, y, 200));
+      y -= 14;
+    }
+    const lines = reconstructPageLines(1, items);
+    const hanging = lines.filter((l) => l.text.includes("Hanging indent"));
+    expect(hanging.length).toBe(6);
+    for (const l of hanging) expect(l.column).toBe("right");
+    const leftLines = lines.filter((l) => l.column === "left");
+    for (const l of leftLines) expect(l.text).toContain("Left column line");
+  });
+
+  it("short right-column outdents ending before the right peak stay right", () => {
+    // Review B1 counterexample: short outdented runs straddle nothing, so
+    // straddle count alone cuts right of them; clearance keeps them right.
+    const items: PdfTextItem[] = [];
+    let y = 900;
+    for (let i = 0; i < 20; i++) {
+      const jitter = (i % 4) * 7;
+      items.push(T(`Left column line number ${i} of the body text.`, 80 + jitter, y, 125));
+      items.push(T(`Right column line number ${i} of the body text.`, 310 - jitter, y, 180));
+      y -= 14;
+    }
+    for (let i = 0; i < 6; i++) {
+      items.push(T(`Short outdent ${i}.`, 240, y, 45));
+      y -= 14;
+    }
+    const lines = reconstructPageLines(1, items);
+    const outdents = lines.filter((l) => l.text.includes("Short outdent"));
+    expect(outdents.length).toBe(6);
+    for (const l of outdents) expect(l.column).toBe("right");
   });
 
   it("arXiv running headers never interleave into body prose", async () => {

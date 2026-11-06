@@ -6,6 +6,7 @@ import type { WorkbenchState } from "../workbench-state";
 import { canonicalJsonString } from "@/render/export-source";
 import { baseNameFor, copyToClipboard, downloadTextFile } from "@/utils/download";
 import { buildWordDocument, printHtmlDocument } from "@/utils/print-export";
+import { buildEmailHandoff, htmlToPlainText } from "@/utils/mailto";
 
 /**
  * Publish: the confirmation that ends on value. "Published." with all three
@@ -75,6 +76,26 @@ export function PublishPanel({
       mimeType: "application/msword",
     });
     if (result.ok) onDownloaded(`Downloaded the ${OUTPUT_MODE_LABELS[mode]} output as a Word document.`);
+  };
+
+  const emailHtml = htmlFor("email");
+  const emailHandoff = emailHtml ? buildEmailHandoff({ subject: doc.title, bodyText: htmlToPlainText(emailHtml) }) : null;
+
+  const openInEmailApp = async (e: React.MouseEvent<HTMLAnchorElement>) => {
+    if (!emailHandoff) return;
+    if (!emailHandoff.truncated) return; // Short emails follow the href as-is.
+    e.preventDefault();
+    // The pointer draft claims the full text is on the clipboard, so the
+    // copy must actually land before any draft opens; on failure the user
+    // stays on the page with a recovery path instead of a lying draft.
+    if (emailHandoff.clipboardText === null) return;
+    const copied = await copyToClipboard(emailHandoff.clipboardText);
+    if (!copied) {
+      setCopyNote("The email is too long to open directly and the clipboard is unavailable. Download the HTML output instead.");
+      return;
+    }
+    setCopyNote(emailHandoff.warning);
+    window.location.assign(emailHandoff.url);
   };
 
   const downloadCanonical = () => {
@@ -164,6 +185,17 @@ export function PublishPanel({
                     >
                       Word
                     </button>
+                    {mode === "email" && emailHandoff && (
+                      <a
+                        role="button"
+                        className="btn ghost small"
+                        href={emailHandoff.url}
+                        onClick={openInEmailApp}
+                        title="Opens a draft in your email app. You choose the recipient and hit send."
+                      >
+                        Open in email app
+                      </a>
+                    )}
                     <button
                       type="button"
                       className="btn ghost small"
@@ -183,7 +215,7 @@ export function PublishPanel({
             <button type="button" className="btn ghost small" onClick={downloadCanonical}>
               memoRABLE JSON (canonical)
             </button>
-            {copyNote && <span className="copy-note">{copyNote}</span>}
+            {copyNote && <span className="copy-note" role="alert">{copyNote}</span>}
           </div>
         </div>
       </div>

@@ -296,11 +296,12 @@ test.describe("publish", () => {
     await expect(dialog.getByRole("heading", { name: "Published." })).toBeVisible();
     await expect(dialog.getByText("one memory, four useful outputs")).toBeVisible();
 
-    // Three output cards, each offering HTML, PDF, Word and design JSON.
+    // Four output cards (web, email, document, market research), each
+    // offering HTML, PDF, Word and design JSON.
     const htmlButtons = dialog.getByRole("button", { name: "HTML", exact: true });
-    await expect(htmlButtons).toHaveCount(3);
-    await expect(dialog.getByRole("button", { name: "PDF", exact: true })).toHaveCount(3);
-    await expect(dialog.getByRole("button", { name: "Word", exact: true })).toHaveCount(3);
+    await expect(htmlButtons).toHaveCount(4);
+    await expect(dialog.getByRole("button", { name: "PDF", exact: true })).toHaveCount(4);
+    await expect(dialog.getByRole("button", { name: "Word", exact: true })).toHaveCount(4);
 
     const downloadPromise = page.waitForEvent("download");
     await htmlButtons.first().click();

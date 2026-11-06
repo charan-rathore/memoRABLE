@@ -101,6 +101,54 @@ describe("gauntlet source fidelity", () => {
     expect(md).not.toContain("peerto-peer");
   }, 30_000);
 
+  it("math subscripts attach to their base instead of splicing into prose", async () => {
+    const data = new Uint8Array(readFileSync(resolve("tests/fixtures/gan.pdf")));
+    const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
+    const doc = await pdfjs.getDocument({ data, useSystemFonts: true }).promise;
+    const page = await doc.getPage(3);
+    const content = await page.getTextContent();
+    const items: PdfTextItem[] = [];
+    for (const item of content.items) {
+      if (!("str" in item)) continue;
+      items.push({
+        str: String(item.str),
+        transform: Array.from(item.transform ?? [1, 0, 0, 1, 0, 0]),
+        width: Number(item.width ?? 0),
+        height: Number(item.height ?? 0),
+      });
+    }
+    await doc.destroy();
+    const md = buildLayoutDocument([{ page: 3, items }]).markdown;
+    expect(md).toMatch(/p_g\s*=\s*p_data/);
+    expect(md).toMatch(/We will then show/);
+    expect(md).not.toMatch(/We will\s+g\s+data\s+then show/);
+  }, 30_000);
+
+  it("script picks the cleanly abutting base over an overlapping one", () => {
+    // "bb" ends exactly at the script's left edge; "aa" ends 0.5pt past it.
+    const items: PdfTextItem[] = [
+      T("bb", 90, 500, 20),
+      T("aa", 100, 500, 10.7),
+      T("2", 110.2, 498.5, 3, 6),
+      T("Body text above.", 100, 530, 200),
+      T("Body text below.", 100, 470, 200),
+    ];
+    const md = buildLayoutDocument([{ page: 1, items }]).markdown;
+    expect(md).toContain("bb_2");
+    expect(md).not.toContain("aa_2");
+  });
+
+  it("multiple scripts on one base compose deterministically regardless of extraction order", () => {
+    const base = T("x", 100, 500, 5);
+    const sup = T("2", 105.3, 502, 3, 6); // superscript: y above baseline
+    const sub = T("i", 105.1, 498, 3, 6); // subscript: y below baseline
+    const pad = [T("Pad above.", 100, 530, 200), T("Pad below.", 100, 470, 200)];
+    const md1 = buildLayoutDocument([{ page: 1, items: [base, sup, sub, ...pad] }]).markdown;
+    const md2 = buildLayoutDocument([{ page: 1, items: [base, sub, sup, ...pad] }]).markdown;
+    expect(md1).toBe(md2);
+    expect(md1).toMatch(/x[_^][a-z0-9][_^][a-z0-9]/);
+  });
+
   it("arXiv running headers never interleave into body prose", async () => {
     const md = await layoutMarkdown("dqn-atari.pdf", 2);
     expect(md).toMatch(/similar techniques could also be beneficial/);

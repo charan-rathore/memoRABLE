@@ -171,8 +171,95 @@ function dropArxivRunningHeader(items: readonly PdfTextItem[]): PdfTextItem[] {
   });
 }
 
+/**
+ * Fold sub/superscript runs (small height, baseline-shifted, hugging the right
+ * edge of a base-size run) into their base run as "_x"/"^x" before row
+ * bucketing. Left apart, a subscript buckets into its own micro-row and
+ * soft-wrap glues it into the prose: "We will" + "g" + "data" + "then show"
+ * (GAN, arXiv:1406.2661 p3). Only short runs attach, so small-font body lines
+ * (footnotes, captions) are untouched: they start at the column edge, not at
+ * the right edge of a base run.
+ */
+function attachScripts(items: readonly PdfTextItem[]): PdfTextItem[] {
+  const bodyHeight = ((): number => {
+    const hs = items
+      .map((i) => i.height || Math.abs(i.transform[3] ?? 10) || 10)
+      .filter((h) => h >= 8)
+      .sort((a, b) => a - b);
+    return hs.length > 0 ? (hs[Math.floor(hs.length / 2)] ?? 10) : 10;
+  })();
+  const heightOf = (i: PdfTextItem) => i.height || Math.abs(i.transform[3] ?? 10) || 10;
+  const isScript = (i: PdfTextItem) => {
+    const len = (i.str ?? "").trim().length;
+    return heightOf(i) <= bodyHeight * 0.75 && len >= 1 && len <= 6;
+  };
+
+  // Phase 1: pick each script's base from ORIGINAL geometry only. The right
+  // base is the one whose right edge is nearest the script's left edge; an
+  // overlapping candidate is penalized so it never beats a clean abutment.
+  interface Attachment {
+    scriptIndex: number;
+    x: number;
+    right: number;
+    marker: string;
+    str: string;
+  }
+  const attachments = new Map<number, Attachment[]>();
+  for (let k = 0; k < items.length; k++) {
+    const sub = items[k];
+    if (!sub || !isScript(sub)) continue;
+    const subY = sub.transform[5] ?? 0;
+    const subX = sub.transform[4] ?? 0;
+    let best = -1;
+    let bestScore = Infinity;
+    for (let j = 0; j < items.length; j++) {
+      const base = items[j];
+      if (j === k || !base || isScript(base)) continue;
+      const baseH = heightOf(base);
+      const baseY = base.transform[5] ?? 0;
+      const yOff = baseY - subY; // >0: subscript below baseline; <0: superscript
+      if (Math.abs(yOff) > baseH * 0.45 || Math.abs(yOff) < baseH * 0.08) continue;
+      const gap = subX - ((base.transform[4] ?? 0) + (base.width || 0));
+      if (gap < -2 || gap > baseH * 1.2) continue;
+      const score = gap >= 0 ? gap : baseH - gap; // overlap penalized
+      if (score < bestScore) {
+        best = j;
+        bestScore = score;
+      }
+    }
+    if (best < 0) continue;
+    const baseY = items[best]?.transform[5] ?? 0;
+    const marker = baseY - subY > 0 ? "_" : "^";
+    const list = attachments.get(best) ?? [];
+    list.push({
+      scriptIndex: k,
+      x: subX,
+      right: subX + (sub.width || 0),
+      marker,
+      str: sub.str ?? "",
+    });
+    attachments.set(best, list);
+  }
+
+  // Phase 2: compose deterministically - scripts sorted by x, width is the
+  // union of the base's and all attached scripts' horizontal bounds.
+  const dropped = new Set<number>();
+  const merged = items.map((item) => ({ ...item }));
+  for (const [baseIndex, atts] of attachments) {
+    const target = merged[baseIndex];
+    if (!target) continue;
+    atts.sort((a, b) => a.x - b.x);
+    target.str = `${target.str}${atts.map((a) => `${a.marker}${a.str}`).join("")}`;
+    const baseRight = (target.transform[4] ?? 0) + (target.width || 0);
+    const unionRight = Math.max(baseRight, ...atts.map((a) => a.right));
+    target.width = unionRight - (target.transform[4] ?? 0);
+    for (const a of atts) dropped.add(a.scriptIndex);
+  }
+  return merged.filter((_, idx) => !dropped.has(idx));
+}
+
 export function reconstructPageLines(page: number, items: readonly PdfTextItem[]): LayoutLine[] {
-  items = dropArxivRunningHeader(items);
+  items = attachScripts(dropArxivRunningHeader(items));
   const gutter = detectColumnGutter(items);
   if (gutter == null) {
     return linesFromParts(page, collectParts(items));

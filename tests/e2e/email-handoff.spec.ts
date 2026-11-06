@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
 /**
  * Pixel-and-behavior verification for the "Open in email app" handoff.
@@ -11,18 +11,18 @@ test.beforeEach(async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
 });
 
-async function dismissSplash(page: any) {
+async function dismissSplash(page: Page) {
   await page.getByTestId("brand-splash").waitFor({ state: "detached" });
 }
 
-async function enterWorkbench(page: any) {
+async function enterWorkbench(page: Page) {
   await page.goto("/");
   await dismissSplash(page);
   await page.getByRole("button", { name: "Open a sample brief" }).click();
   await page.locator(".shell").waitFor();
 }
 
-async function enterWithTitle(page: any, firstLine: string) {
+async function enterWithTitle(page: Page, firstLine: string) {
   await page.goto("/");
   await dismissSplash(page);
   await page.getByRole("button", { name: "Paste text" }).click();
@@ -32,7 +32,7 @@ async function enterWithTitle(page: any, firstLine: string) {
   await page.locator(".shell").waitFor({ timeout: 60_000 });
 }
 
-async function openPublish(page: any) {
+async function openPublish(page: Page) {
   await page.locator(".topbar").getByRole("button", { name: "Publish", exact: true }).click();
   const dialog = page.getByRole("dialog");
   await expect(dialog.getByRole("heading", { name: "Published." })).toBeVisible({ timeout: 60_000 });

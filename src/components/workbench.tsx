@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import type { MemoryBlock, MemoryDocument } from "@/domain/memory/schema";
-import { OUTPUT_MODES, type OutputMode } from "@/domain/memory/types";
+import { OUTPUT_MODES, OUTPUT_MODE_LABELS, type OutputMode } from "@/domain/memory/types";
 import { importSource } from "@/import/import-source";
 import type { KnowledgeGraph } from "@/domain/memory/schema";
 import { toMemorySource } from "@/render/export-source";
@@ -366,7 +366,7 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
     dispatch({ type: "published", at: nowLabel() });
     recordPublished();
     setPublishOpen(true);
-    announce("Published: one memory, three useful outputs.");
+    announce("Published: one memory, four useful outputs.");
   }, [announce]);
 
   const goHome = useCallback(() => {
@@ -439,7 +439,7 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
         onModeChange={(mode) => {
           setMode(mode);
           announce(
-            `Composed using Elements · ${mode === "web" ? "Web page" : mode === "email" ? "Email" : "Document"}.`,
+            `Composed using Elements · ${OUTPUT_MODE_LABELS[mode]}.`,
           );
         }}
         theme={state.theme}

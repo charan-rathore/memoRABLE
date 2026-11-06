@@ -30,7 +30,7 @@ const MAX_BYTES = 2 * 1024 * 1024;
 /**
  * The first screen. One decision only: bring a file, or paste text.
  *
- * Everything the workbench can do (memories, arrangement, the three outputs)
+ * Everything the workbench can do (memories, arrangement, the four outputs)
  * is withheld until there is something to do it to. The journey opens up as
  * the visitor advances rather than arriving all at once.
  */

@@ -122,7 +122,7 @@ export function PublishPanel({
         </div>
         <div className="modal-b">
           <p className="published-sub">
-            <b>{doc.title}</b>: one memory, three useful outputs. Created from {doc.blocks.length} source-linked
+            <b>{doc.title}</b>: one memory, four useful outputs. Created from {doc.blocks.length} source-linked
             Memory Blocks. Composed using Elements.
           </p>
           <div className="publish-grid">
@@ -133,7 +133,7 @@ export function PublishPanel({
                 <div className="pub-card" key={mode}>
                   <div className="pc-h">
                     {OUTPUT_MODE_LABELS[mode]}
-                    <span className="tag">{mode === "email" ? "600px" : mode === "document" ? "A4" : "fluid"}</span>
+                    <span className="tag">{mode === "email" ? "600px" : mode === "document" ? "A4" : mode === "market-research" ? "page" : "fluid"}</span>
                   </div>
                   {html ? (
                     <Thumbnail label={OUTPUT_MODE_LABELS[mode]} html={html} />

@@ -1,4 +1,5 @@
 import { buildInsightRoot } from "./insight-composition";
+import { buildMarketResearchRoot } from "./market-research";
 import { cloneElement, isValidElement, type ReactElement } from "react";
 import {
   Button,
@@ -27,7 +28,7 @@ import { roman, type BlockRenderContext } from "./blocks/common";
  * called directly (never passed as <Component />) so renderToJson walks a
  * recognized Root → Row → Column → Item tree.
  *
- * One set of memories, three surfaces. Beyond shared block content, each
+ * One set of memories, four surfaces. Beyond shared block content, each
  * surface now uses more of the Elements catalogue: Menu for jump navigation,
  * Button for a clear next step, Row.anchor for destinations that survive
  * email clients and print-to-PDF alike (empty `<a name>` anchors — the form
@@ -52,6 +53,9 @@ export function buildRoot(
   theme: PublishTheme = resolveTheme("editorial"),
   source?: string,
 ): BuiltRoot {
+  if (mode === "market-research") {
+    return { mode, blocks: [], root: buildMarketResearchRoot(doc, theme).root };
+  }
   const insight = source ? buildInsightRoot(doc, mode, theme, source) : null;
   if (insight) return insight;
   const palette = theme.colors;

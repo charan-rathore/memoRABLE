@@ -181,7 +181,7 @@ export function journeyOf(
             `Active mode: ${OUTPUT_MODE_LABELS[state.mode]}`,
             "Composed with Unlayer Elements",
             state.publishedAt ? "Status: Published" : "Status: ready to publish",
-            "One memory, three surfaces",
+            "One memory, four surfaces",
           ]
         : [
             "Active mode: waiting",

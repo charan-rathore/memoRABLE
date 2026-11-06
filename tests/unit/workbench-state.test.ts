@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { OUTPUT_MODES } from "@/domain/memory/types";
 import {
   displayHtml,
   initialWorkbenchState,
@@ -97,7 +98,7 @@ describe("render cache", () => {
     const doc = atlas();
     const first = renderAll(doc, [], "web");
     const htmlA = first.outputs.web!.html;
-    expect(first.cache).toHaveLength(3);
+    expect(first.cache).toHaveLength(OUTPUT_MODES.length);
     // Re-render same document: cache hit, identical object reuse.
     const second = renderAll(doc, first.cache, "web");
     expect(second.outputs.web).toBe(first.outputs.web);

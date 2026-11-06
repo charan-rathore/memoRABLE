@@ -294,7 +294,7 @@ test.describe("publish", () => {
 
     const dialog = page.getByRole("dialog");
     await expect(dialog.getByRole("heading", { name: "Published." })).toBeVisible();
-    await expect(dialog.getByText("one memory, three useful outputs")).toBeVisible();
+    await expect(dialog.getByText("one memory, four useful outputs")).toBeVisible();
 
     // Three output cards, each offering HTML, PDF, Word and design JSON.
     const htmlButtons = dialog.getByRole("button", { name: "HTML", exact: true });

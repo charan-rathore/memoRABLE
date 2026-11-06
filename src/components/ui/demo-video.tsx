@@ -69,7 +69,7 @@ export function DemoVideo({ onClose }: { onClose: () => void }) {
             <img
               className="demo-gif"
               src="/media/replay.gif"
-              alt="Silent walkthrough of bringing a brief, seeing six memories, and publishing three outputs."
+              alt="Silent walkthrough of bringing a brief, seeing six memories, and publishing four outputs."
               width={1200}
               height={750}
             />

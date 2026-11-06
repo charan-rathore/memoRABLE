@@ -17,7 +17,7 @@ interface SourceStatus {
   httpStatus?: number;
   title?: string;
   detail?: string;
-  sections?: { anchorId: string; topic: string; heading: string; excerpt: string }[];
+  sections?: { anchorId: string; topic: string; heading: string; excerpt: string; truncatedMidSentence?: boolean }[];
   excerptNote?: string;
   fetchedAt: string;
   fromCache: boolean;
@@ -86,6 +86,9 @@ export function LiveGuidancePanel() {
                       {" - "}
                       {sec.excerpt}
                     </p>
+                    {sec.truncatedMidSentence ? (
+                      <p className="crumb">Excerpt ends mid-sentence; the linked section has the full sentence.</p>
+                    ) : null}
                   </details>
                 ))}
                 {s.excerptNote ? <p className="crumb">{s.excerptNote}</p> : null}

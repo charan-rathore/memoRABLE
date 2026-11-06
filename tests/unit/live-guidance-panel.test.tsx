@@ -33,3 +33,29 @@ describe("LiveGuidancePanel", () => {
     expect(screen.getByText(/bundled guidance above still applies/)).toBeTruthy();
   });
 });
+
+const TRUNC_SAMPLE = {
+  checkedAt: "2026-11-06T12:00:00Z",
+  sources: [
+    { url: "https://umbrex.com/resources/market-sizing-playbook/scoping-and-framing-the-exercise/", outcome: "readable", httpStatus: 200, title: "Scoping", sections: [
+      { anchorId: "a1", topic: "Flagged", heading: "2.1 Flagged Section", excerpt: "This sentence is cut of", truncatedMidSentence: true },
+      { anchorId: "a2", topic: "Complete", heading: "2.2 Complete Section", excerpt: "This sentence is whole." },
+    ], fetchedAt: "2026-11-06T12:00:00Z", fromCache: false },
+  ],
+  note: "Observed accessibility only.",
+};
+
+describe("LiveGuidancePanel truncation labeling", () => {
+  it("labels mid-sentence-truncated excerpts and never labels complete ones", async () => {
+    vi.stubGlobal("fetch", vi.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve(TRUNC_SAMPLE) } as unknown as Response)));
+    render(<LiveGuidancePanel />);
+    await waitFor(() => screen.getByText(/This sentence is whole/));
+    const warnings = screen.getAllByText(/ends mid-sentence/i);
+    expect(warnings).toHaveLength(1);
+    const first = warnings[0];
+    if (!first) throw new Error("expected a truncation warning");
+    const flagged = first.closest("details");
+    expect(flagged?.textContent).toContain("This sentence is cut of");
+    expect(flagged?.textContent).not.toContain("This sentence is whole");
+  });
+});

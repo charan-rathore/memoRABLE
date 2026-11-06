@@ -9,6 +9,7 @@ vi.mock("@/import/docgraph", () => ({
   scheduleDoclingRefine: hooks.schedule,
   isDoclingRefinementBetter: () => true,
   refinedReadNote: () => undefined,
+  hasReadablePdfText: () => true,
 }));
 vi.mock("@/import/read-pdf", () => ({ isPdfFile: () => true }));
 const props = { sourceLabel: "A.pdf", sourceOk: false, sourceText: ATLAS_NOTES_SOURCE, errors: [], warnings: [], hasVerified: false, aiEnabled: false, onUseExample: vi.fn(), onUseVerified: vi.fn(), onImproveWithAi: vi.fn(), aiBusy: false };

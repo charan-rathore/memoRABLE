@@ -114,3 +114,32 @@ describe("OCR provenance across Docling refine", () => {
     expect(meta.readNote).toBeUndefined();
   });
 });
+
+describe("empty-import status", () => {
+  it("marker-only PDF import reports no readable text, not understood", async () => {
+    hooks.quick.mockResolvedValue({ text: "<!-- page:1 -->", pages: 1, truncated: false, images: 1, ocrBlocks: 0, note: "No readable text found in this PDF. If it is a scan or photo, its text could not be read." });
+    const onImport = vi.fn();
+    const view = render(<HomeScreen errors={[]} onImport={onImport} onUseExample={vi.fn()} />);
+    fireEvent.change(view.container.querySelector('input[type="file"]')!, { target: { files: [new File(["pdf"], "scan.pdf")] } });
+    await waitFor(() => expect(onImport).toHaveBeenCalled());
+    expect(onImport.mock.calls.at(-1)![2].parseStatus).toBe("no readable text");
+  });
+
+  it("no readable text wins over the truncation status", async () => {
+    hooks.quick.mockResolvedValue({ text: "<!-- page:1 -->", pages: 60, truncated: true, images: 1, ocrBlocks: 0 });
+    const onImport = vi.fn();
+    const view = render(<HomeScreen errors={[]} onImport={onImport} onUseExample={vi.fn()} />);
+    fireEvent.change(view.container.querySelector('input[type="file"]')!, { target: { files: [new File(["pdf"], "big-scan.pdf")] } });
+    await waitFor(() => expect(onImport).toHaveBeenCalled());
+    expect(onImport.mock.calls.at(-1)![2].parseStatus).toBe("no readable text");
+  });
+
+  it("nonempty OCR text keeps understood plus the OCR qualifier", async () => {
+    hooks.quick.mockResolvedValue({ text: ATLAS_NOTES_SOURCE, pages: 1, truncated: false, images: 1, ocrBlocks: 1, note: ocrProvenanceNote(1) });
+    const onImport = vi.fn();
+    const view = render(<HomeScreen errors={[]} onImport={onImport} onUseExample={vi.fn()} />);
+    fireEvent.change(view.container.querySelector('input[type="file"]')!, { target: { files: [new File(["pdf"], "scan.pdf")] } });
+    await waitFor(() => expect(onImport).toHaveBeenCalled());
+    expect(onImport.mock.calls.at(-1)![2].parseStatus).toBe("understood - scan text via OCR, check numbers");
+  });
+});

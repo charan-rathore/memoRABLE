@@ -10,6 +10,7 @@ import { detectFormat } from "@/import/import-source";
 import { readTextFileWithProgress } from "./read-file";
 import { isPdfFile } from "@/import/read-pdf";
 import {
+  hasReadablePdfText,
   isDoclingRefinementBetter,
   readPdfQuick,
   refinedReadNote,
@@ -115,7 +116,7 @@ export function ImportPanel({
           uploadedAt: new Date().toLocaleString(),
           sizeBytes: file.size,
           pages: quick.pages,
-          parseStatus: `${quick.truncated ? "first 40 pages remembered" : "understood"}${quick.ocrBlocks ? " - scan text via OCR, check numbers" : ""}`,
+          parseStatus: `${!hasReadablePdfText(quick.text) ? "no readable text" : quick.truncated ? "first 40 pages remembered" : "understood"}${quick.ocrBlocks ? " - scan text via OCR, check numbers" : ""}`,
           readNote: quick.note,
         });
 

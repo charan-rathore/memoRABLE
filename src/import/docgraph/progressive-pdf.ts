@@ -64,6 +64,11 @@ export function ocrProvenanceNote(ocrBlocks: number): string | undefined {
  * Notes state what happened and what to check; they never claim the
  * extracted text is preserved, validated, or confidence-backed.
  */
+/** True when extracted PDF text has real content, not only page markers. */
+export function hasReadablePdfText(text: string): boolean {
+  return text.replace(/<!--\s*page:\d+\s*-->/g, "").trim() !== "";
+}
+
 export function composePdfReadNote(result: {
   text: string;
   pages: number;
@@ -75,7 +80,7 @@ export function composePdfReadNote(result: {
   const ocr = ocrProvenanceNote(result.ocrBlocks ?? 0);
   if (ocr) {
     parts.push(ocr);
-  } else if (result.text.replace(/<!--\s*page:\d+\s*-->/g, "").trim() === "") {
+  } else if (!hasReadablePdfText(result.text)) {
     parts.push("No readable text found in this PDF. If it is a scan or photo, its text could not be read.");
   }
   return parts.length ? parts.join(" ") : undefined;
@@ -91,7 +96,7 @@ export function refinedReadNote(
   quick: { note?: string; ocrBlocks?: number },
   refinedMarkdown: string,
 ): string | undefined {
-  const refinedEmpty = refinedMarkdown.replace(/<!--\s*page:\d+\s*-->/g, "").trim() === "";
+  const refinedEmpty = !hasReadablePdfText(refinedMarkdown);
   if (refinedEmpty) return quick.note;
   return ocrProvenanceNote(quick.ocrBlocks ?? 0);
 }

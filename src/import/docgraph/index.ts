@@ -19,6 +19,7 @@ export {
 } from "./select";
 export {
   composePdfReadNote,
+  hasReadablePdfText,
   ocrProvenanceNote,
   readPdfQuick,
   refinedReadNote,

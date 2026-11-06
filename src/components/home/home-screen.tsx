@@ -11,6 +11,7 @@ import { StaggerTitle } from "../ui/stagger-title";
 import { formatBytes, readTextFileWithProgress } from "../import/read-file";
 import { isPdfFile } from "@/import/read-pdf";
 import {
+  hasReadablePdfText,
   isDoclingRefinementBetter,
   readPdfQuick,
   refinedReadNote,
@@ -108,7 +109,7 @@ export function HomeScreen({
           uploadedAt: new Date().toLocaleString(),
           sizeBytes: file.size,
           pages: quick.pages,
-          parseStatus: `${quick.truncated ? "first 40 pages remembered" : "understood"}${quick.ocrBlocks ? " - scan text via OCR, check numbers" : ""}`,
+          parseStatus: `${!hasReadablePdfText(quick.text) ? "no readable text" : quick.truncated ? "first 40 pages remembered" : "understood"}${quick.ocrBlocks ? " - scan text via OCR, check numbers" : ""}`,
           readNote: quick.note,
         });
         if (!operation.isCurrent()) return;

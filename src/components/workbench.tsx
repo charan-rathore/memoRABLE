@@ -182,10 +182,13 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
         await mark("publishing");
         if (!operation.isCurrent()) return;
         scheduleLazyRenders(result.value, [], "document", themeRef.current, dispatch, text);
+        const noReadableText = meta?.parseStatus?.startsWith("no readable text") === true;
         announce(
           quiet
             ? `Refined memories from ${label}.`
-            : `Understood: 6 memories created from ${label}.`,
+            : noReadableText
+              ? `No readable text found in ${label}. ${result.value.blocks.length} empty memory sections created as placeholders; nothing was invented.`
+              : `Understood: 6 memories created from ${label}.`,
         );
       } else if (!quiet) {
         setSourceMeta({

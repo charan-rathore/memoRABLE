@@ -60,6 +60,47 @@ function expandedDisclosures(html: string): string {
     /(?:^|\s)open(?:\s|=|$)/i.test(attrs) ? tag : `<details${attrs} open>`);
 }
 
+/**
+ * LibreOffice and Word can push a leading oversized unbreakable table row past
+ * a blank first page. The Unlayer email wrapper is exactly that: one full-page
+ * single-cell layout table at content start. For the Word path only, unwrap a
+ * leading single-cell layout table into its cell content. Real data tables
+ * (multiple rows/cells) are never touched.
+ */
+export function unwrapLeadingLayoutTable(bodyHtml: string): string {
+  // Leading Unlayer email body wrapper (id is emitted by the renderer), after
+  // any leading conditional comments.
+  const lead = bodyHtml.match(/^(\s*(?:<!--[\s\S]*?-->\s*)*)<table\b[^>]*\bid="u_content_body_1"[^>]*>/i);
+  if (!lead) return bodyHtml;
+  const tableOpen = lead[0].length - lead[0].match(/<table\b[^>]*>$/i)![0].length;
+  // Opening run: <table ...> then optional <tbody>, exactly one <tr>, one <td>.
+  const openRun = /^<table\b[^>]*>\s*(?:<tbody>)?\s*<tr\b[^>]*>\s*<td\b[^>]*>/i.exec(bodyHtml.slice(tableOpen));
+  if (!openRun) return bodyHtml;
+  // Matching </table> by depth, skipping over comment text (mso conditionals
+  // carry balanced inert table markup inside comments).
+  const tokenRe = /<!--[\s\S]*?-->|<\/?table\b[^>]*>/gi;
+  tokenRe.lastIndex = tableOpen;
+  let depth = 0;
+  let end = -1;
+  let tok: RegExpExecArray | null;
+  while ((tok = tokenRe.exec(bodyHtml))) {
+    const t = tok[0]!;
+    if (t.startsWith("<!--")) continue;
+    depth += t.startsWith("</") ? -1 : 1;
+    if (depth === 0) { end = tok.index + t.length; break; }
+  }
+  if (end === -1) return bodyHtml;
+  // The wrapper must close as </td></tr></tbody></table> right before `end`.
+  const closeRun = /<\/td>\s*<\/tr>\s*(?:<\/tbody>)?\s*<\/table>$/i.exec(bodyHtml.slice(tableOpen, end));
+  if (!closeRun) return bodyHtml;
+  const innerStart = tableOpen + openRun[0].length;
+  const innerEnd = tableOpen + closeRun.index;
+  const prefix = bodyHtml.slice(0, tableOpen);
+  const inner = bodyHtml.slice(innerStart, innerEnd);
+  const suffix = bodyHtml.slice(end);
+  return prefix + "<div>" + inner + "</div>" + suffix;
+}
+
 export function buildWordDocument(html: string, title: string): string {
   return `<!DOCTYPE html>
 <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
@@ -70,11 +111,17 @@ export function buildWordDocument(html: string, title: string): string {
 <style>
 ${stylesOf(html)}
 ${PAGE_CSS}
+/* Word/LibreOffice honor page-break-inside: avoid strictly: a full-page
+   Unlayer wrapper table (email mode) or an oversized first table then gets
+   pushed to a fresh page, leaving page 1 blank. Chrome breaks tall rows
+   anyway, so the print path keeps the avoid rule; the Word wrapper allows
+   breaks inside tables/rows/cells (images stay avoid). */
+table, tr, td, th { page-break-inside: auto; }
 body { font-family: Georgia, "Times New Roman", serif; }
 </style>
 </head>
 <body>
-${expandedDisclosures(bodyOf(html))}
+${expandedDisclosures(unwrapLeadingLayoutTable(bodyOf(html)))}
 </body>
 </html>
 `;

@@ -95,20 +95,65 @@ export function detectColumnGutter(items: readonly PdfTextItem[]): number | null
   const leftPeak = Math.min(primary.x, secondary.x);
   const rightPeak = Math.max(primary.x, secondary.x);
 
-  // Gutter = lowest-mass bin between peaks (not the arithmetic midpoint).
-  // Midpoint is too far left when left-column lines continue past center.
-  let gutter = (leftPeak + rightPeak) / 2;
-  let bestMass = Number.POSITIVE_INFINITY;
-  for (const [x, mass] of sorted) {
-    if (x <= leftPeak + 30 || x >= rightPeak - 30) continue;
-    if (mass < bestMass || (mass === bestMass && Math.abs(x - gutter) < 20)) {
-      bestMass = mass;
-      gutter = x;
+  // Gutter = the cut the fewest parts STRADDLE (x < cut < x+w), swept across
+  // the inter-peak range in 5pt steps, preferring the rightmost minimum. A
+  // true gutter is whitespace crossed by almost no text run - and it rarely
+  // coincides with a start bin, so candidate cuts must cover empty space too.
+  // A mid-column cut splits every long line crossing it (p18-short2 p4's
+  // lowest-mass pick of x=180 spliced left text into the right column); a cut
+  // left of a right column's hanging indents splits its lines.
+  const spans: Array<readonly [number, number]> = [];
+  for (const item of items) {
+    if (!(item.str ?? "").trim()) continue;
+    const l = item.transform[4] ?? 0;
+    spans.push([l, l + (item.width || 0)]);
+  }
+  // Tie-break equal-straddle cuts by CLEARANCE - the smaller of the distances
+  // to the nearest run on each side. A true gutter is the widest whitespace:
+  // short outdented runs that end before the right peak straddle nothing, so
+  // straddle count alone cannot tell an inter-column gap from an internal
+  // right-column whitespace pocket. Rightmost wins any remaining tie.
+  let gutter: number | null = null;
+  let bestStraddle = Number.POSITIVE_INFINITY;
+  let bestClearance = -1;
+  for (let cut = leftPeak + 30; cut <= rightPeak - 5; cut += 5) {
+    let n = 0;
+    let leftDist = Number.POSITIVE_INFINITY;
+    let rightDist = Number.POSITIVE_INFINITY;
+    for (const [l, r] of spans) {
+      if (l < cut - 2 && r > cut + 2) {
+        n++;
+        continue;
+      }
+      if (r <= cut) leftDist = Math.min(leftDist, cut - r);
+      if (l >= cut) rightDist = Math.min(rightDist, l - cut);
+    }
+    const clearance = Math.min(
+      leftDist === Number.POSITIVE_INFINITY ? 50 : leftDist,
+      rightDist === Number.POSITIVE_INFINITY ? 50 : rightDist,
+    );
+    if (
+      n < bestStraddle ||
+      (n === bestStraddle && clearance > bestClearance) ||
+      (n === bestStraddle && clearance === bestClearance)
+    ) {
+      bestStraddle = n;
+      bestClearance = clearance;
+      gutter = cut;
     }
   }
-  // Bias slightly toward the right peak so left-column wrap fragments
-  // that start mid-line (x≈230) stay left of the cut.
-  gutter = Math.min(gutter + 30, rightPeak - 40);
+  if (gutter === null) {
+    let bestMass = Number.POSITIVE_INFINITY;
+    gutter = (leftPeak + rightPeak) / 2;
+    for (const [x, mass] of sorted) {
+      if (x <= leftPeak + 30 || x >= rightPeak - 30) continue;
+      if (mass < bestMass || (mass === bestMass && Math.abs(x - gutter) < 20)) {
+        bestMass = mass;
+        gutter = x;
+      }
+    }
+    gutter = Math.min(gutter + 30, rightPeak - 40);
+  }
 
   // Both sides of the gutter must carry real body mass.
   let leftMass = 0;
@@ -126,7 +171,140 @@ export function detectColumnGutter(items: readonly PdfTextItem[]): number | null
 }
 
 /** Reconstruct a single page's text items into ordered layout lines. */
+/** arXiv running-header tokens ("arXiv:1312.5602v1", "[cs.LG]", "19 Dec 2013"). */
+const ARXIV_ID = /^arXiv:\d{4}\.\d{4,5}(v\d+)?/;
+const ARXIV_ROW_TOKEN = /^(\[[a-z\-]+(\.[A-Z]{2})?\]|\d{1,2}\s+[A-Z][a-z]{2,8}\s+\d{4})$/;
+
+/**
+ * Drop arXiv stamp parts: the rotated page-1 margin stamp and a running header
+ * in the page's topmost text row (with its same-row category/date tokens).
+ * Either can bucket between two wrapped body lines and splice into the prose
+ * ("similar techarXiv:... niques" on arXiv:1312.5602). Inline citations are
+ * horizontal mid-page parts, so both scopes leave them untouched.
+ */
+function dropArxivRunningHeader(items: readonly PdfTextItem[]): PdfTextItem[] {
+  const isRotated = (item: PdfTextItem) =>
+    Math.abs(item.transform[1] ?? 0) > 0.01 || Math.abs(item.transform[2] ?? 0) > 0.01;
+  const isArxivPart = (item: PdfTextItem) => ARXIV_ID.test((item.str ?? "").trim());
+
+  let topY: number | null = null;
+  for (const item of items) {
+    const str = (item.str ?? "").trim();
+    if (!str) continue;
+    const y = item.transform[5] ?? 0;
+    if (topY === null || y > topY) topY = y;
+  }
+  const topRow = topY === null ? null : Math.round(topY * 2) / 2;
+  const headerInTopRow =
+    topRow !== null &&
+    items.some(
+      (item) =>
+        !isRotated(item) &&
+        isArxivPart(item) &&
+        Math.round((item.transform[5] ?? 0) * 2) / 2 === topRow,
+    );
+  const hasStamp = headerInTopRow || items.some((item) => isRotated(item) && isArxivPart(item));
+  if (!hasStamp) return items as PdfTextItem[];
+
+  return items.filter((item) => {
+    const trimmed = (item.str ?? "").trim();
+    if (!trimmed) return true;
+    if (isRotated(item)) return !isArxivPart(item);
+    if (!headerInTopRow) return true;
+    if (Math.round((item.transform[5] ?? 0) * 2) / 2 !== topRow) return true;
+    return !ARXIV_ID.test(trimmed) && !ARXIV_ROW_TOKEN.test(trimmed);
+  });
+}
+
+/**
+ * Fold sub/superscript runs (small height, baseline-shifted, hugging the right
+ * edge of a base-size run) into their base run as "_x"/"^x" before row
+ * bucketing. Left apart, a subscript buckets into its own micro-row and
+ * soft-wrap glues it into the prose: "We will" + "g" + "data" + "then show"
+ * (GAN, arXiv:1406.2661 p3). Only short runs attach, so small-font body lines
+ * (footnotes, captions) are untouched: they start at the column edge, not at
+ * the right edge of a base run.
+ */
+function attachScripts(items: readonly PdfTextItem[]): PdfTextItem[] {
+  const bodyHeight = ((): number => {
+    const hs = items
+      .map((i) => i.height || Math.abs(i.transform[3] ?? 10) || 10)
+      .filter((h) => h >= 8)
+      .sort((a, b) => a - b);
+    return hs.length > 0 ? (hs[Math.floor(hs.length / 2)] ?? 10) : 10;
+  })();
+  const heightOf = (i: PdfTextItem) => i.height || Math.abs(i.transform[3] ?? 10) || 10;
+  const isScript = (i: PdfTextItem) => {
+    const len = (i.str ?? "").trim().length;
+    return heightOf(i) <= bodyHeight * 0.75 && len >= 1 && len <= 6;
+  };
+
+  // Phase 1: pick each script's base from ORIGINAL geometry only. The right
+  // base is the one whose right edge is nearest the script's left edge; an
+  // overlapping candidate is penalized so it never beats a clean abutment.
+  interface Attachment {
+    scriptIndex: number;
+    x: number;
+    right: number;
+    marker: string;
+    str: string;
+  }
+  const attachments = new Map<number, Attachment[]>();
+  for (let k = 0; k < items.length; k++) {
+    const sub = items[k];
+    if (!sub || !isScript(sub)) continue;
+    const subY = sub.transform[5] ?? 0;
+    const subX = sub.transform[4] ?? 0;
+    let best = -1;
+    let bestScore = Infinity;
+    for (let j = 0; j < items.length; j++) {
+      const base = items[j];
+      if (j === k || !base || isScript(base)) continue;
+      const baseH = heightOf(base);
+      const baseY = base.transform[5] ?? 0;
+      const yOff = baseY - subY; // >0: subscript below baseline; <0: superscript
+      if (Math.abs(yOff) > baseH * 0.45 || Math.abs(yOff) < baseH * 0.08) continue;
+      const gap = subX - ((base.transform[4] ?? 0) + (base.width || 0));
+      if (gap < -2 || gap > baseH * 1.2) continue;
+      const score = gap >= 0 ? gap : baseH - gap; // overlap penalized
+      if (score < bestScore) {
+        best = j;
+        bestScore = score;
+      }
+    }
+    if (best < 0) continue;
+    const baseY = items[best]?.transform[5] ?? 0;
+    const marker = baseY - subY > 0 ? "_" : "^";
+    const list = attachments.get(best) ?? [];
+    list.push({
+      scriptIndex: k,
+      x: subX,
+      right: subX + (sub.width || 0),
+      marker,
+      str: sub.str ?? "",
+    });
+    attachments.set(best, list);
+  }
+
+  // Phase 2: compose deterministically - scripts sorted by x, width is the
+  // union of the base's and all attached scripts' horizontal bounds.
+  const dropped = new Set<number>();
+  const merged = items.map((item) => ({ ...item }));
+  for (const [baseIndex, atts] of attachments) {
+    const target = merged[baseIndex];
+    if (!target) continue;
+    atts.sort((a, b) => a.x - b.x);
+    target.str = `${target.str}${atts.map((a) => `${a.marker}${a.str}`).join("")}`;
+    const baseRight = (target.transform[4] ?? 0) + (target.width || 0);
+    const unionRight = Math.max(baseRight, ...atts.map((a) => a.right));
+    target.width = unionRight - (target.transform[4] ?? 0);
+    for (const a of atts) dropped.add(a.scriptIndex);
+  }
+  return merged.filter((_, idx) => !dropped.has(idx));
+}
+
 export function reconstructPageLines(page: number, items: readonly PdfTextItem[]): LayoutLine[] {
+  items = attachScripts(dropArxivRunningHeader(items));
   const gutter = detectColumnGutter(items);
   if (gutter == null) {
     return linesFromParts(page, collectParts(items));
@@ -498,6 +676,7 @@ export function joinSoftWrap(prev: string, next: string): string {
     const keepHyphen =
       /-[A-Za-z]+$/u.test(stem) || // already a compound chain: state-of-the-
       /\d$/u.test(stem) || // O4- + mini
+      /^(?:to|of|in|up|out|off|on|by|at|the)-/i.test(right) || // chain connector: peer- + to-peer (but not inter- + net-based)
       (stemTail.length > 0 && stemTail === stemTail.toUpperCase() && stemTail.length <= 4) ||
       (compoundHeads.test(stemTail) && !syllableRight.test(nextWord));
     const joined = keepHyphen ? `${stem}-${right}` : `${stem}${right}`;
@@ -623,7 +802,12 @@ export function dehyphenateText(text: string): string {
     .replace(/([A-Za-z])-\s+([a-z])/g, "$1$2")
     // Safety net for syllable hyphens left inside a paragraph (criti-cal, funda-mental).
     // Never touch intentional compounds (zero-shot, domain-specific, rule-based, …).
-    .replace(/\b([a-z]{2,6})-([a-z]{2,8})\b/gi, (full, left: string, right: string) => {
+    .replace(
+      /\b([a-z]{2,6})-([a-z]{2,8})(-[a-z]+)?\b/gi,
+      (full, left: string, right: string, chain?: string) => {
+      // Mid-chain fragment joined by a connector word: peer-to-peer, up-to-date,
+      // mother-in-law. A non-connector right side is no chain evidence.
+      if (chain && /^(?:to|of|in|up|out|off|on|by|at|the)$/i.test(right)) return full;
       const compoundLeft =
         /^(domain|state|real|high|low|multi|cross|self|open|end|token|zero|few|base|pre|post|non|in|re|co|rule|hand|fine|span|event|data|model|task|text|sub|llm)$/i;
       const compoundRight =

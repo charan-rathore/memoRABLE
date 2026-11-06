@@ -11,8 +11,10 @@ import { StaggerTitle } from "../ui/stagger-title";
 import { formatBytes, readTextFileWithProgress } from "../import/read-file";
 import { isPdfFile } from "@/import/read-pdf";
 import {
+  hasReadablePdfText,
   isDoclingRefinementBetter,
   readPdfQuick,
+  refinedReadNote,
   scheduleDoclingRefine,
 } from "@/import/docgraph";
 import { importSource } from "@/import/import-source";
@@ -30,7 +32,7 @@ const MAX_BYTES = 2 * 1024 * 1024;
 /**
  * The first screen. One decision only: bring a file, or paste text.
  *
- * Everything the workbench can do (memories, arrangement, the three outputs)
+ * Everything the workbench can do (memories, arrangement, the four outputs)
  * is withheld until there is something to do it to. The journey opens up as
  * the visitor advances rather than arriving all at once.
  */
@@ -107,7 +109,8 @@ export function HomeScreen({
           uploadedAt: new Date().toLocaleString(),
           sizeBytes: file.size,
           pages: quick.pages,
-          parseStatus: quick.truncated ? "first 40 pages remembered" : "understood",
+          parseStatus: `${!hasReadablePdfText(quick.text) ? "no readable text" : quick.truncated ? "first 40 pages remembered" : "understood"}${quick.ocrBlocks ? " - scan text via OCR, check numbers" : ""}`,
+          readNote: quick.note,
         });
         if (!operation.isCurrent()) return;
         if (mounted.current) setReading(null);
@@ -165,6 +168,7 @@ export function HomeScreen({
               sizeBytes: file.size,
               pages: refined.pages ?? quick.pages,
               parseStatus: refined.cache === "hit" ? "Docling refine (cached)" : "Docling refine",
+              readNote: refinedReadNote(quick, refined.markdown),
               parsedByDocling: true,
               quiet: true,
             });

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import type { MemoryBlock, MemoryDocument } from "@/domain/memory/schema";
-import { OUTPUT_MODES, type OutputMode } from "@/domain/memory/types";
+import { OUTPUT_MODES, OUTPUT_MODE_LABELS, type OutputMode } from "@/domain/memory/types";
 import { importSource } from "@/import/import-source";
 import type { KnowledgeGraph } from "@/domain/memory/schema";
 import { toMemorySource } from "@/render/export-source";
@@ -168,6 +168,7 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
           sizeBytes: meta?.sizeBytes ?? new TextEncoder().encode(text).length,
           pages: meta?.pages ?? null,
           parseStatus: meta?.parseStatus ?? "understood",
+          readNote: meta?.readNote,
         });
         dispatch({ type: "imported", sourceText: text, sourceLabel: label, document: result.value, at: nowLabel() });
         if (!quiet) {
@@ -181,10 +182,13 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
         await mark("publishing");
         if (!operation.isCurrent()) return;
         scheduleLazyRenders(result.value, [], "document", themeRef.current, dispatch, text);
+        const noReadableText = meta?.parseStatus?.startsWith("no readable text") === true;
         announce(
           quiet
             ? `Refined memories from ${label}.`
-            : `Understood: 6 memories created from ${label}.`,
+            : noReadableText
+              ? `No readable text found in ${label}. ${result.value.blocks.length} empty memory sections created as placeholders; nothing was invented.`
+              : `Understood: 6 memories created from ${label}.`,
         );
       } else if (!quiet) {
         setSourceMeta({
@@ -366,7 +370,7 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
     dispatch({ type: "published", at: nowLabel() });
     recordPublished();
     setPublishOpen(true);
-    announce("Published: one memory, three useful outputs.");
+    announce("Published: one memory, four useful outputs.");
   }, [announce]);
 
   const goHome = useCallback(() => {
@@ -439,7 +443,7 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
         onModeChange={(mode) => {
           setMode(mode);
           announce(
-            `Composed using Elements · ${mode === "web" ? "Web page" : mode === "email" ? "Email" : "Document"}.`,
+            `Composed using Elements · ${OUTPUT_MODE_LABELS[mode]}.`,
           );
         }}
         theme={state.theme}
@@ -494,6 +498,7 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
               sourceText={state.sourceText}
               errors={[...state.errors]}
               warnings={state.document?.warnings ?? []}
+              readNote={sourceMeta?.readNote}
               hasVerified={hasVerified}
               aiEnabled={aiEnabled && state.document?.sourceMethod === "local-parser"}
               aiBusy={aiBusy}

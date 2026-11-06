@@ -5,7 +5,7 @@ import { Workbench } from "@/components/workbench";
 import { importSource } from "@/import/import-source";
 import { ATLAS_NOTES_SOURCE,ATLAS_JSON_SOURCE } from "@/import/examples/catalog";
 const hooks=vi.hoisted(()=>({schedule:vi.fn()}));
-vi.mock("@/import/docgraph",()=>({readPdfQuick:async()=>({text:ATLAS_NOTES_SOURCE,pages:1}),scheduleDoclingRefine:hooks.schedule,isDoclingRefinementBetter:()=>true}));
+vi.mock("@/import/docgraph",()=>({readPdfQuick:async()=>({text:ATLAS_NOTES_SOURCE,pages:1}),scheduleDoclingRefine:hooks.schedule,isDoclingRefinementBetter:()=>true,refinedReadNote:()=>undefined,hasReadablePdfText:()=>true}));
 vi.mock("@/import/read-pdf",()=>({isPdfFile:()=>true}));
 vi.mock("@/render/render-bundle",()=>({renderMode:()=>({html:"preview",error:null})}));
 vi.mock("@/components/import/import-stages",()=>({IMPORT_STAGE_PERCENT:{},IMPORT_STAGE_LABEL:{},IMPORT_STAGE_VERB:{},yieldFrame:async()=>{}}));

@@ -70,6 +70,7 @@ export const ELEMENTS_BY_MODE: Record<OutputMode, ElementRef[]> = {
   email: elementsFor("email", "editorial"),
   web: elementsFor("web", "editorial"),
   document: elementsFor("document", "editorial"),
+  "market-research": elementsFor("web", "editorial"),
 };
 
 export const ELEMENTS_REPO = "https://github.com/unlayer/elements";

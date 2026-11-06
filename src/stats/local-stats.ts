@@ -16,7 +16,7 @@ export interface LocalStats {
   documents: number;
   /** Memory Blocks made from them. */
   memories: number;
-  /** Times the three outputs were published. */
+  /** Times the outputs were published. */
   published: number;
   /** ISO day this browser first used memoRABLE. */
   since: string | null;

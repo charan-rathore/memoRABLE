@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { OUTPUT_MODE_LABELS, type OutputMode } from "@/domain/memory/types";
 import { ElementsStory } from "./elements-story";
+import { LiveGuidancePanel } from "./live-guidance-panel";
 import type { PublishThemeId } from "@/render/themes";
 
 /**
@@ -93,7 +94,7 @@ export function PreviewPane({
     <div>
       <div className="doc-tools">
         <span className="crumb">
-          publish: <b>{mode}</b> · {blockCount} memories · {mode === "email" ? "600px" : mode === "document" ? "A4 · print-ready" : "fluid"}
+          publish: <b>{mode}</b> · {blockCount} memories · {mode === "email" ? "600px" : mode === "document" ? "A4 · print-ready" : mode === "market-research" ? "page" : "fluid"}
         </span>
         <span className="composed-chip" key={mode} data-testid="composed-chip">
           Composed using Elements
@@ -125,6 +126,7 @@ export function PreviewPane({
         <span>rendered with Unlayer Elements 0.1.20</span>
       </div>
       <details className="composition-about"><summary>About this output</summary><ElementsStory mode={mode} blockCount={blockCount} theme={theme} /></details>
+      {mode === "market-research" ? <LiveGuidancePanel /> : null}
     </div>
   );
 }

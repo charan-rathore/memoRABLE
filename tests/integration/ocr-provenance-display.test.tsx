@@ -143,3 +143,40 @@ describe("empty-import status", () => {
     expect(onImport.mock.calls.at(-1)![2].parseStatus).toBe("understood - scan text via OCR, check numbers");
   });
 });
+
+describe("displayed note follows the accepted refinement", () => {
+  const panelProps = { sourceLabel: "scan.pdf", sourceOk: false, sourceText: ATLAS_NOTES_SOURCE, errors: [], warnings: [], hasVerified: false, aiEnabled: false, onUseExample: vi.fn(), onUseVerified: vi.fn(), onImproveWithAi: vi.fn(), aiBusy: false };
+
+  // The panel only accepts a refinement for the source it is showing, so the
+  // rendered sourceText must be the quick-pass text of the same upload.
+  const uploadQuick = async (quick: { text: string; pages: number; truncated: boolean; images: number; ocrBlocks: number; note?: string }) => {
+    hooks.quick.mockResolvedValue(quick);
+    hooks.schedule.mockClear();
+    const onImport = vi.fn();
+    const view = render(<ImportPanel {...panelProps} sourceText={quick.text} onImport={onImport} onEditSource={vi.fn()} />);
+    fireEvent.change(view.container.querySelector('input[type="file"]')!, { target: { files: [new File(["pdf"], "scan.pdf")] } });
+    await waitFor(() => expect(onImport).toHaveBeenCalled());
+    expect(hooks.schedule).toHaveBeenCalled();
+    return { onImport, view, request: hooks.schedule.mock.calls.at(-1)![0] };
+  };
+
+  it("clears the no-text warning from Reading notes once a refinement accepts readable text", async () => {
+    const { view, request } = await uploadQuick({ text: "<!-- page:1 -->", pages: 1, truncated: false, images: 0, ocrBlocks: 0, note: "No readable text found in this PDF. If it is a scan or photo, its text could not be read." });
+    expect(view.getByText(/No readable text/)).toBeTruthy();
+    await request.onRefine({ markdown: "# Title\n\n" + ATLAS_NOTES_SOURCE, pages: 1 });
+    await waitFor(() => expect(view.queryByText(/No readable text/)).toBeNull());
+  });
+
+  it("keeps the OCR verify-numbers note after refinement while dropping the stale no-text warning", async () => {
+    // Quick pass: OCR ran but produced no readable text, so the note states
+    // both facts. An accepted readable refinement must replace the displayed
+    // note with the refined provenance: OCR warning retained, no-text warning
+    // gone.
+    const combined = "No readable text found in this PDF. If it is a scan or photo, its text could not be read. Part of this PDF was read from a scan or photo using OCR. Check names and numbers against the original before relying on them.";
+    const { view, request } = await uploadQuick({ text: "<!-- page:1 -->", pages: 1, truncated: false, images: 1, ocrBlocks: 1, note: combined });
+    expect(view.getByText(/No readable text/)).toBeTruthy();
+    await request.onRefine({ markdown: "# Title\n\n" + ATLAS_NOTES_SOURCE, pages: 1 });
+    await waitFor(() => expect(view.queryByText(/No readable text/)).toBeNull());
+    expect(view.getByText(/[Cc]heck names and numbers/)).toBeTruthy();
+  });
+});

@@ -77,12 +77,14 @@ export function composePdfReadNote(result: {
 }): string | undefined {
   const parts: string[] = [];
   if (result.truncated) parts.push(pdfTruncationNote(result.pages));
-  const ocr = ocrProvenanceNote(result.ocrBlocks ?? 0);
-  if (ocr) {
-    parts.push(ocr);
-  } else if (!hasReadablePdfText(result.text)) {
+  // No-readable-text and OCR provenance are independent facts: OCR running
+  // (even producing blocks) does not prove usable text came out. State each
+  // that applies so the note never contradicts the parsing status.
+  if (!hasReadablePdfText(result.text)) {
     parts.push("No readable text found in this PDF. If it is a scan or photo, its text could not be read.");
   }
+  const ocr = ocrProvenanceNote(result.ocrBlocks ?? 0);
+  if (ocr) parts.push(ocr);
   return parts.length ? parts.join(" ") : undefined;
 }
 

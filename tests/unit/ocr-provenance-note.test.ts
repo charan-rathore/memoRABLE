@@ -41,9 +41,12 @@ describe("composePdfReadNote", () => {
     expect(note).toMatch(/[Cc]heck names and numbers/);
   });
 
-  it("OCR note still wins over the no-text note when blocks produced text", () => {
-    const note = composePdfReadNote({ ...base, text: "", ocrBlocks: 1 })!;
+  it("shows both the no-text and OCR notes when OCR ran but nothing readable resulted", () => {
+    // OCR activity does not prove usable text: an OCR block count above zero
+    // can still leave only page markers behind. The two facts are independent
+    // and the note must state both.
+    const note = composePdfReadNote({ ...base, text: "<!-- page:1 -->", ocrBlocks: 1 })!;
+    expect(note).toMatch(/[Nn]o readable text/);
     expect(note).toMatch(/[Cc]heck names and numbers/);
-    expect(note).not.toMatch(/[Nn]o readable text/);
   });
 });

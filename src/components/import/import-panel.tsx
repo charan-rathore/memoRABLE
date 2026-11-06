@@ -162,6 +162,12 @@ export function ImportPanel({
             ) {
               return;
             }
+            // The refinement replaces the quick pass as the accepted version,
+            // so the displayed note must follow it: refinedReadNote keeps the
+            // OCR warning while the refined text is OCR-derived and drops the
+            // no-text warning once the refined text is readable.
+            const acceptedNote = refinedReadNote(quick, refined.markdown);
+            setFileNote(acceptedNote ?? null);
             onEditSource(refined.markdown);
             await onImport(refined.markdown, file.name, {
               filename: file.name,
@@ -170,7 +176,7 @@ export function ImportPanel({
               sizeBytes: file.size,
               pages: refined.pages ?? quick.pages,
               parseStatus: refined.cache === "hit" ? "Docling refine (cached)" : "Docling refine",
-              readNote: refinedReadNote(quick, refined.markdown),
+              readNote: acceptedNote,
               parsedByDocling: true,
               quiet: true,
             });

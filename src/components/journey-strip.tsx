@@ -14,6 +14,8 @@ export interface SourceMeta {
   sizeBytes: number | null;
   pages: number | null;
   parseStatus: string;
+  /** Reading note from the PDF pass (OCR provenance, unreadable text, truncation). */
+  readNote?: string;
 }
 
 export interface JourneyStep {

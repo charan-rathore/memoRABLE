@@ -168,6 +168,7 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
           sizeBytes: meta?.sizeBytes ?? new TextEncoder().encode(text).length,
           pages: meta?.pages ?? null,
           parseStatus: meta?.parseStatus ?? "understood",
+          readNote: meta?.readNote,
         });
         dispatch({ type: "imported", sourceText: text, sourceLabel: label, document: result.value, at: nowLabel() });
         if (!quiet) {
@@ -494,6 +495,7 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
               sourceText={state.sourceText}
               errors={[...state.errors]}
               warnings={state.document?.warnings ?? []}
+              readNote={sourceMeta?.readNote}
               hasVerified={hasVerified}
               aiEnabled={aiEnabled && state.document?.sourceMethod === "local-parser"}
               aiBusy={aiBusy}

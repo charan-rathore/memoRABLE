@@ -43,6 +43,7 @@ export function ImportPanel({
   onImproveWithAi,
   aiBusy,
   openBringRequest,
+  readNote,
 }: {
   sourceLabel: string;
   sourceOk: boolean;
@@ -62,6 +63,7 @@ export function ImportPanel({
       pages?: number | null;
       parseStatus?: string;
       uploadedAt?: string;
+      readNote?: string;
       knowledgeGraph?: KnowledgeGraph;
       parsedByDocling?: boolean;
       /** Quiet re-import (background Docling refine) — skip journey animation. */
@@ -73,12 +75,15 @@ export function ImportPanel({
   onImproveWithAi: () => void;
   aiBusy: boolean;
   openBringRequest?: number;
+  /** Reading note carried from the home upload path. */
+  readNote?: string;
 }) {
   const [pasteOpen, setPasteOpen] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   // Open only while there is nothing to lose. With a document already
   // remembered, bringing another is a deliberate act behind a deliberate door.
   const [bringOpen, setBringOpen] = useState(!sourceOk);
+  const [fileNote, setFileNote] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const fileWork = useRef(createAsyncOperation());
   const currentLabel = useRef(sourceLabel);
@@ -94,11 +99,13 @@ export function ImportPanel({
 
   const openFile = async (file: File) => {
     const operation = fileWork.current.begin();
+    setFileNote(null);
     try {
       if (isPdfFile(file)) {
         // Always pdf.js first — never block the UI on Docling.
         const quick = await readPdfQuick(file);
         if (!operation.isCurrent()) return;
+        setFileNote(quick.note ?? null);
         onEditSource(quick.text);
         const fast = importSource({ raw: quick.text, label: file.name });
         await onImport(quick.text, file.name, {
@@ -107,7 +114,8 @@ export function ImportPanel({
           uploadedAt: new Date().toLocaleString(),
           sizeBytes: file.size,
           pages: quick.pages,
-          parseStatus: quick.truncated ? "first 40 pages remembered" : "understood",
+          parseStatus: `${quick.truncated ? "first 40 pages remembered" : "understood"}${quick.ocrBlocks ? " - scan text via OCR, check numbers" : ""}`,
+          readNote: quick.note,
         });
 
         if (!operation.isCurrent()) return;
@@ -331,10 +339,11 @@ export function ImportPanel({
           </div>
         )}
 
-        {errors.length === 0 && warnings.length > 0 && (
+        {errors.length === 0 && (warnings.length > 0 || fileNote || readNote) && (
           <details className="warning-box">
-            <summary className="wt">Reading notes and limits ({warnings.length})</summary>
+            <summary className="wt">Reading notes and limits ({warnings.length + (fileNote || readNote ? 1 : 0)})</summary>
             <ul>
+              {(fileNote ?? readNote) && <li key="file-note">{fileNote ?? readNote}</li>}
               {warnings.map((warning, i) => (
                 <li key={i}>{warning.message}</li>
               ))}

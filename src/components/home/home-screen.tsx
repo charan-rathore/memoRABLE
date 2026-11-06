@@ -107,7 +107,8 @@ export function HomeScreen({
           uploadedAt: new Date().toLocaleString(),
           sizeBytes: file.size,
           pages: quick.pages,
-          parseStatus: quick.truncated ? "first 40 pages remembered" : "understood",
+          parseStatus: `${quick.truncated ? "first 40 pages remembered" : "understood"}${quick.ocrBlocks ? " - scan text via OCR, check numbers" : ""}`,
+          readNote: quick.note,
         });
         if (!operation.isCurrent()) return;
         if (mounted.current) setReading(null);

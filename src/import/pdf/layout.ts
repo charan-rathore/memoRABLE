@@ -126,7 +126,53 @@ export function detectColumnGutter(items: readonly PdfTextItem[]): number | null
 }
 
 /** Reconstruct a single page's text items into ordered layout lines. */
+/** arXiv running-header tokens ("arXiv:1312.5602v1", "[cs.LG]", "19 Dec 2013"). */
+const ARXIV_ID = /^arXiv:\d{4}\.\d{4,5}(v\d+)?/;
+const ARXIV_ROW_TOKEN = /^(\[[a-z\-]+(\.[A-Z]{2})?\]|\d{1,2}\s+[A-Z][a-z]{2,8}\s+\d{4})$/;
+
+/**
+ * Drop arXiv stamp parts: the rotated page-1 margin stamp and a running header
+ * in the page's topmost text row (with its same-row category/date tokens).
+ * Either can bucket between two wrapped body lines and splice into the prose
+ * ("similar techarXiv:... niques" on arXiv:1312.5602). Inline citations are
+ * horizontal mid-page parts, so both scopes leave them untouched.
+ */
+function dropArxivRunningHeader(items: readonly PdfTextItem[]): PdfTextItem[] {
+  const isRotated = (item: PdfTextItem) =>
+    Math.abs(item.transform[1] ?? 0) > 0.01 || Math.abs(item.transform[2] ?? 0) > 0.01;
+  const isArxivPart = (item: PdfTextItem) => ARXIV_ID.test((item.str ?? "").trim());
+
+  let topY: number | null = null;
+  for (const item of items) {
+    const str = (item.str ?? "").trim();
+    if (!str) continue;
+    const y = item.transform[5] ?? 0;
+    if (topY === null || y > topY) topY = y;
+  }
+  const topRow = topY === null ? null : Math.round(topY * 2) / 2;
+  const headerInTopRow =
+    topRow !== null &&
+    items.some(
+      (item) =>
+        !isRotated(item) &&
+        isArxivPart(item) &&
+        Math.round((item.transform[5] ?? 0) * 2) / 2 === topRow,
+    );
+  const hasStamp = headerInTopRow || items.some((item) => isRotated(item) && isArxivPart(item));
+  if (!hasStamp) return items as PdfTextItem[];
+
+  return items.filter((item) => {
+    const trimmed = (item.str ?? "").trim();
+    if (!trimmed) return true;
+    if (isRotated(item)) return !isArxivPart(item);
+    if (!headerInTopRow) return true;
+    if (Math.round((item.transform[5] ?? 0) * 2) / 2 !== topRow) return true;
+    return !ARXIV_ID.test(trimmed) && !ARXIV_ROW_TOKEN.test(trimmed);
+  });
+}
+
 export function reconstructPageLines(page: number, items: readonly PdfTextItem[]): LayoutLine[] {
+  items = dropArxivRunningHeader(items);
   const gutter = detectColumnGutter(items);
   if (gutter == null) {
     return linesFromParts(page, collectParts(items));
@@ -498,6 +544,7 @@ export function joinSoftWrap(prev: string, next: string): string {
     const keepHyphen =
       /-[A-Za-z]+$/u.test(stem) || // already a compound chain: state-of-the-
       /\d$/u.test(stem) || // O4- + mini
+      /^(?:to|of|in|up|out|off|on|by|at|the)-/i.test(right) || // chain connector: peer- + to-peer (but not inter- + net-based)
       (stemTail.length > 0 && stemTail === stemTail.toUpperCase() && stemTail.length <= 4) ||
       (compoundHeads.test(stemTail) && !syllableRight.test(nextWord));
     const joined = keepHyphen ? `${stem}-${right}` : `${stem}${right}`;
@@ -623,7 +670,12 @@ export function dehyphenateText(text: string): string {
     .replace(/([A-Za-z])-\s+([a-z])/g, "$1$2")
     // Safety net for syllable hyphens left inside a paragraph (criti-cal, funda-mental).
     // Never touch intentional compounds (zero-shot, domain-specific, rule-based, …).
-    .replace(/\b([a-z]{2,6})-([a-z]{2,8})\b/gi, (full, left: string, right: string) => {
+    .replace(
+      /\b([a-z]{2,6})-([a-z]{2,8})(-[a-z]+)?\b/gi,
+      (full, left: string, right: string, chain?: string) => {
+      // Mid-chain fragment joined by a connector word: peer-to-peer, up-to-date,
+      // mother-in-law. A non-connector right side is no chain evidence.
+      if (chain && /^(?:to|of|in|up|out|off|on|by|at|the)$/i.test(right)) return full;
       const compoundLeft =
         /^(domain|state|real|high|low|multi|cross|self|open|end|token|zero|few|base|pre|post|non|in|re|co|rule|hand|fine|span|event|data|model|task|text|sub|llm)$/i;
       const compoundRight =

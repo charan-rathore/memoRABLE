@@ -1,0 +1,110 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { describe, expect, it } from "vitest";
+import { buildLayoutDocument, joinSoftWrap, type PdfTextItem } from "@/import/pdf/layout";
+
+/**
+ * Source-fidelity regression from the production gauntlet (9 public research
+ * PDFs uploaded through the real app, outputs compared against the sources).
+ * Fixtures are the exact uploaded bytes:
+ *  - bitcoin-whitepaper.pdf  sha1 8de2fdb04edce612... bitcoin.org/bitcoin.pdf
+ *  - dqn-atari.pdf           sha1 667fb84bfca10bec... arXiv:1312.5602
+ */
+
+async function layoutMarkdown(fixture: string, maxPages = 3): Promise<string> {
+  const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
+  const data = new Uint8Array(readFileSync(resolve("tests/fixtures", fixture)));
+  const doc = await pdfjs.getDocument({ data, useSystemFonts: true }).promise;
+  const pageItems: Array<{ page: number; items: PdfTextItem[] }> = [];
+  const pages = Math.min(doc.numPages, maxPages);
+  for (let i = 1; i <= pages; i++) {
+    const page = await doc.getPage(i);
+    const content = await page.getTextContent();
+    const items: PdfTextItem[] = [];
+    for (const item of content.items) {
+      if (!("str" in item)) continue;
+      items.push({
+        str: String(item.str),
+        transform: Array.from(item.transform ?? [1, 0, 0, 1, 0, 0]),
+        width: Number(item.width ?? 0),
+        height: Number(item.height ?? 0),
+      });
+    }
+    pageItems.push({ page: i, items });
+  }
+  await doc.destroy();
+  return buildLayoutDocument(pageItems).markdown;
+}
+
+const T = (str: string, x: number, y: number, w = 100, h = 10): PdfTextItem => ({
+  str,
+  transform: [1, 0, 0, 1, x, y],
+  width: w,
+  height: h,
+});
+
+describe("gauntlet source fidelity", () => {
+  it("preserves inline arXiv citations (mid-page, horizontal)", () => {
+    const items: PdfTextItem[] = [
+      T("Some Paper Title", 100, 700, 300, 14),
+      T("Prior work builds on", 100, 600, 160),
+      T("the approach of", 100, 580, 120),
+      T("arXiv:1406.2661", 230, 580, 90),
+      T("applied widely.", 330, 580, 110),
+      T("More body prose follows here.", 100, 560, 200),
+    ];
+    const md = buildLayoutDocument([{ page: 1, items }]).markdown;
+    expect(md).toContain("arXiv:1406.2661");
+  });
+
+  it("drops a topmost-row running header with its date/category tokens", () => {
+    const items: PdfTextItem[] = [
+      T("arXiv:1406.2661v2", 350, 750, 90),
+      T("[cs.LG]", 450, 750, 40),
+      T("6 Jun 2015", 500, 750, 60),
+      T("Body prose begins on this page.", 100, 700, 220),
+      T("And continues here.", 100, 680, 150),
+    ];
+    const md = buildLayoutDocument([{ page: 2, items }]).markdown;
+    expect(md).not.toMatch(/arXiv:/i);
+    expect(md).not.toContain("[cs.LG]");
+    expect(md).not.toContain("6 Jun 2015");
+    expect(md).toContain("Body prose begins on this page.");
+  });
+
+  it("drops a rotated page-1 margin stamp", () => {
+    const items: PdfTextItem[] = [
+      { str: "arXiv:1312.5602v1 [cs.LG] 19 Dec 2013", transform: [0, 1, -1, 0, 32, 237], width: 200, height: 8 },
+      T("similar tech-", 108, 238.5, 300),
+      T("niques could also help.", 108, 227.5, 300),
+    ];
+    const md = buildLayoutDocument([{ page: 1, items }]).markdown;
+    expect(md).toMatch(/similar techniques could also help/);
+    expect(md).not.toMatch(/arXiv:/i);
+  });
+
+  it("keeps wrapped compound chains: peer- + to-peer stays peer-to-peer", () => {
+    expect(joinSoftWrap("A purely peer-", "to-peer version")).toBe("A purely peer-to-peer version");
+    expect(joinSoftWrap("kept up-", "to-date records")).toBe("kept up-to-date records");
+    // Review-driven controls: a syllable wrap into a compound-start must still join.
+    expect(joinSoftWrap("inter-", "net-based model")).toBe("internet-based model");
+    expect(joinSoftWrap("docu-", "ment-level API")).toBe("document-level API");
+    // Existing behavior must not regress: syllable wraps still join.
+    expect(joinSoftWrap("zeo-", "lite synthesis")).toBe("zeolite synthesis");
+    expect(joinSoftWrap("funda-", "mental question")).toBe("fundamental question");
+    expect(joinSoftWrap("domain-", "specific task")).toBe("domain-specific task");
+  });
+
+  it("bitcoin abstract keeps peer-to-peer", async () => {
+    const md = await layoutMarkdown("bitcoin-whitepaper.pdf", 1);
+    expect(md).toContain("peer-to-peer");
+    expect(md).not.toContain("peerto-peer");
+  }, 30_000);
+
+  it("arXiv running headers never interleave into body prose", async () => {
+    const md = await layoutMarkdown("dqn-atari.pdf", 2);
+    expect(md).toMatch(/similar techniques could also be beneficial/);
+    expect(md).not.toMatch(/techarXiv/i);
+    expect(md).not.toMatch(/arXiv:\d{4}\.\d{4,5}v?\d*\s+\[cs\.LG\]\s+19 Dec 2013\s+niques/i);
+  }, 30_000);
+});

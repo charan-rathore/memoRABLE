@@ -6,7 +6,8 @@ import { useEffect, useState } from "react";
  * Live check of the Umbrex playbook pages the market-research pack cites,
  * via the bounded same-origin route /api/umbrex-guidance (fixed server-side
  * allowlist; no caller URLs). Shown only alongside the market-research
- * output. Excerpts are raw page-text prefixes from a mechanical parse -
+ * output. Quoted text is verbatim bounded section content anchored to
+ * declared live-page heading ids; pages without anchors report a gap -
  * displayed as unverified, never presented as refreshed guidance.
  */
 
@@ -16,7 +17,8 @@ interface SourceStatus {
   httpStatus?: number;
   title?: string;
   detail?: string;
-  excerpt?: string;
+  sections?: { anchorId: string; topic: string; heading: string; excerpt: string }[];
+  excerptNote?: string;
   fetchedAt: string;
   fromCache: boolean;
 }
@@ -76,12 +78,17 @@ export function LiveGuidancePanel() {
                   {s.fromCache ? " (cached)" : ""}
                   {s.detail ? ` - ${s.detail}` : ""}
                 </span>
-                {s.excerpt ? (
-                  <details>
-                    <summary className="crumb">raw page-text prefix (unverified parse)</summary>
-                    <p className="crumb" style={{ whiteSpace: "pre-wrap" }}>{s.excerpt}</p>
+                {s.sections?.map((sec) => (
+                  <details key={sec.anchorId}>
+                    <summary className="crumb">quoted section: {sec.topic}</summary>
+                    <p className="crumb" style={{ whiteSpace: "pre-wrap" }}>
+                      <a href={`${s.url}#${sec.anchorId}`} target="_blank" rel="noreferrer">{sec.heading}</a>
+                      {" - "}
+                      {sec.excerpt}
+                    </p>
                   </details>
-                ) : null}
+                ))}
+                {s.excerptNote ? <p className="crumb">{s.excerptNote}</p> : null}
               </li>
             ))}
           </ul>

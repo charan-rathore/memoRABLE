@@ -8,7 +8,7 @@ afterEach(cleanup);
 const SAMPLE = {
   checkedAt: "2026-11-06T12:00:00Z",
   sources: [
-    { url: "https://umbrex.com/resources/market-sizing-playbook/scoping-and-framing-the-exercise/", outcome: "readable", httpStatus: 200, title: "Scoping", excerpt: "State the decision this research feeds.", fetchedAt: "2026-11-06T12:00:00Z", fromCache: false },
+    { url: "https://umbrex.com/resources/market-sizing-playbook/scoping-and-framing-the-exercise/", outcome: "readable", httpStatus: 200, title: "Scoping", sections: [{ anchorId: "2-1-clarifying-the-business-question-and-decision-context", topic: "Clarify the decision", heading: "2.1 Clarifying the Business Question", excerpt: "State the decision this research feeds." }], fetchedAt: "2026-11-06T12:00:00Z", fromCache: false },
     { url: "https://umbrex.com/resources/market-sizing-playbook/data-collection-and-research-techniques/", outcome: "http-error", httpStatus: 520, fetchedAt: "2026-11-06T12:00:00Z", fromCache: true },
   ],
   note: "Observed accessibility only.",
@@ -22,7 +22,7 @@ describe("LiveGuidancePanel", () => {
     expect(screen.getByText("readable")).toBeTruthy();
     expect(screen.getByText("HTTP 520")).toBeTruthy();
     expect(screen.getByText(/State the decision this research feeds/)).toBeTruthy();
-    expect(screen.getByText(/raw page-text prefix \(unverified parse\)/)).toBeTruthy();
+    expect(screen.getByText(/quoted section: Clarify the decision/)).toBeTruthy();
     expect(screen.getByText(/\(cached\)/)).toBeTruthy();
   });
 

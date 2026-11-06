@@ -13,7 +13,10 @@ import { UMBREX_GUIDANCE_PACK } from "@/understanding/market-research/guidance-p
  * observed. Access failures are reported as observed (e.g. http 520) -
  * never relabeled as paywalled or readable. Guidance content itself stays
  * bundled in the pack; this route verifies current accessibility and stamps
- * fetch time.
+ * fetch time. Readable chapter pages additionally quote bounded verbatim
+ * text from declared anchored sections (heading ids on the live page);
+ * pages without declared anchors, or whose anchors moved, report a clear
+ * gap - navigation chrome is never quoted as guidance.
  */
 
 let fetchTimeoutMs = 8000;
@@ -36,8 +39,10 @@ export interface SourceStatus {
   byteLength?: number;
   /** Set when a redirect to a disallowed origin was observed and refused. */
   detail?: string;
-  /** Bounded raw page-text prefix (mechanical parse, unverified). */
-  excerpt?: string;
+  /** Verbatim section excerpts anchored to declared heading ids. */
+  sections?: SectionExcerpt[];
+  /** Why no anchored section text is quoted (index page, or anchors gone). */
+  excerptNote?: string;
   fetchedAt: string;
   fromCache: boolean;
 }
@@ -80,16 +85,83 @@ function extractTitle(html: string): string | undefined {
   return m && m[1] ? m[1].trim() : undefined;
 }
 
-const EXCERPT_CHARS = 1200;
+const SECTION_EXCERPT_CHARS = 1200;
 
-/** Bounded raw page-text prefix: tags/scripts/styles stripped, whitespace
- * collapsed. An unverified mechanical parse - shown as such, never distilled
- * into guidance claims. */
-function extractExcerpt(html: string): string {
-  const noScripts = html
+export interface SectionExcerpt {
+  /** Exact live heading id the excerpt was sliced from. */
+  anchorId: string;
+  /** Declared topic label: the pack's reason for citing this section. */
+  topic: string;
+  /** Verbatim heading text as published. */
+  heading: string;
+  /** Bounded verbatim section text, markup stripped, sentence-boundary cut. */
+  excerpt: string;
+}
+
+interface DeclaredSection {
+  anchor: string;
+  topic: string;
+}
+
+const MSP = "https://umbrex.com/resources/market-sizing-playbook";
+const CDDP = "https://umbrex.com/resources/commercial-due-diligence-playbook-2025";
+
+/** Declared section anchors per allowlisted chapter page, grounded
+ * 2026-11-06 against the live pages: Umbrex chapter headings carry stable
+ * numeric-prefix ids (h2 per section, h3 per numbered step on some CDD
+ * chapters); Elementor chrome headings have no such ids. Index/TOC pages
+ * (CDD root, competitive-intelligence, scenario-planning) have no anchored
+ * chapter sections in public text - a declared gap, never nav-as-guidance.
+ * Heading ids are not guaranteed stable: a missing or ambiguous anchor is
+ * reported as a gap, never silently substituted. */
+const SOURCE_SECTION_ANCHORS: Record<string, DeclaredSection[]> = {
+  [`${MSP}/scoping-and-framing-the-exercise/`]: [
+    { anchor: "2-1-clarifying-the-business-question-and-decision-context", topic: "Clarify the decision" },
+    { anchor: "2-4-drafting-the-initial-hypothesis-and-workplan", topic: "Hypotheses and workplan" },
+  ],
+  [`${MSP}/foundations-of-market-sizing/`]: [
+    { anchor: "1-2-essential-definitions-market-segments-tam-sam-som-share", topic: "TAM/SAM/SOM definitions" },
+    { anchor: "1-3-principles-of-sound-market-boundary-definition", topic: "Boundary principles" },
+    { anchor: "1-4-typical-failure-modes-and-how-to-avoid-them", topic: "Failure modes" },
+  ],
+  [`${MSP}/data-collection-and-research-techniques/`]: [
+    { anchor: "4-1-secondary-data-sources-landscape", topic: "Secondary source landscape" },
+    { anchor: "4-4-data-quality-assurance-checklist", topic: "Data quality assurance" },
+  ],
+  [`${MSP}/top-down-market-sizing-methodology/`]: [
+    { anchor: "4-2-step-by-step-guide-to-building-a-top-down-model", topic: "Top-down step guide" },
+  ],
+  [`${MSP}/bottom-up-market-sizing-methodology/`]: [
+    { anchor: "5-2-step-by-step-guide-to-building-a-bottom-up-model", topic: "Bottom-up step guide" },
+  ],
+  [`${MSP}/hybrid-triangulation-and-sanity-check-techniques/`]: [
+    { anchor: "7-1-three-lens-triangulation-framework-top-down-bottom-up-expert", topic: "Three-lens triangulation" },
+    { anchor: "7-3-driver-trees-and-sensitivity-stress-testing", topic: "Driver trees and sensitivity" },
+  ],
+  [`${MSP}/operationalizing-the-market-sizing-process/`]: [
+    { anchor: "10-2-standard-workplan-templates-and-effort-estimates", topic: "Workplan templates" },
+  ],
+  [`${MSP}/communicating-insights-and-driving-action/`]: [
+    { anchor: "11-2-executive-level-storylining-and-think-cell-blueprint", topic: "Executive storylining" },
+  ],
+  [`${MSP}/toolkits-templates-and-resources/`]: [
+    { anchor: "12-4-market-sizing-readiness-self-assessment-checklist", topic: "Readiness checklist" },
+  ],
+  [`${CDDP}/data-collection-and-research-techniques/`]: [
+    { anchor: "4-2-primary-research-design-step-by-step-guide", topic: "Primary research design" },
+  ],
+  [`${CDDP}/market-size-and-growth-assessment/`]: [
+    { anchor: "5-1-tam-sam-som-framework", topic: "TAM/SAM/SOM framework" },
+  ],
+  [`${CDDP}/competitive-landscape-and-positioning/`]: [
+    { anchor: "7-1-competitor-identification-checklist", topic: "Competitor identification" },
+  ],
+};
+
+function stripMarkup(fragment: string): string {
+  return fragment
     .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, " ")
-    .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, " ");
-  const text = noScripts
+    .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, " ")
     .replace(/<[^>]+>/g, " ")
     .replace(/&amp;/g, "&")
     .replace(/&lt;/g, "<")
@@ -98,7 +170,101 @@ function extractExcerpt(html: string): string {
     .replace(/&#39;|&apos;/g, "'")
     .replace(/\s+/g, " ")
     .trim();
-  return text.slice(0, EXCERPT_CHARS);
+}
+
+/** Cut at the last sentence boundary within the cap; never split solely on
+ * an unqualified digit boundary (figures, versions, years, list numbers). */
+function boundAtSentence(text: string, cap: number): string {
+  if (text.length <= cap) return text;
+  const window = text.slice(0, cap);
+  const lastStop = window.lastIndexOf(". ");
+  if (lastStop > cap * 0.5) return window.slice(0, lastStop + 1).trim();
+  const lastSpace = window.lastIndexOf(" ");
+  return (lastSpace > 0 ? window.slice(0, lastSpace) : window).trim();
+}
+
+function escapeRe(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+interface HeadingMatch {
+  level: number;
+  id: string;
+  headEnd: number;
+}
+
+/** Locate the section heading: exact id first, else tolerate slug-text edits
+ * via the numeric prefix (e.g. "4-2-"). More than one prefix hit is
+ * ambiguous and reported missing rather than guessed. */
+function findSectionHeading(html: string, anchor: string): HeadingMatch | null {
+  const exactRe = new RegExp(`<h([23])\\b[^>]*\\bid="${escapeRe(anchor)}"[^>]*>`, "gi");
+  const exact = [...html.matchAll(exactRe)];
+  if (exact.length === 1) {
+    const m = exact[0]!;
+    return { level: Number(m[1]), id: anchor, headEnd: m.index! + m[0].length };
+  }
+  if (exact.length > 1) return null;
+  const prefix = anchor.match(/^\d+(?:-\d+)*-/)?.[0];
+  if (!prefix) return null;
+  const prefixRe = new RegExp(`<h([23])\\b[^>]*\\bid="(${escapeRe(prefix)}[^"]*)"[^>]*>`, "gi");
+  const hits = [...html.matchAll(prefixRe)];
+  if (hits.length !== 1) return null;
+  const m = hits[0]!;
+  return { level: Number(m[1]), id: m[2]!, headEnd: m.index! + m[0].length };
+}
+
+export interface SectionExtraction {
+  sections: SectionExcerpt[];
+  note?: string;
+}
+
+/** Slice declared anchored sections out of a live page. Content between the
+ * heading and the next same-or-higher-level heading is quoted verbatim and
+ * bounded; anything else on the page (nav, footer, forms) is never quoted. */
+export function extractSectionExcerpts(html: string, url: string): SectionExtraction {
+  const declared = SOURCE_SECTION_ANCHORS[url];
+  if (!declared) {
+    return {
+      sections: [],
+      note: "No anchored chapter sections are declared for this page (index/contents page); nothing is quoted from it.",
+    };
+  }
+  const sections: SectionExcerpt[] = [];
+  const missing: string[] = [];
+  for (const d of declared) {
+    const h = findSectionHeading(html, d.anchor);
+    if (!h) {
+      missing.push(d.anchor);
+      continue;
+    }
+    const headCloseRe = new RegExp(`</h${h.level}\\s*>`, "ig");
+    headCloseRe.lastIndex = h.headEnd;
+    const headClose = headCloseRe.exec(html);
+    const contentStart = headClose ? headClose.index + headClose[0].length : h.headEnd;
+    const nextRe = h.level === 2 ? /<h2\b/gi : /<h[23]\b/gi;
+    nextRe.lastIndex = contentStart;
+    const next = nextRe.exec(html);
+    const rawSection = html.slice(contentStart, next ? next.index : html.length);
+    const headingText = stripMarkup(html.slice(h.headEnd, headClose ? headClose.index : h.headEnd));
+    const excerpt = boundAtSentence(stripMarkup(rawSection), SECTION_EXCERPT_CHARS);
+    if (!excerpt) {
+      missing.push(d.anchor);
+      continue;
+    }
+    sections.push({ anchorId: h.id, topic: d.topic, heading: headingText, excerpt });
+  }
+  if (missing.length === declared.length) {
+    return {
+      sections,
+      note: `Declared section anchor(s) not found on the live page (${missing.join(", ")}); the page structure may have changed - nothing is quoted.`,
+    };
+  }
+  return {
+    sections,
+    ...(missing.length
+      ? { note: `Some declared anchors were not found on the live page: ${missing.join(", ")}.` }
+      : {}),
+  };
 }
 
 /** Race a promise against a hard deadline - terminates even for stalled bodies. */
@@ -234,7 +400,13 @@ export async function checkOneSource(url: string, now: number): Promise<SourceSt
               httpStatus: res.httpStatus,
               title: extractTitle(res.bodyText),
               byteLength,
-              excerpt: extractExcerpt(res.bodyText),
+              ...(() => {
+                const ex = extractSectionExcerpts(res.bodyText, url);
+                return {
+                  ...(ex.sections.length ? { sections: ex.sections } : {}),
+                  ...(ex.note ? { excerptNote: ex.note } : {}),
+                };
+              })(),
               fetchedAt,
               ...(truncated ? { detail: "body exceeded 2MB cap" } : {}),
             }

@@ -14,7 +14,7 @@ function fakeResponse(status: number, body: string, headers: Record<string, stri
 
 
 describe("readBodyBounded oversized-chunk handling", () => {
-  const target = () => allowlistedUrls()[0];
+  const target = () => allowlistedUrls()[0]!;
 
   it("retains an exact prefix of supplied bytes when the first chunk exceeds the cap - never zero-filled", async () => {
     const CAP = 2_000_000;
@@ -32,8 +32,11 @@ describe("readBodyBounded oversized-chunk handling", () => {
     // Retained bytes only: the cap, not the received cap+1.
     expect(status.byteLength).toBe(CAP);
     expect(status.detail).toContain("exceeded");
-    // Exact prefix of the supplied bytes - no fabricated NUL padding.
-    expect(status.excerpt).toBe("A".repeat(1200));
+    // Exact retained bytes are asserted via byteLength above; a synthetic
+    // page without the declared anchors yields no quoted sections and a
+    // clear gap note, never a fabricated excerpt.
+    expect(status.sections).toBeUndefined();
+    expect(status.excerptNote).toContain("not found");
   });
 
   it("a never-settling stream cancel() cannot escape the per-source deadline", async () => {
@@ -89,11 +92,12 @@ describe("umbrex-guidance route", () => {
     const readable = body.sources.filter((s: { outcome: string }) => s.outcome === "readable");
     expect(readable.length).toBeGreaterThan(0);
     expect(readable.every((s: { title?: string }) => typeof s.title === "string")).toBe(true);
-    // Bounded raw-text excerpt: present on readable sources, stripped of markup.
+    // Anchored-section contract: synthetic pages carry none of the declared
+    // anchors, so readable sources report a clear gap note and no sections -
+    // never nav chrome quoted as guidance.
     for (const r of readable) {
-      expect(typeof r.excerpt).toBe("string");
-      expect(r.excerpt).not.toMatch(/<[a-z]/i);
-      expect(r.excerpt.length).toBeLessThanOrEqual(1200);
+      expect(r.sections).toBeUndefined();
+      expect(typeof r.excerptNote).toBe("string");
     }
     expect(body.note).toContain("does not establish paywall status");
     // Second call: all served from cache, no new fetches.

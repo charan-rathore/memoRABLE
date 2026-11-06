@@ -82,6 +82,12 @@ describe("buildPrintDocument", () => {
     // Tables without the renderer's wrapper id are never touched.
     const data = '<table><tbody><tr><td>a</td><td>b</td></tr></tbody></table>';
     expect(unwrapLeadingLayoutTable(data)).toBe(data);
+    // The single-cell contract is enforced even when the id is present:
+    // multi-row and multi-cell tables stay byte-identical.
+    const twoRows = '<table id="u_content_body_1"><tbody><tr><td>a</td></tr><tr><td>b</td></tr></tbody></table>';
+    expect(unwrapLeadingLayoutTable(twoRows)).toBe(twoRows);
+    const twoCells = '<table id="u_content_body_1"><tbody><tr><td>a</td><td>b</td></tr></tbody></table>';
+    expect(unwrapLeadingLayoutTable(twoCells)).toBe(twoCells);
     const notLeading = '<p>x</p>' + wrapped;
     expect(unwrapLeadingLayoutTable(notLeading)).toBe(notLeading);
     // The print/HTML path keeps the original markup.

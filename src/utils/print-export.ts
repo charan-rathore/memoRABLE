@@ -95,6 +95,23 @@ export function unwrapLeadingLayoutTable(bodyHtml: string): string {
   if (!closeRun) return bodyHtml;
   const innerStart = tableOpen + openRun[0].length;
   const innerEnd = tableOpen + closeRun.index;
+  // Enforce the single-cell contract: inside the one cell, no row/cell markup
+  // may appear outside a nested table (comments are inert). A multi-row or
+  // multi-cell table - even one carrying the wrapper id - is real content and
+  // must be left byte-identical.
+  const inner0 = bodyHtml.slice(innerStart, innerEnd);
+  const structRe = /<!--[\s\S]*?-->|<\/?(?:table|thead|tbody|tfoot|tr|td|th)\b[^>]*>/gi;
+  let nested = 0;
+  let stok: RegExpExecArray | null;
+  while ((stok = structRe.exec(inner0))) {
+    const t = stok[0]!;
+    if (t.startsWith("<!--")) continue;
+    if (/^<\/?table\b/i.test(t)) {
+      nested += t.startsWith("</") ? -1 : 1;
+      continue;
+    }
+    if (nested === 0) return bodyHtml; // stray row/cell tag: not single-cell
+  }
   const prefix = bodyHtml.slice(0, tableOpen);
   const inner = bodyHtml.slice(innerStart, innerEnd);
   const suffix = bodyHtml.slice(end);

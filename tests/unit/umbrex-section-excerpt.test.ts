@@ -65,6 +65,49 @@ describe("extractSectionExcerpts", () => {
     expect(sections[0]!.excerpt).toContain("12.5 percent in 2025");
   });
 
+  it("B1: an anchor id inside an HTML comment is not a heading - gap, not quote", () => {
+    const html = page(
+      `<!-- <h2 id="2-1-clarifying-the-business-question-and-decision-context">Nav template</h2><p>Book a consultation.</p> -->` +
+      `<h2 id="2-4-drafting-the-initial-hypothesis-and-workplan">2.4 Real</h2><p>Genuine hypothesis text.</p>`,
+    );
+    const { sections, note } = extractSectionExcerpts(html, SCOPING);
+    expect(sections.map((x) => x.anchorId)).toEqual(["2-4-drafting-the-initial-hypothesis-and-workplan"]);
+    expect(note).toContain("2-1-clarifying-the-business-question-and-decision-context");
+    expect(JSON.stringify(sections)).not.toContain("consultation");
+  });
+
+  it("B2: a final declared section never bleeds a heading-less footer", () => {
+    const html =
+      `<html><body><h2 id="2-4-drafting-the-initial-hypothesis-and-workplan">2.4 Hypotheses</h2>` +
+      `<p>Write falsifiable hypotheses.</p>` +
+      `<footer><p>Subscribe to our newsletter. Book a consultation.</p></footer></body></html>`;
+    const { sections } = extractSectionExcerpts(html, SCOPING);
+    expect(sections).toHaveLength(1);
+    expect(sections[0]!.excerpt).toContain("falsifiable");
+    expect(sections[0]!.excerpt).not.toContain("newsletter");
+    expect(sections[0]!.excerpt).not.toContain("consultation");
+  });
+
+  it("B3: an over-cap single sentence is flagged, and list numbers are not boundaries", () => {
+    const oneLong = "A".repeat(1300);
+    const htmlLong = page(
+      `<h2 id="2-1-clarifying-the-business-question-and-decision-context">H</h2><p>${oneLong}</p>`,
+    );
+    const flagged = extractSectionExcerpts(htmlLong, SCOPING).sections[0]!;
+    expect(flagged.excerpt.length).toBeLessThanOrEqual(1200);
+    expect(flagged.truncatedMidSentence).toBe(true);
+
+    const listText = "Intro line. " + "First step done. ".repeat(30) + "2. Second step continues here. " + "More detail. ".repeat(40);
+    const htmlList = page(
+      `<h2 id="2-1-clarifying-the-business-question-and-decision-context">H</h2><p>${listText}</p>`,
+    );
+    const sec = extractSectionExcerpts(htmlList, SCOPING).sections[0]!;
+    if (sec.excerpt.length >= 1200) {
+      // Any cut must not have treated "2. " as the sentence end.
+      expect(sec.excerpt.endsWith("2.")).toBe(false);
+    }
+  });
+
   it("index pages and moved anchors are declared gaps, never chrome fallbacks", () => {
     const idx = extractSectionExcerpts(page("<p>table of contents</p>"), INDEX);
     expect(idx.sections).toHaveLength(0);

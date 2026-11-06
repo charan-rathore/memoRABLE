@@ -96,6 +96,9 @@ export interface SectionExcerpt {
   heading: string;
   /** Bounded verbatim section text, markup stripped, sentence-boundary cut. */
   excerpt: string;
+  /** Set when no qualified sentence boundary fit the cap and the quote was
+   * cut at a word boundary - an explicitly labeled incomplete quotation. */
+  truncatedMidSentence?: boolean;
 }
 
 interface DeclaredSection {
@@ -172,15 +175,40 @@ function stripMarkup(fragment: string): string {
     .trim();
 }
 
-/** Cut at the last sentence boundary within the cap; never split solely on
- * an unqualified digit boundary (figures, versions, years, list numbers). */
-function boundAtSentence(text: string, cap: number): string {
-  if (text.length <= cap) return text;
+/** A qualified sentence end: ". " where the character before the period is
+ * not a digit - decimals and numbered-list prefixes ("2. ") never count. */
+function lastSentenceEnd(window: string): number {
+  let best = -1;
+  for (let i = 0; i < window.length - 1; i++) {
+    if (window[i] === "." && window[i + 1] === " " && i > 0 && !/\d/.test(window[i - 1]!)) {
+      best = i;
+    }
+  }
+  return best;
+}
+
+/** Cut at the last qualified sentence boundary within the cap. When no
+ * qualified boundary exists (e.g. one sentence longer than the cap), cut at
+ * a word boundary and flag the quote as truncated mid-sentence - an
+ * incomplete quotation is always labeled, never silent. */
+function boundAtSentence(text: string, cap: number): { text: string; truncatedMidSentence: boolean } {
+  if (text.length <= cap) return { text, truncatedMidSentence: false };
   const window = text.slice(0, cap);
-  const lastStop = window.lastIndexOf(". ");
-  if (lastStop > cap * 0.5) return window.slice(0, lastStop + 1).trim();
+  const stop = lastSentenceEnd(window);
+  if (stop > cap * 0.5) return { text: window.slice(0, stop + 1).trim(), truncatedMidSentence: false };
   const lastSpace = window.lastIndexOf(" ");
-  return (lastSpace > 0 ? window.slice(0, lastSpace) : window).trim();
+  return {
+    text: (lastSpace > 0 ? window.slice(0, lastSpace) : window).trim(),
+    truncatedMidSentence: true,
+  };
+}
+
+/** Position-preserving mask: comments, scripts and styles become spaces of
+ * equal length so heading detection never matches non-content markup, while
+ * offsets stay aligned with the original HTML for content slicing. */
+function maskNonContent(html: string): string {
+  return html.replace(/<!--[\s\S]*?-->|<script\b[^>]*>[\s\S]*?<\/script>|<style\b[^>]*>[\s\S]*?<\/style>/gi,
+    (m) => " ".repeat(m.length));
 }
 
 function escapeRe(s: string): string {
@@ -196,9 +224,9 @@ interface HeadingMatch {
 /** Locate the section heading: exact id first, else tolerate slug-text edits
  * via the numeric prefix (e.g. "4-2-"). More than one prefix hit is
  * ambiguous and reported missing rather than guessed. */
-function findSectionHeading(html: string, anchor: string): HeadingMatch | null {
+function findSectionHeading(masked: string, anchor: string): HeadingMatch | null {
   const exactRe = new RegExp(`<h([23])\\b[^>]*\\bid="${escapeRe(anchor)}"[^>]*>`, "gi");
-  const exact = [...html.matchAll(exactRe)];
+  const exact = [...masked.matchAll(exactRe)];
   if (exact.length === 1) {
     const m = exact[0]!;
     return { level: Number(m[1]), id: anchor, headEnd: m.index! + m[0].length };
@@ -207,7 +235,7 @@ function findSectionHeading(html: string, anchor: string): HeadingMatch | null {
   const prefix = anchor.match(/^\d+(?:-\d+)*-/)?.[0];
   if (!prefix) return null;
   const prefixRe = new RegExp(`<h([23])\\b[^>]*\\bid="(${escapeRe(prefix)}[^"]*)"[^>]*>`, "gi");
-  const hits = [...html.matchAll(prefixRe)];
+  const hits = [...masked.matchAll(prefixRe)];
   if (hits.length !== 1) return null;
   const m = hits[0]!;
   return { level: Number(m[1]), id: m[2]!, headEnd: m.index! + m[0].length };
@@ -229,29 +257,45 @@ export function extractSectionExcerpts(html: string, url: string): SectionExtrac
       note: "No anchored chapter sections are declared for this page (index/contents page); nothing is quoted from it.",
     };
   }
+  const masked = maskNonContent(html);
   const sections: SectionExcerpt[] = [];
   const missing: string[] = [];
   for (const d of declared) {
-    const h = findSectionHeading(html, d.anchor);
+    const h = findSectionHeading(masked, d.anchor);
     if (!h) {
       missing.push(d.anchor);
       continue;
     }
     const headCloseRe = new RegExp(`</h${h.level}\\s*>`, "ig");
     headCloseRe.lastIndex = h.headEnd;
-    const headClose = headCloseRe.exec(html);
+    const headClose = headCloseRe.exec(masked);
     const contentStart = headClose ? headClose.index + headClose[0].length : h.headEnd;
+    // Section ends at the next same-or-higher heading OR at the content
+    // region's end - footers and page chrome past it are never quoted.
     const nextRe = h.level === 2 ? /<h2\b/gi : /<h[23]\b/gi;
     nextRe.lastIndex = contentStart;
-    const next = nextRe.exec(html);
-    const rawSection = html.slice(contentStart, next ? next.index : html.length);
+    const next = nextRe.exec(masked);
+    const regionEndRe = /<footer\b|<\/main>|<\/article>|<\/body>/gi;
+    regionEndRe.lastIndex = contentStart;
+    const regionEnd = regionEndRe.exec(masked);
+    const endIdx = Math.min(
+      next ? next.index : html.length,
+      regionEnd ? regionEnd.index : html.length,
+    );
+    const rawSection = html.slice(contentStart, endIdx);
     const headingText = stripMarkup(html.slice(h.headEnd, headClose ? headClose.index : h.headEnd));
-    const excerpt = boundAtSentence(stripMarkup(rawSection), SECTION_EXCERPT_CHARS);
-    if (!excerpt) {
+    const bounded = boundAtSentence(stripMarkup(rawSection), SECTION_EXCERPT_CHARS);
+    if (!bounded.text) {
       missing.push(d.anchor);
       continue;
     }
-    sections.push({ anchorId: h.id, topic: d.topic, heading: headingText, excerpt });
+    sections.push({
+      anchorId: h.id,
+      topic: d.topic,
+      heading: headingText,
+      excerpt: bounded.text,
+      ...(bounded.truncatedMidSentence ? { truncatedMidSentence: true } : {}),
+    });
   }
   if (missing.length === declared.length) {
     return {

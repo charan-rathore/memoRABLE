@@ -588,7 +588,14 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
           )}
         </div>
 
-        <div className={`rail-r${selectedBlock && mobileTab === "memories" ? " open" : ""}`}>
+        {/* A scroll container whose idle content has nothing focusable must take
+            focus itself, or keyboard users cannot scroll it (same as .canvas). */}
+        <div
+          className={`rail-r${selectedBlock && mobileTab === "memories" ? " open" : ""}`}
+          tabIndex={0}
+          role="region"
+          aria-label="Inspector"
+        >
           <Inspector
             block={selectedBlock}
             document={state.document}

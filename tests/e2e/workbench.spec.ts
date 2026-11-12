@@ -159,14 +159,16 @@ test.describe("home screen", () => {
 });
 
 test.describe("the brief in the workbench", () => {
-  test("arrives already remembered as six blocks", async ({ page }) => {
+  test("arrives already remembered as six blocks", async ({ page, isMobile }) => {
     await enterWorkbench(page);
 
     await expect(page).toHaveTitle(/memoRABLE/i);
     await expect(page.locator(".doc-title .t")).toHaveText("Q3 Board Report");
     await expect(memNames(page)).toHaveText(MEMORY_NAMES.map((n) => n)); // exact order, all six
 
-    // Document-first: the default output is the Document preview in a sandboxed iframe.
+    // Document-first output: the Document preview in a sandboxed iframe.
+    // Phones open on review, so the preview sits behind the Publish tab there.
+    await openMobileTab(page, "Publish", isMobile);
     const frame = page.frameLocator("iframe[title='Document output preview']");
     await expect(frame.locator("text=Momentum, with room to compound.").first()).toBeVisible();
 
@@ -174,11 +176,12 @@ test.describe("the brief in the workbench", () => {
     await expect(page.getByText("6 memories").first()).toBeVisible();
   });
 
-  test("has no critical or serious accessibility violations", async ({ page }) => {
+  test("has no critical or serious accessibility violations", async ({ page, isMobile }) => {
     test.slow();
     const { AxeBuilder } = await import("@axe-core/playwright");
     await enterWorkbench(page);
-    // The preview iframe is visible in every layout (mobile's default tab is Publish).
+    // Phones open on review; show the preview so the whole shell is audited.
+    await openMobileTab(page, "Publish", isMobile);
     await page.locator("iframe[title='Document output preview']").waitFor();
     // Scope to the app shell: the previews are `sandbox=""` iframes, so axe can
     // never get its script into them and would block until the test times out.

@@ -351,7 +351,12 @@ test.describe("mobile shell", () => {
     const tabs = page.getByRole("navigation", { name: "Workbench sections" });
     await expect(tabs).toBeVisible();
 
-    // Default tab is Publish. the preview is front and center.
+    // Review before export: the brief and its receipt come first, not Publish.
+    await expect(tabs.getByRole("button", { name: "Memories" })).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByRole("region", { name: /source-linked blocks/ })).toBeVisible();
+    await expect(memNames(page)).toHaveCount(6);
+
+    await tabs.getByRole("button", { name: "Publish" }).click();
     await expect(page.locator("iframe[title='Document output preview']")).toBeAttached();
 
     await tabs.getByRole("button", { name: "Memories" }).click();

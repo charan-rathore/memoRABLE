@@ -86,7 +86,7 @@ export function useReplay(callbacks: ReplayCallbacks, reducedMotion: boolean) {
       {
         at: 0,
         apply: () => {
-          setView({ phase: "intro", journeyStep: 0, message: "Turn information into memory.", revealCount: null, progress: 0 });
+          setView({ phase: "intro", journeyStep: 0, message: "Turn a document into a source-backed brief.", revealCount: null, progress: 0 });
           cb.announce("Replaying the memoRABLE story. Press Escape or Stop to end it at any time.");
         },
       },

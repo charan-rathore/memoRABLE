@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "memoRABLE · Turn information into memory",
+  title: "memoRABLE · Source-backed briefs",
   description:
     "Bring JSON, notes or Markdown. memoRABLE understands them locally and remembers them as six source-linked Memory Blocks, published as a Web page, Email or Document.",
   robots: { index: true, follow: true },

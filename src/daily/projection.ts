@@ -16,7 +16,12 @@ export function inferStatus(kind: Entry["kind"], text: string): { status?: Exclu
   return {};
 }
 
-export const handleOf = (entryId: string) => entryId.replace(/[^a-z0-9]/gi, "").slice(-6).toLowerCase();
+/** Six base-36 characters from an FNV-1a hash of the full id: short enough to type, stable across devices. */
+export function handleOf(entryId: string): string {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < entryId.length; i++) { h ^= entryId.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
+  return (h % 2_176_782_336).toString(36).padStart(6, "0");
+}
 
 export function emptyState(workspaceId: string): WorkspaceState {
   return { workspaceId, entries: new Map(), sources: new Map(), deleted: new Set(), plans: [], lastSeq: 0 };

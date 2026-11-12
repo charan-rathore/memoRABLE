@@ -1,4 +1,4 @@
-import { tokenize } from "./lexical";
+import { stem, tokenize } from "./lexical";
 import type { Entry, WorkspaceState } from "./types";
 
 export interface PlanCandidate {
@@ -47,8 +47,8 @@ function score(e: Entry, nowMs: number, recent: Set<string>, skipped: boolean): 
     s += 1.5; reasons.push("a proposal waiting for a call");
   } else return null;
 
-  const overlap = tokenize(e.text).filter((t) => recent.has(t));
-  if (overlap.length) { s += 1; reasons.push(`connects to recent work (${[...new Set(overlap)].slice(0, 3).join(", ")})`); }
+  const words = [...new Set((e.text.toLowerCase().match(/[a-z0-9]+/g) ?? []).filter((w) => w.length > 2 && tokenize(w).length && recent.has(stem(w))))];
+  if (words.length) { s += 1; reasons.push(`connects to recent work (${words.slice(0, 3).join(", ")})`); }
 
   const ageDays = Math.min(7, Math.max(0, (nowMs - Date.parse(e.createdAt)) / DAY));
   if (ageDays >= 1) { s += 0.1 * ageDays; reasons.push(`waiting ${Math.floor(ageDays)} day${ageDays >= 2 ? "s" : ""}`); }

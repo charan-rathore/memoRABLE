@@ -19,7 +19,7 @@ The fixture is a synthetic 10-day engineering journal: 38 entries (one is delete
 
 ## Baseline (bm25-v1, run in bun 1.4 on the dev container)
 
-`recall@5 = 1.0` (recovery, update and multi-hop), `MRR = 0.927`, `multihopReach = 1`, and every correctness gate is at 0.
+`recall@5 = 1.0` (recovery, update and multi-hop), `MRR = 0.938` (0.927 before the stopword list was extended in the workspace PR), `multihopReach = 1`, and every correctness gate is at 0.
 
 Measured performance: recall p95 is under 0.1 ms, index build is about 3 ms for 38 entries, about 0.46 cached answers are invalidated per update, the cache hit rate is 0.5, and there are 0 model calls.
 

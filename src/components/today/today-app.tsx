@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Entry } from "@/daily/types";
 import { CaptureLoop } from "./capture-loop";
@@ -77,7 +78,7 @@ export function TodayApp() {
   return (
     <div className="td" data-tab={tab}>
       <header className="td-top">
-        <a href="/" className="td-brand" aria-label="memoRABLE home">memo<b>RABLE</b></a>
+        <Link href="/" className="td-brand" aria-label="memoRABLE home">memo<b>RABLE</b></Link>
         <SyncState storage={storage} online={online} ready={!!engine} />
       </header>
 

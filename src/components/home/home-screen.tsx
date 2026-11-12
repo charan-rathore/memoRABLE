@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { createAsyncOperation } from "../async-operation";
@@ -223,7 +224,7 @@ export function HomeScreen({
           Turn a report, research paper or brief into source-linked insights. Read it, question it, then reuse it as email, web or a document.
         </p>
         <p className="home-daily rise-in">
-          <a href="/today">Open your daily log</a> to record what you worked on, learned and decided, and find it again later.
+          <Link href="/today">Open your daily log</Link> to record what you worked on, learned and decided, and find it again later.
         </p>
 
         {understanding ? (

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type CSSProperties } from "react";
 import type { MemoryBlock, MemoryDocument } from "@/domain/memory/schema";
 import { OUTPUT_MODES, OUTPUT_MODE_LABELS, type OutputMode } from "@/domain/memory/types";
 import { importSource } from "@/import/import-source";
@@ -14,6 +14,7 @@ import { Topbar } from "./topbar";
 import { JourneyStrip, type SourceMeta } from "./journey-strip";
 import { ImportPanel } from "./import/import-panel";
 import { BlocksPanel } from "./blocks/blocks-panel";
+import { BriefReceipt } from "./blocks/brief-receipt";
 import { Inspector } from "./blocks/inspector";
 import { VisualReadingPanel } from "./preview/visual-reading";
 import { PreviewPane } from "./preview/preview-pane";
@@ -59,7 +60,9 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
   const [publishOpen, setPublishOpen] = useState(false);
   const [aiEnabled, setAiEnabled] = useState(false);
   const [aiBusy, setAiBusy] = useState(false);
-  const [mobileTab, setMobileTab] = useState<MobileTab>("publish");
+  // Review before export: the first thing a phone shows after import is the
+  // brief and what needs judgment, not the publish controls.
+  const [mobileTab, setMobileTab] = useState<MobileTab>("memories");
   const [reducedMotion, setReducedMotion] = useState(false);
   /** The workbench is withheld until the visitor has brought something to it. */
   const [view, setView] = useState<"home" | "workbench">("home");
@@ -178,7 +181,7 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
           rememberLibraryDoc({ title: result.value.title, label, sourceText: text });
         }
         setView("workbench");
-        setMobileTab("publish");
+        setMobileTab("memories");
         await mark("publishing");
         if (!operation.isCurrent()) return;
         scheduleLazyRenders(result.value, [], "document", themeRef.current, dispatch, text);
@@ -511,6 +514,21 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
             />
           </div>
           <div className={`mem-rail${mobileTab === "memories" ? "" : " mobile-hide"}`}>
+            {state.document && state.errors.length === 0 && !replay.active ? (
+              <BriefReceipt
+                key={state.document.contentHash}
+                document={state.document}
+                sourceText={state.sourceText}
+                meta={sourceMeta}
+                reducedMotion={reducedMotion}
+                onReview={(id) => {
+                  homeFileWork.current.cancel();
+                  dispatch({ type: "blockSelected", blockId: id });
+                  const block = state.document?.blocks.find((b) => b.id === id);
+                  if (block) setSourceModal(block);
+                }}
+              />
+            ) : null}
             <BlocksPanel
               blocks={state.document?.blocks ?? []}
               selectedBlockId={state.selectedBlockId}
@@ -570,7 +588,14 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
           )}
         </div>
 
-        <div className={`rail-r${selectedBlock && mobileTab === "memories" ? " open" : ""}`}>
+        {/* A scroll container whose idle content has nothing focusable must take
+            focus itself, or keyboard users cannot scroll it (same as .canvas). */}
+        <div
+          className={`rail-r${selectedBlock && mobileTab === "memories" ? " open" : ""}`}
+          tabIndex={0}
+          role="region"
+          aria-label="Inspector"
+        >
           <Inspector
             block={selectedBlock}
             document={state.document}
@@ -580,7 +605,11 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
         </div>
       </main>
 
-      <nav className="mobile-tabs" aria-label="Workbench sections">
+      <nav
+        className="mobile-tabs"
+        aria-label="Workbench sections"
+        style={{ "--tab": ["bring", "memories", "publish"].indexOf(mobileTab) } as unknown as CSSProperties}
+      >
         {(
           [
             ["bring", "Bring"],

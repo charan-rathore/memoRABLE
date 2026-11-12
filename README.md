@@ -1,6 +1,6 @@
 # memoRABLE
 
-**Turn information into memory.**
+**Turn a document into a source-backed brief.**
 
 **[Live demo →](https://memo-rable.vercel.app)** — open a sample brief, or tap **Watch the 1-minute demo**.
 

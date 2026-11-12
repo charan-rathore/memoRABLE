@@ -94,8 +94,62 @@ export function wordCount(text: string): number {
  */
 const ABBREVIATIONS = /\b(?:e\.g|i\.e|etc|vs|approx|fig|no|mr|mrs|ms|dr|prof|inc|ltd|co|st|jan|feb|mar|apr|jun|jul|aug|sep|sept|oct|nov|dec)\.$/i;
 
-/** A trailing single-capital initial ("...to S.", "...the R. K.") is a name, not a full stop. */
-const NAME_INITIAL = /(?:^|\s)[A-Z]\.$/;
+/**
+ * A trailing single-capital initial ("...to S.", "...the R. K.") can be a name,
+ * not a full stop. Char checks, not a regex: this runs on every sentence part.
+ */
+function endsWithInitial(buffer: string): boolean {
+  const n = buffer.length;
+  if (n < 2 || buffer.charCodeAt(n - 1) !== 46) return false; // "."
+  const c = buffer.charCodeAt(n - 2);
+  if (c < 65 || c > 90) return false; // A-Z
+  return n === 2 || buffer.charCodeAt(n - 3) === 32; // start or space
+}
+
+/** Words that commonly label a lettered item: "option A.", "section B." end real sentences. */
+const LABEL_WORDS = new Set([
+  "option", "appendix", "annex", "part", "point", "item", "section", "step",
+  "question", "version", "plan", "choice", "route", "method", "tier", "grade",
+  "class", "group", "phase", "stage", "level", "type", "category", "variant",
+  "model", "rule", "clause", "schedule", "exhibit", "figure", "table",
+  "chapter", "unit", "module", "block", "slot", "row", "column", "batch",
+  "wave", "track", "scenario", "case", "task", "round", "set",
+  "team", "squad", "division", "department", "wing",
+]);
+
+/** Capitalized words that usually open a fresh sentence. */
+const SENTENCE_STARTERS = new Set([
+  "The", "This", "That", "These", "Those", "It", "Its", "He", "She", "We",
+  "They", "I", "But", "And", "Or", "If", "In", "On", "At", "For", "With",
+  "However", "Then", "Now", "So", "As", "By", "When", "While", "After",
+  "Before", "You", "Your", "My", "His", "Her", "Their", "Our", "There",
+  "Here", "What", "How", "Why", "Which", "Who", "A", "An", "To", "From",
+  "Over", "Under", "Between", "During", "Each", "Every", "All", "Some",
+  "None", "Not", "Many", "Few", "Several", "Both", "Either", "Neither",
+  "One", "Two", "Three", "First", "Second", "Last", "Next", "Only", "Even",
+  "Still", "Just", "Also",
+]);
+
+/** First plain word of a text, skipping leading quotes/brackets. */
+function firstWord(text: string): string {
+  const m = /^[^A-Za-z]*([A-Za-z]+)/.exec(text);
+  return m?.[1] ?? "";
+}
+
+/**
+ * A period after a lone capital is a name initial only when nothing marks it
+ * as a real boundary: the next sentence opening with a common starter word
+ * ("option A. The rest failed.") or a lettered label followed by another
+ * capitalized word ("section A. Raman objected.") both end the sentence.
+ */
+function initialIsBoundary(buffer: string, nextPart: string | undefined): boolean {
+  const next = nextPart === undefined ? "" : firstWord(nextPart);
+  if (SENTENCE_STARTERS.has(next)) return true;
+  if (!/^[A-Z]/.test(next)) return false;
+  // The initial sits at the end; only the tail can hold the preceding word.
+  const prev = /([A-Za-z]+)[^A-Za-z]*[A-Z]\.$/.exec(buffer.slice(-48))?.[1] ?? "";
+  return LABEL_WORDS.has(prev.toLowerCase());
+}
 
 export function splitSentences(text: string): string[] {
   const flat = text.replace(/\s+/g, " ").trim();
@@ -103,10 +157,12 @@ export function splitSentences(text: string): string[] {
   const out: string[] = [];
   let buffer = "";
   const parts = flat.split(/(?<=[.!?])\s+/);
-  for (const part of parts) {
+  for (let i = 0; i < parts.length; i++) {
+    const part = parts[i]!;
     buffer = buffer === "" ? part : `${buffer} ${part}`;
     // A decimal point or a known abbreviation is not the end of a thought.
-    if (ABBREVIATIONS.test(buffer) || /\d\.$/.test(buffer) || NAME_INITIAL.test(buffer)) continue;
+    if (ABBREVIATIONS.test(buffer) || /\d\.$/.test(buffer)) continue;
+    if (endsWithInitial(buffer) && !initialIsBoundary(buffer, parts[i + 1])) continue;
     out.push(buffer.trim());
     buffer = "";
   }

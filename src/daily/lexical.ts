@@ -7,7 +7,7 @@
  */
 
 const STOP = new Set(
-  "a an and are as at be but by for from has have i if in into is it its of on or our so that the their then there these this to was we were what when which who will with you your".split(" "),
+  "a about after all also an and any are as at be been before being but by can could did do does for from has have i if in into is it its just more most no not of on only or our should so some than that the their them then there these they this to very was we were what when which who will with would you your".split(" "),
 );
 
 /** Lowercase, split on non-word, drop stopwords, light suffix stemming. */

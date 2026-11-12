@@ -126,6 +126,8 @@ export class Recall {
     const result: RecallResult = { query: p.query, hits, cache: "miss", scanned, configId: RECALL_CONFIG_ID };
 
     this.cache.set(key, result);
+    // Bounded: live recall while typing creates many one-off queries.
+    if (this.cache.size > MAX_CACHED) this.cache.delete(this.cache.keys().next().value as string);
     for (const t of new Set(tokenize(p.query))) this.link(this.byTerm, t, key);
     for (const h of result.hits) this.link(this.byEntry, h.entryId, key);
     return result;
@@ -133,3 +135,4 @@ export class Recall {
 }
 
 const round = (n: number) => Math.round(n * 1e9) / 1e9;
+const MAX_CACHED = 400;

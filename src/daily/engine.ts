@@ -79,7 +79,8 @@ export class DailyEngine {
     const text = input.text.trim();
     if (!text) throw new Error("Nothing to record.");
     const t0 = this.timer();
-    const entryId = this.newId("e");
+    let entryId = this.newId("e");
+    while (this.findByHandle(handleOf(entryId))) entryId = this.newId("e");
     const refs = this.resolveRefs(text);
     let invalidated = await this.commit({ type: "entry.recorded", entryId, kind: input.kind, text, tags: normTags(input.tags), sourceIds: input.sourceIds ?? [], refs });
     if (input.supersedes && this.state.entries.has(input.supersedes)) {

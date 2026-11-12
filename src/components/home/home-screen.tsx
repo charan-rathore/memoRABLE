@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { createAsyncOperation } from "../async-operation";
@@ -221,6 +222,9 @@ export function HomeScreen({
         <StaggerTitle text="One document. A clearer next step." className="home-title sweep" />
         <p className="home-sub rise-in">
           Turn a report, research paper or brief into source-linked insights. Read it, question it, then reuse it as email, web or a document.
+        </p>
+        <p className="home-daily rise-in">
+          <Link href="/today">Open your daily log</Link> to record what you worked on, learned and decided, and find it again later.
         </p>
 
         {understanding ? (

@@ -1185,3 +1185,5 @@ button.field-row.talk:disabled { cursor: default; opacity: 0.7; }
   .mobile-tabs::before { transition-duration: 0ms !important; }
   .receipt-cta:hover span { transform: none; }
 }
+
+.home-daily{margin:-6px 0 18px;font-size:14px;color:var(--ink-2)}.home-daily a{color:var(--ink);font-weight:600;text-underline-offset:3px}

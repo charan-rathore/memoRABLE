@@ -35,11 +35,11 @@
 .lp-brand { display: inline-flex; align-items: center; gap: 10px; margin: 0 !important; align-self: center !important; }
 .lp-brand .home-word { font: 500 16px/1 var(--sans); letter-spacing: -0.02em; color: var(--ink); }
 .lp-brand .home-word b { font-weight: 700; }
-.lp-links { display: flex; gap: 22px; margin-left: 8px; }
-.lp-links a { color: var(--ink-3); text-decoration: none; font-size: 14px; transition: color var(--dur-hover); }
-.lp-links a:hover { color: var(--ink); }
+.lp-links { display: flex; gap: 2px; margin-left: 8px; }
+.lp-links a { color: var(--ink-2); text-decoration: none; font-size: 14.5px; padding: 8px 12px; border-radius: 8px; transition: color var(--dur-hover), background-color var(--dur-hover); }
+.lp-links a:hover { color: var(--ink); background: rgba(255, 255, 255, 0.06); }
 .lp-cta {
-  margin-left: auto; height: 34px; padding: 0 14px; border-radius: 999px;
+  margin-left: auto; height: 38px; padding: 0 16px; border-radius: 10px;
   background: var(--ink); color: var(--on-ink); font: 550 13.5px/1 var(--sans); letter-spacing: -0.005em;
   transition: background-color var(--dur-hover), transform 90ms;
 }
@@ -47,7 +47,7 @@
 .lp-cta:active { transform: scale(0.97); }
 
 /* ---------- hero ---------- */
-.hx { position: relative; overflow-x: clip; min-height: min(900px, calc(100svh - 60px)); display: grid; place-items: center; padding: 72px 20px 96px; isolation: isolate; }
+.hx { position: relative; overflow-x: clip; min-height: min(760px, calc(100svh - 60px)); display: grid; place-items: center; padding: 56px 20px 64px; isolation: isolate; }
 .hx-stage { position: absolute; inset: 0; overflow: hidden; z-index: 0; pointer-events: none; }
 .hx-stage::after { /* soft vignette keeps the centre column quiet */
   content: ""; position: absolute; inset: 0;
@@ -132,7 +132,7 @@ a.hx-result-title:hover { text-decoration: underline; text-decoration-color: rgb
 @keyframes hx-in { from { opacity: 0; transform: translateY(8px); } }
 
 /* ---------- sections ---------- */
-.lp-section { width: min(1200px, 100%); margin: 0 auto; padding: clamp(80px, 11vw, 140px) clamp(20px, 3vw, 32px) 0; scroll-margin-top: 60px; }
+.lp-section { width: min(1200px, 100%); margin: 0 auto; padding: clamp(56px, 7vw, 96px) clamp(20px, 3vw, 32px) 0; scroll-margin-top: 60px; }
 .st-h { font: 560 clamp(32px, 4.6vw, 58px)/1.02 var(--sans); letter-spacing: -0.042em; color: var(--ink); max-width: 18ch; text-wrap: balance; }
 .st-lede { margin-top: 16px; max-width: 58ch; font-size: 17px; line-height: 1.6; color: var(--ink-2); text-wrap: pretty; }
 

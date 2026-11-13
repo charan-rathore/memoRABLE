@@ -1,4 +1,4 @@
-import { SearchIndex, type Arm, type SearchDoc } from "./engine";
+import type { Arm, SearchDoc, SearchIndex } from "./engine";
 import { mean, mrrAt, ndcgAt, pairedBootstrap, percentile, recallAt } from "./metrics";
 
 /**

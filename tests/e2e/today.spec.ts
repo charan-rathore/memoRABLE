@@ -1,19 +1,26 @@
 import { expect, test, type Page } from "@playwright/test";
 
 /**
- * The daily journey on /today: capture -> recall -> next -> review, with
- * supersession, deletion, persistence across reloads, and offline use.
- * Everything runs in the browser; no network or model is involved.
+ * The daily journey in the workspace at the bottom of the homepage:
+ * capture -> recall -> next -> review, with supersession, deletion,
+ * persistence across reloads, and offline use. No network or model involved.
  */
+
+const ws = (page: Page) => page.locator("#workspace");
+
+async function openWorkspace(page: Page, path = "/") {
+  await page.goto(path);
+  await page.getByTestId("brand-splash").waitFor({ state: "detached" });
+  await ws(page).scrollIntoViewIfNeeded();
+  await expect(ws(page).getByText("Saved on this device")).toBeVisible();
+}
 
 test.beforeEach(async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await page.goto("/today");
-  await expect(page.getByRole("heading", { level: 1 })).not.toHaveText(" ");
-  await expect(page.getByText("Saved on this device")).toBeVisible();
+  await openWorkspace(page);
 });
 
-const entry = (page: Page) => page.getByRole("textbox", { name: "Entry text" });
+const entry = (page: Page) => ws(page).getByRole("textbox", { name: "Entry text" });
 
 async function record(page: Page, text: string) {
   await entry(page).fill(text);

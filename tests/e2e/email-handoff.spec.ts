@@ -27,7 +27,7 @@ async function enterWithTitle(page: Page, firstLine: string) {
   await dismissSplash(page);
   await page.getByRole("button", { name: "Paste text" }).click();
   const doc = `${firstLine}\n\nThe board approved the phased budget with quarterly review gates.\n\nRisks remain concentrated in two regions and the sponsor asked for tighter controls.`;
-  await page.locator("textarea").fill(doc);
+  await page.getByLabel("Paste JSON, Markdown or plain text").fill(doc);
   await page.getByRole("button", { name: /Remember|Bring|Add|Continue/i }).first().click();
   await page.locator(".shell").waitFor({ timeout: 60_000 });
 }

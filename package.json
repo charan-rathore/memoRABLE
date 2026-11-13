@@ -2,7 +2,7 @@
   "name": "memorable",
   "version": "0.1.0",
   "private": true,
-  "description": "memoRABLE — turn information into memory. Deterministic JSON/Text import becomes six source-linked Memory Blocks rendered with Unlayer Elements as Web, Email and Document.",
+  "description": "memoRABLE \u2014 turn information into memory. Deterministic JSON/Text import becomes six source-linked Memory Blocks rendered with Unlayer Elements as Web, Email and Document.",
   "license": "MIT",
   "scripts": {
     "dev": "next dev",
@@ -23,6 +23,7 @@
     "eval:docgraph": "node scripts/eval-docgraph-gate.mjs"
   },
   "dependencies": {
+    "@huggingface/transformers": "^3.7.0",
     "@unlayer/react-elements": "0.1.20",
     "next": "15.5.22",
     "pdfjs-dist": "^4.10.38",

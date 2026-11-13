@@ -51,3 +51,7 @@ yarn-error.log*
 services/docgraph/.cache/
 services/**/__pycache__/
 **/__pycache__/
+
+# fetched at build time (scripts/fetch-search-model.mjs)
+/public/models/
+/public/ort/

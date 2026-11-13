@@ -44,13 +44,31 @@ type Extractor = (texts: string[], opts: { pooling: "cls" | "mean"; normalize: b
  */
 export async function createEmbedder(
   spec: ModelSpec,
-  opts: { dtype?: "q8" | "fp32"; device?: "wasm" | "webgpu" | "cpu"; configure?: (env: Record<string, unknown>) => void } = {},
+  opts: {
+    dtype?: "q8" | "fp32";
+    device?: "wasm" | "webgpu" | "cpu";
+    configure?: (env: Record<string, unknown>) => void;
+    /** Download progress summed over all model files. */
+    progress?: (p: { loaded: number; total: number }) => void;
+  } = {},
 ): Promise<Embedder> {
   const tf = await import("@huggingface/transformers");
   opts.configure?.(tf.env as unknown as Record<string, unknown>);
+  const files = new Map<string, { loaded: number; total: number }>();
   const extractor = (await tf.pipeline("feature-extraction", spec.hf, {
     dtype: opts.dtype ?? "q8",
     ...(opts.device ? { device: opts.device } : {}),
+    ...(opts.progress
+      ? {
+          progress_callback: (p: { status?: string; file?: string; loaded?: number; total?: number }) => {
+            if (p.status !== "progress" || !p.file) return;
+            files.set(p.file, { loaded: p.loaded ?? 0, total: p.total ?? 0 });
+            let loaded = 0, total = 0;
+            for (const f of files.values()) { loaded += f.loaded; total += f.total; }
+            opts.progress!({ loaded, total });
+          },
+        }
+      : {}),
   })) as unknown as Extractor;
 
   const run = async (texts: string[], prefix: string) => {

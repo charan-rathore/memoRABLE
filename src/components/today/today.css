@@ -407,3 +407,34 @@ html:has(.td), html:has(.td) body { background: #000; color-scheme: dark; }
   .td-loop-new, .td-loop-old, .td-loop-old2, .td-loop-search, .td-loop-receipt, .td-loop-kind { animation: none !important; opacity: 1; transform: none; }
   .td-loop-caret { display: none; }
 }
+
+/* ---------- connected repos and semantic search ---------- */
+.td-result.is-repo p a { color: var(--text); text-decoration: none; }
+.td-result.is-repo p a:hover { text-decoration: underline; text-decoration-color: rgba(255, 255, 255, 0.3); text-underline-offset: 3px; }
+.td-repo-glyph { color: #9aa4b2; }
+.td-result.is-semantic { border-left: 1px solid rgba(201, 162, 255, 0.35); margin-left: 4px; padding-left: 10px; }
+.td-recall .td-sub-h { margin: 16px 2px 6px; }
+.td-settings { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); display: grid; gap: 14px; }
+.td-semantic { display: grid; gap: 8px; }
+.td-semantic-on { justify-self: start; border: 1px solid var(--line-2); }
+.td-semantic-ready { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
+.td-dot-ok { width: 7px; height: 7px; border-radius: 50%; background: var(--task); box-shadow: 0 0 0 3px rgba(94, 224, 181, 0.15); }
+.td-linkish { font-size: 12.5px; color: var(--text); text-decoration: underline; text-decoration-color: rgba(255, 255, 255, 0.3); text-underline-offset: 3px; background: none; border: 0; padding: 0; cursor: pointer; }
+.td-linkish:disabled { opacity: 0.4; cursor: default; }
+.td-progress { display: grid; gap: 6px; font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.td-progress i { display: block; height: 4px; border-radius: 99px; background: linear-gradient(90deg, var(--decided), #fff); transition: width 240ms var(--out); }
+.td-connect summary { cursor: pointer; font-size: 13.5px; font-weight: 550; color: var(--text); list-style: none; display: flex; align-items: center; gap: 8px; }
+.td-connect summary::-webkit-details-marker { display: none; }
+.td-connect summary::before { content: "+"; width: 18px; height: 18px; display: grid; place-items: center; border-radius: 6px; border: 1px solid var(--line-2); color: var(--muted); font-size: 13px; transition: transform 200ms var(--out); }
+.td-connect[open] summary::before { content: "–"; }
+.td-connect form { display: grid; gap: 10px; margin-top: 12px; }
+.td-field { display: grid; gap: 5px; font-size: 12px; color: var(--muted); }
+.td-field input { height: 36px; padding: 0 11px; border-radius: 9px; border: 1px solid var(--line-2); background: var(--bg); color: var(--text); font: 13.5px var(--sans, inherit); outline: 0; }
+.td-field input:focus { border-color: rgba(255, 255, 255, 0.45); }
+.td-connect .td-save { justify-self: start; }
+.td-repos { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 8px; }
+.td-repos li { display: grid; grid-template-columns: 1fr auto auto; gap: 10px; align-items: center; padding: 10px 12px; border-radius: 10px; background: var(--bg); border: 1px solid var(--line); }
+.td-repos li > div { display: grid; gap: 2px; min-width: 0; }
+.td-repos strong { font-size: 13.5px; font-weight: 550; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.td-repos span { font-size: 12px; color: var(--faint); }
+.td-repo-warn { color: var(--learned) !important; }

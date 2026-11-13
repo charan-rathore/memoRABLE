@@ -6,6 +6,7 @@
   "license": "MIT",
   "scripts": {
     "dev": "next dev",
+    "prebuild": "node scripts/fetch-search-model.mjs",
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",

@@ -76,7 +76,9 @@ export function useRepoSearch(engine: DailyEngine | null, rev: number) {
 
   const embedIds = useCallback(async (ids: string[]) => {
     const emb = embedder.current;
-    if (!emb || !ids.length) return;
+    if (!emb) return;
+    // Nothing to index yet (an empty workspace) still means the model is ready.
+    if (!ids.length) { setModel({ state: "ready", modelId: emb.id }); bump(); return; }
     const docs = ids.map((id) => index.current.docs.get(id)).filter(Boolean) as SearchDoc[];
     const keys = docs.map((d) => vectorKey(emb.id, d.id, embedText(d)));
     const cached = store.current ? await store.current.getVectors(keys) : new Map();

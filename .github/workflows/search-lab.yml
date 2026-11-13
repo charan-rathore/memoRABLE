@@ -37,6 +37,9 @@ jobs:
         with:
           node-version-file: .nvmrc
       - run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+      - name: Print lockfile (gzip+base64) for environments without artifact access
+        run: |
+          echo "::group::lockfile"; echo "BEGIN-LOCKFILE"; gzip -9 -c package-lock.json | base64 -w 0; echo; echo "END-LOCKFILE"; echo "::endgroup::"
       - uses: actions/upload-artifact@v5
         with:
           name: package-lock
@@ -54,6 +57,9 @@ jobs:
       - run: node bench/search/build-dataset.mjs bench/search/github-dups-v1.json
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Print dataset (gzip+base64) for environments without artifact access
+        run: |
+          echo "::group::dataset"; echo "BEGIN-DATASET"; gzip -9 -c bench/search/github-dups-v1.json | base64 -w 0; echo; echo "END-DATASET"; echo "::endgroup::"
       - uses: actions/upload-artifact@v5
         with:
           name: github-dups-v1

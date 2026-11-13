@@ -162,7 +162,7 @@ test("connects a GitHub repo and searches its issues alongside notes", async ({ 
 });
 
 test("turns on semantic search when this build ships the model", async ({ page }) => {
-  const status = await page.evaluate(async () => (await fetch("/models/Xenova/bge-small-en-v1.5/config.json", { method: "HEAD" })).status);
+  const status = await page.evaluate(async () => (await fetch("/models/Xenova/bge-small-en-v1.5/config.json")).status);
   test.skip(status !== 200, "model not bundled in this build");
   test.setTimeout(180_000);
   await record(page, "Learned that the dev server leaks memory over long sessions");

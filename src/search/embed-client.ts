@@ -54,8 +54,8 @@ export class WorkerEmbedder implements Embedder {
   dispose() { this.worker.terminate(); }
 }
 
-/** Is a self-hosted model present in this build? (HEAD on the config file.) */
+/** Is a self-hosted model present in this build? (GET of the 1 KB config; not every server answers HEAD for static files.) */
 export async function modelAvailable(): Promise<boolean> {
-  try { const r = await fetch("/models/Xenova/bge-small-en-v1.5/config.json", { method: "HEAD" }); return r.ok; }
+  try { const r = await fetch("/models/Xenova/bge-small-en-v1.5/config.json", { cache: "no-store" }); return r.ok; }
   catch { return false; }
 }

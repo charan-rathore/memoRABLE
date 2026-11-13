@@ -1,141 +1,108 @@
 # memoRABLE
 
-**Turn a document into a source-backed brief.**
+**Your working memory for engineering.** Capture what you worked on, find decisions when they matter, and decide what to do next—without waiting for a model.
 
-**[Live demo →](https://memo-rable.vercel.app)** — open a sample brief, or tap **Watch the 1-minute demo**.
+[**Try the live workspace**](https://memo-rable.vercel.app/#workspace) · [Explore the real search demo](https://memo-rable.vercel.app/#proof) · [Open a sample brief](https://memo-rable.vercel.app/#briefs) · [How the architecture works](docs/architecture/DAILY_SYSTEM.md)
 
-![memoRABLE silent GIF walkthrough](public/media/replay.gif)
+The homepage is the actual product: the story and working local workspace are on the same page. There is no separate simulated app. The opening search uses clearly labeled example notes and real, linked Next.js issues. Your own notes remain on your device.
 
-[▶ 1-minute demo with audio (MP4)](public/media/demo.mp4) · [WebM](public/media/demo.webm) · [Download MP4](https://github.com/charan-rathore/memoRABLE/raw/main/public/media/demo.mp4)
+## One useful loop, every day
 
----
+1. **Capture:** record work, lessons, decisions and tasks. Link a previous entry with its handle; explicitly replace a decision when it changes.
+2. **Recall:** search your notes and connected GitHub issues/PRs using local keyword retrieval. Optionally turn on local semantic search.
+3. **Move forward:** review open tasks and the reason behind a suggested next action. Accept, revise or skip; those choices are recorded.
+4. **Check progress:** see the seven-day activity breakdown and *measured* local operation receipts, without invented model-call savings.
 
-## Why does this exist?
+Try the homepage example about why a decision changed. Then scroll to **Your workspace** and record your own entry. A separate document-to-brief flow can read a supported source and produce editable email, web and document outputs.
 
-Documents are easy to **store** and hard to **remember**.
+## Search: measured on real duplicate issues
 
-A board brief gets pasted into email, retyped into a status page, then rewritten again for a slide. Facts drift. Context disappears. “Summarize this PDF” tools make another blob of text — still ungrounded, still one-format, still easy to mistrust.
+The repository includes a frozen [technical search benchmark](bench/search/) with **179 scored duplicate-issue queries** from VS Code and Next.js. Each query can only retrieve issues created before it; the relevant earlier issue was identified by maintainers.
 
-People don’t need another summary.  
-They need **reusable knowledge** that stays tied to the source and can leave as Email, Web, or Document without being rewritten.
+| Retrieval arm | Whole-issue Recall@10 | Title-only Recall@10 |
+| --- | ---: | ---: |
+| Plain BM25 | 72.6% | 88.3% |
+| Fielded BM25F | 83.2% | 88.3% |
+| bge-small-en-v1.5, quantized, dense | **96.6%** | 93.3% |
+| Hybrid weighted fusion (bge-small + keyword) | 95.0% | **91.6%** |
 
-That’s why memoRABLE exists.
+These are retrieval scores on this dataset, **not** answer correctness, global search quality, or model-generated accuracy. Title-only hybrid has the highest measured nDCG@10 in the benchmark; dense retrieval has the highest nDCG@10 for whole-issue queries. A 2,540-item exact vector scan was fast enough in the reported CI environment; no ANN infrastructure was justified. Error fingerprints and the synonym lexicon made no meaningful improvement here.
 
----
+See [dataset construction, all arms, confidence intervals, ablations and limitations](docs/search/ARCHITECTURE.md). The CI evaluations use pinned queries and named policies; a changed dataset must receive a new version.
 
-## What is the product?
+### What happens in your browser
 
-memoRABLE is a **Memory Engine**.
+- **Immediately:** local BM25F keyword retrieval, even without a model or network.
+- **Opt-in semantic search:** downloads approximately **34 MB** of self-hosted bge-small weights once, then embeds and searches on your device in a Web Worker. The first load depends on the device and connection. If unavailable, keyword search remains functional.
+- **Smaller index:** int8 vectors are cached in IndexedDB by content hash and model identity. The benchmark found no measurable ranking-quality loss versus float32 on these queries.
+- **Connected repositories:** the browser requests public issues and PRs directly from GitHub; an optional access token for private or larger syncs is held in browser storage and sent to GitHub, not our server. Browser-held tokens are **not encrypted**; use a narrowly scoped credential.
+- **No cross-device sync yet:** notes, source entries, local vectors and feedback are browser-local. Clearing browser data can remove them. Do not confuse local storage with a cloud backup.
 
-1. **Bring** one document (PDF, Markdown, plain text, or JSON).
-2. **Remember** it as six source-linked Memory Blocks:  
-   Snapshot · Signals · Timeline · Decisions · Risks · Actions
-3. **Ground** every memory — click it, and the exact source lines highlight.
-4. **Publish** once with [Unlayer Elements](https://github.com/unlayer/elements) into Email, Web, and Document.
+## Architecture: four layers, real boundaries
 
-One understanding. Three publications. Same memory graph.  
-Nothing is uploaded by default. AI is optional and off unless you turn it on.
+~~~text
+Daily capture / source / GitHub issues
+        │
+        ▼
+1  Local source & event log       IndexedDB · source IDs · explicit links
+        │
+        ▼
+2  Memory and search              projections · BM25F · optional embeddings
+        │
+        ▼
+3  Deterministic execution        bounded recall · cache invalidation · next-action rules
+        │
+        ▼
+4  Usable experience & evidence   search · brief · review · local measured receipts
+~~~
 
----
+This is a map of responsibilities, not a claim that a full graph database, autonomous multi-agent runtime, hosted inference router, or machine unlearning exists.
 
-## Why should people use it?
+- [Daily system: paths, event flow, invariants and failure modes](docs/architecture/DAILY_SYSTEM.md)
+- [Search engineering and benchmark](docs/search/ARCHITECTURE.md)
+- [Design system, accessibility and motion](docs/design/SYSTEM.md)
+- [Document-to-memory architecture](docs/architecture.md)
+- [Evidence Core contract](src/evidence-core/contracts.ts)
 
-| If you… | memoRABLE gives you… |
-| --- | --- |
-| Rewrite the same brief into email + docs + web | One memory → three outputs that can’t disagree |
-| Don’t trust AI summaries | Provenance: *Remembered from* the exact lines |
-| Need Elements to be obvious in a demo | UI says **Powered by Elements** / **Composed using Elements** |
-| Care about privacy | Local-first by default |
-| Work with PDFs and notes | Drop a file or paste — PDFs: first 40 pages |
+The daily engine's one-hop handle links and explicit supersession are deliberately simpler than a semantic knowledge graph. Cache invalidation follows affected dependencies. Deletion removes local note text and derived search state; it does **not** erase upstream GitHub content, backups, external models or other devices.
 
-```text
-Document → Memory Extraction → Memory Graph (6 blocks) → Unlayer Elements → Email · Web · Document
-```
+## A second workflow: document to brief
 
----
+Import a PDF, Markdown, plain-text or memoRABLE JSON source. A conservative local parser produces inspectable memory blocks and editable outputs via Unlayer Elements.
 
-## Promises that must never break
+- JSON import is strict and all-or-nothing.
+- PDF reading uses pdf.js, with selective OCR and visible warnings. The homepage limits uploads to 2 MB and reads at most the first 40 PDF pages.
+- AI is optional and not used for normal local capture/recall.
+- OCR, scanned documents and ambiguous extraction require human review. A cited quotation and the interpretation made from it are different things.
 
-- Recent-document source text stays in this browser and is not uploaded by the local library.
-- Recent documents expire after 7 days and the library keeps at most 24 entries.
-- A saved source excerpt is limited to 1,048,576 UTF-16 units.
-- The capability-detection helper reports unavailable features as false and contains storage probe failures.
+[Try a source-backed brief](https://memo-rable.vercel.app/#briefs). The video/GIF under [public/media](public/media/) illustrates the older document journey; the **live homepage** is the current daily-memory experience.
 
-The local-library limits are covered in [tests/unit/doc-library.test.ts](tests/unit/doc-library.test.ts). The optional reference-storage helpers are tested in [tests/unit/storage.test.ts](tests/unit/storage.test.ts) and implemented in [src/reliability/storage.ts](src/reliability/storage.ts). The capability helper's contract is covered in [tests/unit/capabilities.test.ts](tests/unit/capabilities.test.ts). These helpers are not wired into the reader; the tests cover helper roundtrip and error handling, not reader restoration after reload.
+## Develop and verify
 
-## Try it
+Requires Node 20.9–24; this repository's [.nvmrc](.nvmrc) pins Node 22.
 
-1. Open **[memo-rable.vercel.app](https://memo-rable.vercel.app)**.
-2. Click **Watch the 1-minute demo** (video + sound, or silent GIF), **or**
-3. Click **Open a sample brief** / drop your own file.
-4. Click a memory → source highlights.
-5. Switch Email / Web / Document → **Publish**.
-
----
-
-## Setup (local)
-
-**Need:** Node **20.9–24** (`.nvmrc` pins 22).
-
-```bash
+~~~sh
 git clone https://github.com/charan-rathore/memoRABLE.git
 cd memoRABLE
+nvm use
+npm ci
+npm run dev
+~~~
 
-nvm use                 # or: nvm install 22 && nvm use 22
-npm install
-npm run dev             # → http://localhost:3000
-```
+Open http://localhost:3000.
 
-### PDF path (pdf.js + selective OCR)
+~~~sh
+npm run verify       # lint, types, units, production build
+npm run test:e2e     # Playwright desktop and mobile (install Chromium first)
+~~~
 
-**pdf.js layout is always the default.** Embedded images (spreadsheets/screenshots)
-are OCR’d when present; pure text PDFs skip OCR and stay fast.
+The published search experiment also uses [the search-lab workflow](.github/workflows/search-lab.yml) for real embedding-model evaluation. Do not replace held-out performance evidence with screenshots or simulated metrics.
 
-### Optional: Docling refine (experimental, research-only)
+## Honest current limits
 
-Docling never blocks the UI.
+The duplicate-issue benchmark covers two repositories and only 179 questions; it is not proof of search quality on every personal note or codebase. Semantic search adds an initial download and local compute cost. The daily memory planner uses explicit rules, not neural reasoning. GitHub sync does not include Discussions. There is no multi-device synchronization, durable cloud account, verified graph unlearning, or autonomous external action.
 
-```bash
-npm run docgraph                              # sidecar → http://127.0.0.1:8765
-NEXT_PUBLIC_DOCGRAPH=1 npm run dev            # allow selective background refine
-```
-
-With the flag on, uploads still parse via pdf.js first. Docling may refine in the background only for research-like / long / table-heavy PDFs, and only replaces memories when quality improves. SHA-256 parse cache avoids re-parsing. Graphify-schema graphs are built in TypeScript (not on the Docling critical path). See [services/docgraph/README.md](services/docgraph/README.md).
-
-| Command | What it does |
-| --- | --- |
-| `npm run dev` | Local app |
-| `npm run verify` | Lint + types + tests + production build |
-| `npm run test:e2e` | Playwright (`npx playwright install chromium` once) |
-| `npm run demo:video` | Regenerate `public/media/demo.mp4` + GIF |
-
----
-
-## Architecture
-
-![memoRABLE document-to-memory architecture](docs/architecture/document-to-memory.svg)
-
-[Interactive architecture guide](docs/architecture/interactive.html) - open any stage for code links and failure boundaries. GitHub displays HTML source; clone or download the repository and open the HTML locally to preserve its code links. This guide does not change the application UI.
-
-```mermaid
-flowchart LR
-  D[Document] --> X[Memory Extraction]
-  X --> G[Memory Graph]
-  G --> E[Unlayer Elements]
-  E --> O1[Email]
-  E --> O2[Web]
-  E --> O3[Document]
-```
-
-[architecture](docs/architecture.md) · [why memory](docs/why-memory.md) · [reliability](docs/reliability.md)
-
----
-
-## Stack
-
-Next.js 15 · React 19 · TypeScript · Zod · [`@unlayer/react-elements`](https://github.com/unlayer/elements) · pdf.js · Vitest · Playwright
-
----
+The product is useful precisely because the supported local workflow works without those systems.
 
 ## License
 

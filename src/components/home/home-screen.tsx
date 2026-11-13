@@ -406,6 +406,10 @@ export function HomeScreen({
         <div>
           <p className="lp-foot-brand">memo<b>RABLE</b></p>
           <p>Memory for engineering work.</p>
+          <nav className="lp-engineering-links" aria-label="Engineering documentation">
+            <a href="https://github.com/charan-rathore/memoRABLE/blob/main/docs/architecture/DAILY_SYSTEM.md" target="_blank" rel="noopener noreferrer">How the system works</a>
+            <a href="https://github.com/charan-rathore/memoRABLE/blob/main/docs/search/ARCHITECTURE.md" target="_blank" rel="noopener noreferrer">Benchmark &amp; experiments</a>
+          </nav>
         </div>
         <ul className="lp-facts">
           <li>Your notes are stored in this browser (IndexedDB). There is no account and no server copy.</li>

@@ -1,0 +1,96 @@
+name: Search lab
+
+# Reproducible search experiments that need the network: building the GitHub
+# duplicate benchmark, refreshing the lockfile, and running the embedding
+# (dense) arms of the eval with real model weights. Results are uploaded as
+# artifacts and summarised in the job summary.
+on:
+  workflow_dispatch:
+    inputs:
+      task:
+        description: "dataset | lockfile | eval"
+        required: true
+        default: eval
+  push:
+    branches: ["feat/search-**"]
+    paths:
+      - "src/search/**"
+      - "bench/search/**"
+      - "tests/unit/search-*.ts"
+      - "package.json"
+      - ".github/workflows/search-lab.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: search-lab-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lockfile:
+    if: github.event.inputs.task == 'lockfile' || contains(github.event.head_commit.message, '[lab:lockfile]')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+      - run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+      - name: Print lockfile (gzip+base64) for environments without artifact access
+        run: |
+          echo "::group::lockfile"; echo "BEGIN-LOCKFILE"; gzip -9 -c package-lock.json | base64 -w 0; echo; echo "END-LOCKFILE"; echo "::endgroup::"
+      - uses: actions/upload-artifact@v5
+        with:
+          name: package-lock
+          path: package-lock.json
+
+  dataset:
+    if: github.event.inputs.task == 'dataset' || contains(github.event.head_commit.message, '[lab:dataset]')
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+      - run: node bench/search/build-dataset.mjs bench/search/github-dups-v1.json
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Print dataset (gzip+base64) for environments without artifact access
+        run: |
+          echo "::group::dataset"; echo "BEGIN-DATASET"; gzip -9 -c bench/search/github-dups-v1.json | base64 -w 0; echo; echo "END-DATASET"; echo "::endgroup::"
+      - uses: actions/upload-artifact@v5
+        with:
+          name: github-dups-v1
+          path: bench/search/github-dups-v1.json
+
+  eval:
+    if: github.event.inputs.task == 'eval' || contains(github.event.head_commit.message, '[lab:eval]')
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - uses: actions/cache@v4
+        with:
+          path: .cache/models
+          key: models-${{ hashFiles('src/search/models.ts') }}
+      - name: Lexical + dense arms on github-dups-v1
+        run: npx vitest run tests/unit/search-bench.test.ts tests/unit/search-dense.test.ts
+        env:
+          SEARCH_EVAL_DENSE: "1"
+          SEARCH_EVAL_OUT: bench/search/results
+          HF_CACHE: .cache/models
+      - if: always()
+        run: |
+          if [ -f bench/search/results/summary.md ]; then cat bench/search/results/summary.md >> "$GITHUB_STEP_SUMMARY"; fi
+      - if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: search-eval
+          path: bench/search/results/

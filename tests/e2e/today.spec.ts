@@ -165,11 +165,14 @@ test("turns on semantic search when this build ships the model", async ({ page }
   const status = await page.evaluate(async () => (await fetch("/models/Xenova/bge-small-en-v1.5/config.json")).status);
   test.skip(status !== 200, "model not bundled in this build");
   test.setTimeout(180_000);
-  await record(page, "Learned that the dev server leaks memory over long sessions");
+  // Turned on with an empty workspace first: there is nothing to index, and it must still become ready.
   await openTab(page, "Recall");
   const recall = ws(page).locator(".td-recall");
   await recall.getByRole("button", { name: "Turn on semantic search" }).click();
   await expect(recall.getByText("Semantic search on, running on this device")).toBeVisible({ timeout: 150_000 });
+  await openTab(page, "Today");
+  await record(page, "Learned that the dev server leaks memory over long sessions");
+  await openTab(page, "Recall");
   await ws(page).getByRole("searchbox").fill("process RAM keeps increasing");
   await expect(recall.locator(".td-receipt").last()).toContainText("Semantic + keyword search");
 });

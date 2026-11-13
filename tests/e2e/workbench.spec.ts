@@ -58,18 +58,34 @@ test.describe("home screen", () => {
     await dismissOverlays(page);
 
     const home = page.getByTestId("home-screen");
-    await expect(home.getByRole("heading", { name: "One document. A clearer next step." })).toBeVisible();
+    await expect(home.getByRole("heading", { level: 1, name: "Remember what you decided, and why." })).toBeVisible();
+    await expect(home.getByRole("heading", { name: "Turn a document into a brief you can forward." })).toBeVisible();
     await expect(home.locator(".home-card")).toHaveCount(2);
     await expect(home.getByText("Drop a file")).toBeVisible();
     await expect(home.getByText("Paste text")).toBeVisible();
     await expect(home.getByRole("button", {name: "Open this sample"})).toBeVisible();
-    await expect(home.getByText("SAMPLE / FICTIONAL INVOICE", {exact:true})).toBeVisible();
+    await expect(home.getByText("A sample from a fictional invoice", {exact:true})).toBeVisible();
     await expect(home.getByRole("img", {name: /Sample rendered invoice/})).toBeVisible();
 
     // None of the workbench is on show before there is anything to work on.
     await expect(page.locator(".shell")).toHaveCount(0);
     await expect(page.locator(".journey")).toHaveCount(0);
     await expect(page.locator("iframe")).toHaveCount(0);
+  });
+
+  test("the hero searches a demo memory live, with the current decision first", async ({ page }) => {
+    await page.goto("/");
+    await dismissOverlays(page);
+    const hero = page.getByRole("search");
+    await hero.getByRole("searchbox").fill("why did we stop using Redis?");
+    const results = page.locator(".hx-result");
+    await expect(results.first()).toContainText("Edge Config");
+    await expect(results.first()).toContainText("Current decision");
+    await expect(page.locator(".hx-result.is-stale")).toContainText("Redis for 10 minutes");
+    await expect(page.locator(".hx-receipt")).toContainText(/ms, on this device, no model/);
+    // Real public issues are linked to GitHub.
+    await hero.getByRole("searchbox").fill("turbopack memory");
+    await expect(page.locator(".hx-result a[href^='https://github.com/vercel/next.js/']").first()).toBeVisible();
   });
 
   test("the demo is opt-in on first visit and after reload", async ({ page }) => {

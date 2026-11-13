@@ -33,6 +33,10 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   // pdf.js ships ESM that Next otherwise tries to externalize incorrectly.
   serverExternalPackages: ["pdfjs-dist"],
+  // One front door: the daily workspace lives on the homepage, below the story.
+  async redirects() {
+    return [{ source: "/today", destination: "/#workspace", permanent: false }];
+  },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },

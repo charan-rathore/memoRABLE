@@ -6,8 +6,9 @@ export function BrandMark({ size = 22, animate = false }: { size?: number; anima
   const b = 6; // block size
   const gap = 2;
   const step = b + gap;
-  const ink = "#14130F";
-  const cobalt = "#1E3BD6";
+  // Theme tokens, so the mark follows the night palette.
+  const ink = "var(--ink)";
+  const cobalt = "var(--accent)";
   // Columns of the "M": heights [3,2,1,3,1,2,3] → seven vertical runs.
   const columns = [3, 2, 1, 3, 1, 2, 3];
   const blocks: { x: number; y: number; center: boolean }[] = [];
@@ -35,9 +36,8 @@ export function BrandMark({ size = 22, animate = false }: { size?: number; anima
           width={b}
           height={b}
           rx={1.5}
-          fill={blk.center ? cobalt : ink}
           className={animate ? "bm-block" : undefined}
-          style={animate ? { animationDelay: `${i * 28}ms`, transformOrigin: `${blk.x + b / 2}px ${blk.y + b / 2}px` } : undefined}
+          style={{ fill: blk.center ? cobalt : ink, ...(animate ? { animationDelay: `${i * 28}ms`, transformOrigin: `${blk.x + b / 2}px ${blk.y + b / 2}px` } : {}) }}
         />
       ))}
     </svg>

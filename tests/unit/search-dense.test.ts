@@ -54,7 +54,7 @@ describe.skipIf(!ENABLED)("github-dups-v1 · dense and hybrid arms", () => {
         const docsPerSec = (set.docs.length / embedDocsMs) * 1000;
         md += `\n### ${label}\n\nembed ${set.docs.length} docs: ${(embedDocsMs / 1000).toFixed(1)} s (${docsPerSec.toFixed(1)} docs/s, CPU, q8); query embed ≈ ${perQueryEmbedMs.toFixed(1)} ms; vectors ${(index.vectors!.bytes / 1024).toFixed(0)} KiB\n\n${table}\n`;
         all[label] = { embedDocsMs, perQueryEmbedMs, vectorBytes: index.vectors!.bytes, reports: reports.map(summarize), embedTextChars: embedText(set.docs[0]!).length };
-        console.log(`\n${label}\n${table}`);
+        console.log(`\n${label}: embed ${set.docs.length} docs ${(embedDocsMs / 1000).toFixed(1)} s (${docsPerSec.toFixed(1)} docs/s), query embed ${perQueryEmbedMs.toFixed(1)} ms, vectors ${(index.vectors!.bytes / 1024).toFixed(0)} KiB\n${table}`);
       }
     }
     writeFileSync(`${out}/dense.json`, JSON.stringify(all, null, 2));

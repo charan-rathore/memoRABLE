@@ -18,7 +18,12 @@ const TABS: Array<{ id: Tab; label: string }> = [
   { id: "review", label: "Review" },
 ];
 
-export function TodayApp() {
+/**
+ * The daily workspace. Standalone it owns the page; `embedded` places it as
+ * the last section of the homepage (section headings, tabs inside the section,
+ * shortcuts only while the workspace is on screen).
+ */
+export function TodayApp({ embedded = false }: { embedded?: boolean } = {}) {
   const { engine, rev, run, storage, online, error, clearError } = useDaily();
   const [tab, setTab] = useState<Tab>("today");
   const [query, setQuery] = useState("");
@@ -26,6 +31,7 @@ export function TodayApp() {
   const [announce, setAnnounce] = useState("");
   const composerRef = useRef<HTMLTextAreaElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
   const [now, setNow] = useState<Date | null>(null);
 
   useEffect(() => { setNow(new Date()); }, [rev]);
@@ -44,7 +50,7 @@ export function TodayApp() {
     if (!e) { setAnnounce(`#${handle} was deleted or doesn't exist`); return; }
     setTab("today");
     requestAnimationFrame(() => {
-      document.getElementById(`entry-${e.id}`)?.scrollIntoView({ block: "center", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+      document.getElementById(`entry-${e.id}`)?.scrollIntoView({ block: "center", behavior: typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
       flash(e.id);
     });
   }, [engine, flash]);
@@ -63,12 +69,16 @@ export function TodayApp() {
       const t = ev.target as HTMLElement | null;
       if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
       if (ev.metaKey || ev.ctrlKey || ev.altKey) return;
+      if (embedded) {
+        const r = rootRef.current?.getBoundingClientRect();
+        if (!r || r.bottom < 80 || r.top > window.innerHeight * 0.6) return; // not the part of the page in view
+      }
       if (ev.key === "/") { ev.preventDefault(); setTab("recall"); requestAnimationFrame(() => searchRef.current?.focus()); }
       if (ev.key === "n") { ev.preventDefault(); setTab("today"); requestAnimationFrame(() => composerRef.current?.focus()); }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  }, [embedded]);
 
   const todayKey = now ? dayKey(now.toISOString()) : "";
   const todayCount = entries.filter((e) => dayKey(e.createdAt) === todayKey).length;
@@ -76,16 +86,31 @@ export function TodayApp() {
   const last = engine?.receipts.at(-1);
 
   return (
-    <div className="td" data-tab={tab}>
+    <div className={`td${embedded ? " td-embedded" : ""}`} data-tab={tab} ref={rootRef}>
       <header className="td-top">
-        <Link href="/" className="td-brand" aria-label="memoRABLE home">memo<b>RABLE</b></Link>
+        {embedded ? (
+          <h2 className="td-section-title">Your workspace</h2>
+        ) : (
+          <Link href="/" className="td-brand" aria-label="memoRABLE home">memo<b>RABLE</b></Link>
+        )}
         <SyncState storage={storage} online={online} ready={!!engine} />
       </header>
+      {embedded && (
+        <nav className="td-tabs" aria-label="Sections">
+          {TABS.map((t) => (
+            <button key={t.id} type="button" className={tab === t.id ? "is-on" : ""} aria-current={tab === t.id ? "page" : undefined} onClick={() => setTab(t.id)}>{t.label}</button>
+          ))}
+        </nav>
+      )}
 
       <main className="td-main">
         <div className="td-col td-col-main" data-pane="today">
           <div className="td-hello">
-            <h1>{now ? now.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" }) : " "}</h1>
+            {embedded ? (
+              <h3 className="td-date">{now ? now.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" }) : "\u00a0"}</h3>
+            ) : (
+              <h1>{now ? now.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" }) : "\u00a0"}</h1>
+            )}
             <p>
               {!engine ? "Opening your workspace" :
                 entries.length === 0 ? "Write down what you worked on, learned or decided. It stays on this device." :
@@ -122,11 +147,13 @@ export function TodayApp() {
         )}
       </footer>
 
-      <nav className="td-tabs" aria-label="Sections">
-        {TABS.map((t) => (
-          <button key={t.id} type="button" className={tab === t.id ? "is-on" : ""} aria-current={tab === t.id ? "page" : undefined} onClick={() => setTab(t.id)}>{t.label}</button>
-        ))}
-      </nav>
+      {!embedded && (
+        <nav className="td-tabs" aria-label="Sections">
+          {TABS.map((t) => (
+            <button key={t.id} type="button" className={tab === t.id ? "is-on" : ""} aria-current={tab === t.id ? "page" : undefined} onClick={() => setTab(t.id)}>{t.label}</button>
+          ))}
+        </nav>
+      )}
       <div className="visually-hidden" role="status" aria-live="polite">{announce}</div>
       {error && (
         <div className="td-toast" role="alert">

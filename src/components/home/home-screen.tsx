@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { createAsyncOperation } from "../async-operation";
@@ -8,7 +7,11 @@ import type { Diagnostic } from "@/reliability/diagnostics";
 import { formatDiagnostic } from "@/reliability/diagnostics";
 import { detectFormat } from "@/import/import-source";
 import { BrandMark } from "../ui/brand-mark";
-import { StaggerTitle } from "../ui/stagger-title";
+import { TodayApp } from "../today/today-app";
+import { HeroRecall } from "./hero-recall";
+import { SearchProof, ThreeMoves } from "./story";
+import "../today/today.css";
+import "./landing.css";
 import { formatBytes, readTextFileWithProgress } from "../import/read-file";
 import { isPdfFile } from "@/import/read-pdf";
 import {
@@ -208,145 +211,164 @@ export function HomeScreen({
 
   const format = detectFormat(pasted);
 
+  const openWorkspace = () => {
+    const el = document.getElementById("workspace");
+    const reduced = typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    el?.scrollIntoView({ behavior: reduced ? "auto" : "smooth", block: "start" });
+    window.setTimeout(() => (el?.querySelector("textarea[aria-label='Entry text']") as HTMLTextAreaElement | null)?.focus({ preventScroll: true }), 450);
+  };
+
   return (
-    <main className="home" data-testid="home-screen">
-      <div className="home-inner">
-        <button type="button" className="home-brand" onClick={onReplayBrand} aria-label="memoRABLE: play the brand moment again">
-          <BrandMark size={34} />
-          <span className="home-word">
-            memo<b>RABLE</b>
-          </span>
+    <main className="home lp" data-testid="home-screen">
+      <nav className="lp-nav" aria-label="Site">
+        <button type="button" className="home-brand lp-brand" onClick={onReplayBrand} aria-label="memoRABLE: play the brand moment again">
+          <BrandMark size={26} />
+          <span className="home-word">memo<b>RABLE</b></span>
         </button>
+        <div className="lp-links">
+          <a href="#moves">How it works</a>
+          <a href="#proof">Search</a>
+          <a href="#briefs">Briefs</a>
+        </div>
+        <button type="button" className="lp-cta" onClick={openWorkspace}>Open your workspace</button>
+      </nav>
 
-        <div className="home-entry-grid"><section className="home-entry" aria-label="Bring a document">
-        <StaggerTitle text="One document. A clearer next step." className="home-title sweep" />
-        <p className="home-sub rise-in">
-          Turn a report, research paper or brief into source-linked insights. Read it, question it, then reuse it as email, web or a document.
-        </p>
-        <p className="home-daily rise-in">
-          <Link href="/today">Open your daily log</Link> to record what you worked on, learned and decided, and find it again later.
-        </p>
+      <HeroRecall onOpenWorkspace={openWorkspace} />
 
-        {understanding ? (
-          <ReadingCard
-            name="Remembering"
-            size={0}
-            percent={understanding.percent}
-            label={IMPORT_STAGE_LABEL[understanding.stage]}
-          />
-        ) : reading ? (
-          <ReadingCard name={reading.name} size={reading.size} percent={reading.percent} />
-        ) : mode === "paste" ? (
-          <div className="home-card paste">
-            <textarea
-              className="home-paste"
-              aria-label="Paste JSON, Markdown or plain text"
-              autoFocus
-              placeholder={"# Quarterly brief\n\n## Signals\n- ARR: $4.2M (+18%)\n\n## Risks\n- Lead times (high): dual-sourcing underway"}
-              value={pasted}
-              onChange={(e) => setPasted(e.target.value)}
-              spellCheck={false}
-            />
-            <div className="home-paste-foot">
-              <span className="home-fmt">
-                {format === "json"
-                  ? "Detected JSON: strict, all-or-nothing."
-                  : format === "text"
-                    ? "Detected notes: recognized locally, unclear text is kept."
-                    : "JSON, Markdown or plain text."}
-              </span>
-              <div className="home-paste-actions">
-                <button type="button" className="btn ghost" onClick={() => setMode("choose")}>
-                  Back
-                </button>
-                <button
-                  type="button"
-                  className="btn pri"
-                  disabled={pasted.trim().length === 0}
-                  onClick={() => { fileWork.cancel(); void onImport(pasted, "Pasted notes"); }}
-                >
-                  Remember this
-                </button>
+      <div id="moves" className="lp-section"><ThreeMoves /></div>
+      <div id="proof" className="lp-section"><SearchProof /></div>
+
+      <section id="briefs" className="lp-section lp-briefs" aria-labelledby="briefs-h">
+        <div className="home-entry-grid">
+          <div className="home-entry">
+            <h2 id="briefs-h" className="st-h">Turn a document into a brief you can forward.</h2>
+            <p className="st-lede home-sub">
+              Bring a report, RFC, research paper or meeting notes. memoRABLE reads it on this device and lays out the claims, numbers and risks, each linked to the passage it came from.
+              Export it as an email, a web page or a document.
+            </p>
+
+            {understanding ? (
+              <ReadingCard
+                name="Remembering"
+                size={0}
+                percent={understanding.percent}
+                label={IMPORT_STAGE_LABEL[understanding.stage]}
+              />
+            ) : reading ? (
+              <ReadingCard name={reading.name} size={reading.size} percent={reading.percent} />
+            ) : mode === "paste" ? (
+              <div className="home-card paste">
+                <textarea
+                  className="home-paste"
+                  aria-label="Paste JSON, Markdown or plain text"
+                  autoFocus
+                  placeholder={"# Quarterly brief\n\n## Signals\n- ARR: $4.2M (+18%)\n\n## Risks\n- Lead times (high): dual-sourcing underway"}
+                  value={pasted}
+                  onChange={(e) => setPasted(e.target.value)}
+                  spellCheck={false}
+                />
+                <div className="home-paste-foot">
+                  <span className="home-fmt">
+                    {format === "json"
+                      ? "Detected JSON: strict, all-or-nothing."
+                      : format === "text"
+                        ? "Detected notes: recognized locally, unclear text is kept."
+                        : "JSON, Markdown or plain text."}
+                  </span>
+                  <div className="home-paste-actions">
+                    <button type="button" className="btn ghost" onClick={() => setMode("choose")}>
+                      Back
+                    </button>
+                    <button
+                      type="button"
+                      className="btn pri"
+                      disabled={pasted.trim().length === 0}
+                      onClick={() => { fileWork.cancel(); void onImport(pasted, "Pasted notes"); }}
+                    >
+                      Remember this
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="home-choices">
+                  <button
+                    type="button"
+                    className={`home-card drop${drag === "none" ? "" : ` ${drag}`}`}
+                    onClick={() => fileInput.current?.click()}
+                    onDragEnter={(e) => {
+                      e.preventDefault();
+                      dragDepth.current += 1;
+                      const item = e.dataTransfer.items?.[0];
+                      const named = item?.kind === "file" ? item.type : "";
+                      const wrong = Boolean(named) && !/^(text\/|application\/json|application\/pdf)/.test(named);
+                      setDrag(wrong ? "reject" : "over");
+                    }}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDragLeave={() => {
+                      dragDepth.current -= 1;
+                      if (dragDepth.current <= 0) endDrag();
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      endDrag();
+                      const file = e.dataTransfer.files?.[0];
+                      if (file) void openFile(file);
+                    }}
+                  >
+                    <span className="hc-icon" aria-hidden="true">
+                      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M12 16V4" />
+                        <path d="m7 9 5-5 5 5" />
+                        <path d="M4 16v2.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V16" />
+                      </svg>
+                    </span>
+                    <span className="hc-title">Drop a file</span>
+                    <span className="hc-sub">{drag === "reject" ? "that format isn’t read here" : "or click to choose"}</span>
+                  </button>
+
+                  <button type="button" className="home-card paste-choice" onClick={() => { fileWork.cancel(); setMode("paste"); }}>
+                    <span className="hc-icon" aria-hidden="true">
+                      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="5" y="3" width="14" height="18" rx="2" />
+                        <path d="M9 8h6M9 12h6M9 16h3" />
+                      </svg>
+                    </span>
+                    <span className="hc-title">Paste text</span>
+                    <span className="hc-sub">notes, Markdown or memoRABLE JSON</span>
+                  </button>
+                </div>
+                <p className="home-limits">PDF, Markdown, plain text or memoRABLE JSON, up to 2 MB. PDFs: the first 40 pages.</p>
+              </>
+            )}
+            <p className="home-footnote">
+              Nothing to hand?{" "}
+              <button type="button" className="linkish" onClick={() => { fileWork.cancel(); onUseExample("atlas-json"); }}>
+                Open a sample brief
+              </button>
+              {onWatchDemo ? (
+                <>
+                  {", or "}
+                  <button type="button" className="linkish" onClick={onWatchDemo} data-testid="watch-demo">
+                    Watch the 1-minute demo
+                  </button>
+                </>
+              ) : null}
+            </p>
+          </div>
+          <section className="home-real-sample" aria-labelledby="home-sample-title">
+            <div>
+              <small>A sample from a fictional invoice</small>
+              <h3 id="home-sample-title">See what comes out.</h3>
+              <p>Two line items reconcile to the stated total, and every amount links to its source passage.</p>
+              <div className="home-sample-actions">
+                <button type="button" className="btn pri" onClick={async()=>{const operation=fileWork.begin();setReadError(null);try{const response=await fetch("/examples/sample-invoice.md",{signal:operation.signal});if(!response.ok)throw Error();const text=await response.text();if(!operation.isCurrent())return;void onImport(text,"sample-invoice.md");}catch{if(operation.isCurrent())setReadError("The sample could not load. Bring a file or try again.");}}}>Open this sample</button>
+                <a href="/examples/sample-invoice.md" download>Read the synthetic source</a>
               </div>
             </div>
-          </div>
-        ) : (
-          <>
-          <div className="home-choices">
-            <button
-              type="button"
-              className={`home-card drop${drag === "none" ? "" : ` ${drag}`}`}
-              onClick={() => fileInput.current?.click()}
-              onDragEnter={(e) => {
-                e.preventDefault();
-                dragDepth.current += 1;
-                const item = e.dataTransfer.items?.[0];
-                const named = item?.kind === "file" ? item.type : "";
-                const wrong =
-                  Boolean(named) &&
-                  !/^(text\/|application\/json|application\/pdf)/.test(named);
-                setDrag(wrong ? "reject" : "over");
-              }}
-              onDragOver={(e) => e.preventDefault()}
-              onDragLeave={() => {
-                dragDepth.current -= 1;
-                if (dragDepth.current <= 0) endDrag();
-              }}
-              onDrop={(e) => {
-                e.preventDefault();
-                endDrag();
-                const file = e.dataTransfer.files?.[0];
-                if (file) void openFile(file);
-              }}
-            >
-              <span className="hc-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M12 16V4" />
-                  <path d="m7 9 5-5 5 5" />
-                  <path d="M4 16v2.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V16" />
-                </svg>
-              </span>
-              <span className="hc-title">Drop a file</span>
-              <span className="hc-sub">
-                {drag === "reject" ? "that format isn’t read here" : "or click to choose"}
-              </span>
-            </button>
-
-            <button type="button" className="home-card paste-choice" onClick={() => { fileWork.cancel(); setMode("paste"); }}>
-              <span className="hc-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="5" y="3" width="14" height="18" rx="2" />
-                  <path d="M9 8h6M9 12h6M9 16h3" />
-                </svg>
-              </span>
-              <span className="hc-title">Paste text</span>
-              <span className="hc-sub">notes, Markdown or memoRABLE JSON</span>
-            </button>
-          </div>
-          <p className="home-limits">
-            Bring something worth remembering. Best for Meeting Notes, RFCs, Reports, Research Papers, READMEs, Specs and Guides.
-          </p>
-          <p className="home-limits home-limits-sub">
-            PDF · Markdown · plain text · memoRABLE JSON · up to 2 MB · PDFs: first 40 pages
-          </p>
-          </>
-        )}
-
-        </section>
-        <section className="home-real-sample" aria-labelledby="home-sample-title">
-          <div><small>SAMPLE / FICTIONAL INVOICE</small><h2 id="home-sample-title">See what comes out.</h2><p>A real rendered output from a synthetic invoice. Two line items reconcile to the stated total; every amount has a source passage.</p><button type="button" className="btn pri" onClick={async()=>{const operation=fileWork.begin();setReadError(null);try{const response=await fetch("/examples/sample-invoice.md",{signal:operation.signal});if(!response.ok)throw Error();const text=await response.text();if(!operation.isCurrent())return;void onImport(text,"sample-invoice.md");}catch{if(operation.isCurrent())setReadError("The sample could not load. Bring a file or try again.");}}}>Open this sample</button><a href="/examples/sample-invoice.md" download>Read the synthetic source</a></div>
-          <Image unoptimized src="/examples/sample-invoice-preview.png" width={872} height={605} alt="Sample rendered invoice: $12,000 and $3,500 line items, a proportional bar and evidence links reconcile to $15,500. Fictional source." />
-        </section>
-
-        </div>
-
-        <div className="home-output-strip" aria-label="What you can make">
-          <span>01 / Bring a document</span><span>02 / Inspect the insight</span><span>03 / Make it useful</span>
-        </div>
-        <div className="home-outcomes">
-          <article><small>FOR A READER</small><h2>A brief worth forwarding.</h2><p>Email with the claim, its limits and the source passage.</p></article>
-          <article><small>FOR A DECISION</small><h2>The structure behind it.</h2><p>Line items, dependencies or evidence. A visual only when the source supports it.</p></article>
-          <article><small>FOR THE RECORD</small><h2>A document you can keep.</h2><p>Readable print and web outputs. Your original stays in reach.</p></article>
+            <Image unoptimized src="/examples/sample-invoice-preview.png" width={872} height={605} alt="Sample rendered invoice: $12,000 and $3,500 line items, a proportional bar and evidence links reconcile to $15,500. Fictional source." />
+          </section>
         </div>
 
         <input
@@ -362,18 +384,8 @@ export function HomeScreen({
           }}
         />
 
-        {readNote && (
-          <p className="home-note" role="status">
-            {readNote}
-          </p>
-        )}
-
-        {readError && (
-          <p className="home-error" role="alert">
-            {readError}
-          </p>
-        )}
-
+        {readNote && <p className="home-note" role="status">{readNote}</p>}
+        {readError && <p className="home-error" role="alert">{readError}</p>}
         {errors.length > 0 && (
           <div className="home-error-box" role="alert">
             <p className="et">We couldn’t understand that. Nothing was changed.</p>
@@ -384,28 +396,28 @@ export function HomeScreen({
             </ul>
           </div>
         )}
+      </section>
 
-        <p className="home-footnote">
-          Nothing to hand?{" "}
-          <button type="button" className="linkish" onClick={() => { fileWork.cancel(); onUseExample("atlas-json"); }}>
-            Open a sample brief
-          </button>
-          {onWatchDemo ? (
-            <>
-              {" · "}
-              <button type="button" className="linkish" onClick={onWatchDemo} data-testid="watch-demo">
-                Watch the 1-minute demo
-              </button>
-            </>
-          ) : null}
-        </p>
+      <section id="workspace" className="lp-workspace" aria-label="Your workspace">
+        <TodayApp embedded />
+      </section>
 
+      <footer className="lp-foot">
+        <div>
+          <p className="lp-foot-brand">memo<b>RABLE</b></p>
+          <p>Memory for engineering work.</p>
+        </div>
+        <ul className="lp-facts">
+          <li>Your notes are stored in this browser (IndexedDB). There is no account and no server copy.</li>
+          <li>Search runs on this device. Connecting a repo sends requests from your browser straight to GitHub.</li>
+          <li>Deleting a note removes its text from this device and from every search answer.</li>
+        </ul>
         {tally && (
           <p className="home-tally" data-testid="local-tally">
             {tally}, counted in this browser and nowhere else.
           </p>
         )}
-      </div>
+      </footer>
     </main>
   );
 }

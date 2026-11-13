@@ -1,19 +1,26 @@
 import { expect, test, type Page } from "@playwright/test";
 
 /**
- * The daily journey on /today: capture -> recall -> next -> review, with
- * supersession, deletion, persistence across reloads, and offline use.
- * Everything runs in the browser; no network or model is involved.
+ * The daily journey in the workspace at the bottom of the homepage:
+ * capture -> recall -> next -> review, with supersession, deletion,
+ * persistence across reloads, and offline use. No network or model involved.
  */
+
+const ws = (page: Page) => page.locator("#workspace");
+
+async function openWorkspace(page: Page, path = "/") {
+  await page.goto(path);
+  await page.getByTestId("brand-splash").waitFor({ state: "detached" });
+  await ws(page).scrollIntoViewIfNeeded();
+  await expect(ws(page).getByText("Saved on this device")).toBeVisible();
+}
 
 test.beforeEach(async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await page.goto("/today");
-  await expect(page.getByRole("heading", { level: 1 })).not.toHaveText(" ");
-  await expect(page.getByText("Saved on this device")).toBeVisible();
+  await openWorkspace(page);
 });
 
-const entry = (page: Page) => page.getByRole("textbox", { name: "Entry text" });
+const entry = (page: Page) => ws(page).getByRole("textbox", { name: "Entry text" });
 
 async function record(page: Page, text: string) {
   await entry(page).fill(text);
@@ -23,7 +30,7 @@ async function record(page: Page, text: string) {
 }
 
 async function openTab(page: Page, name: "Recall" | "Next" | "Review" | "Today") {
-  const tabs = page.getByRole("navigation", { name: "Sections" });
+  const tabs = ws(page).getByRole("navigation", { name: "Sections" });
   if (await tabs.isVisible()) await tabs.getByRole("button", { name }).click();
 }
 
@@ -47,14 +54,14 @@ test("captures, recalls, supersedes and deletes, and survives a reload", async (
 
   // Recall puts the current decision first and flags the old one.
   await openTab(page, "Recall");
-  await page.getByRole("searchbox").fill("where do embeddings live");
+  await ws(page).getByRole("searchbox").fill("where do embeddings live");
   const results = page.locator(".td-result");
   await expect(results.first()).toContainText("SQLite");
   await expect(page.locator(".td-result.is-stale")).toContainText("pgvector");
   await expect(page.locator(".td-receipt")).toContainText(/matches? in/);
 
   // Persisted in IndexedDB.
-  await page.reload();
+  await openWorkspace(page);
   await expect(page.locator(".td-entry-text", { hasText: "SQLite" })).toBeVisible();
   await expect(page.locator(".td-entry", { hasText: "pgvector" }).locator(".td-status")).toContainText("Replaced by");
 
@@ -65,9 +72,9 @@ test("captures, recalls, supersedes and deletes, and survives a reload", async (
   await page.getByRole("group", { name: "Confirm delete" }).getByRole("button", { name: "Delete" }).click();
   await expect(lesson).toHaveCount(0);
   await openTab(page, "Recall");
-  await page.getByRole("searchbox").fill("cache keys permission");
+  await ws(page).getByRole("searchbox").fill("cache keys permission");
   await expect(page.locator(".td-receipt")).toContainText("No matches");
-  await page.reload();
+  await openWorkspace(page);
   await expect(page.locator(".td-entry", { hasText: "cache keys must include" })).toHaveCount(0);
 });
 
@@ -79,10 +86,10 @@ test("suggests the next task with reasons and records accept and skip", async ({
   await expect(next).toBeVisible();
   await expect(page.locator(".td-reasons li").first()).toBeVisible();
   const first = (await next.locator(".td-next-title p").innerText()).trim();
-  await page.getByRole("button", { name: "Skip for today" }).click();
+  await ws(page).getByRole("button", { name: "Skip for today" }).click();
   await expect(next.locator(".td-next-title p")).not.toHaveText(first);
-  await page.getByRole("button", { name: "Work on this" }).click();
-  await expect(page.getByRole("button", { name: /Mark done|Work on this/ })).toBeVisible();
+  await ws(page).getByRole("button", { name: "Work on this" }).click();
+  await expect(ws(page).getByRole("button", { name: /Mark done|Work on this/ })).toBeVisible();
 
   await openTab(page, "Review");
   await expect(page.getByText("How the system performed")).toBeVisible();
@@ -93,13 +100,18 @@ test("suggests the next task with reasons and records accept and skip", async ({
 
 test("keeps working offline and says so", async ({ page, context }) => {
   await context.setOffline(true);
-  await expect(page.getByText("Offline, still saving here")).toBeVisible();
+  await expect(ws(page).getByText("Offline, still saving here")).toBeVisible();
   await record(page, "Worked on the offline path");
   await page.reload().catch(() => undefined); // a reload may fail offline; the open tab keeps working
   await context.setOffline(false);
-  await page.goto("/today");
+  await openWorkspace(page);
   await expect(page.locator(".td-entry-text", { hasText: "Worked on the offline path" })).toBeVisible();
   await expect(page.getByText("Sync not set up").first()).toBeAttached();
+});
+
+test("/today redirects to the workspace on the homepage", async ({ page }) => {
+  await openWorkspace(page, "/today");
+  expect(new URL(page.url()).hash).toBe("#workspace");
 });
 
 test("the page is pitch black and the empty state demo respects reduced motion", async ({ page }) => {

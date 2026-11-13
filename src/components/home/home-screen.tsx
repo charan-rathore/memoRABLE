@@ -9,7 +9,9 @@ import { detectFormat } from "@/import/import-source";
 import { BrandMark } from "../ui/brand-mark";
 import { TodayApp } from "../today/today-app";
 import { HeroRecall } from "./hero-recall";
-import { SearchProof, ThreeMoves } from "./story";
+import { SearchProof } from "./story";
+import { FindChapter, HeroChapter, NextChapter, NumberChapter, WriteChapter } from "./chapters";
+import "./chapters.css";
 import "../today/today.css";
 import "./landing.css";
 import { formatBytes, readTextFileWithProgress } from "../import/read-file";
@@ -226,17 +228,20 @@ export function HomeScreen({
           <span className="home-word">memo<b>RABLE</b></span>
         </button>
         <div className="lp-links">
-          <a href="#moves">How it works</a>
-          <a href="#proof">Search</a>
+          <a href="#write">How it works</a>
+          <a href="#find">Search</a>
           <a href="#briefs">Briefs</a>
         </div>
         <button type="button" className="lp-cta" onClick={openWorkspace}>Open your workspace</button>
       </nav>
 
-      <HeroRecall onOpenWorkspace={openWorkspace} />
-
-      <div id="moves" className="lp-section"><ThreeMoves /></div>
+      <HeroChapter onOpenWorkspace={openWorkspace} />
+      <WriteChapter />
+      <FindChapter />
+      <NextChapter />
+      <NumberChapter />
       <div id="proof" className="lp-section"><SearchProof /></div>
+      <div id="try"><HeroRecall onOpenWorkspace={openWorkspace} /></div>
 
       <section id="briefs" className="lp-section lp-briefs" aria-labelledby="briefs-h">
         <div className="home-entry-grid">

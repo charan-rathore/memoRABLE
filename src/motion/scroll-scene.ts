@@ -13,7 +13,8 @@ import { clamp01, damp, decayFromHalfLife } from "./curves";
  * backwards plays the story backwards.
  *
  * The raw progress is smoothed with frame-rate independent exponential decay
- * (half-life 70 ms) so wheel ticks become motion instead of jumps. Under
+ * (half-life 40 ms: enough to turn wheel ticks into motion, short enough that
+ * the scene never trails the scrollbar) so wheel ticks become motion instead of jumps. Under
  * reduced motion the smoothing is off and the scene follows the scrollbar
  * exactly; the story stays, the inertia goes.
  *
@@ -24,7 +25,7 @@ export interface StageSize { w: number; h: number; mobile: boolean }
 
 export function useScrollScene<T extends HTMLElement>(
   render: (p: number, size: StageSize) => void,
-  { halfLife = 0.07 }: { halfLife?: number } = {},
+  { halfLife = 0.04 }: { halfLife?: number } = {},
 ) {
   const ref = useRef<T>(null);
   const renderRef = useRef(render);
@@ -64,14 +65,23 @@ export function useScrollScene<T extends HTMLElement>(
       if (!settled) frame = requestAnimationFrame(tick);
       else last = 0;
     };
-    const wake = () => { if (!frame) frame = requestAnimationFrame(tick); };
+    // Only chapters on or near the screen do any work. Off-screen chapters
+    // neither read layout nor write styles, so scrolling stays on the
+    // compositor instead of re-laying out five scenes per frame.
+    let near = true;
+    const wake = () => { if (near && !frame) frame = requestAnimationFrame(tick); };
     const resize = () => { measure(); shown = -1; wake(); };
+    const io = typeof IntersectionObserver === "function"
+      ? new IntersectionObserver(([e]) => { near = !!e?.isIntersecting; if (near) wake(); }, { rootMargin: "50% 0px" })
+      : null;
+    io?.observe(section);
 
     measure();
     wake();
     window.addEventListener("scroll", wake, { passive: true });
     window.addEventListener("resize", resize);
     return () => {
+      io?.disconnect();
       cancelAnimationFrame(frame);
       window.removeEventListener("scroll", wake);
       window.removeEventListener("resize", resize);

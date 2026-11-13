@@ -163,7 +163,7 @@ export function HeroChapter({ onOpenWorkspace }: { onOpenWorkspace: () => void }
   });
 
   return (
-    <section ref={ref} className="ch ch-hero" aria-labelledby="hero-h" style={{ height: "280vh" }}>
+    <section ref={ref} className="ch ch-hero" aria-labelledby="hero-h">
       <div className="ch-stage">
         <div className="ch-copy ch-hero-copy">
           <h1 id="hero-h" className="ch-display">Your work, remembered.</h1>
@@ -172,7 +172,7 @@ export function HeroChapter({ onOpenWorkspace }: { onOpenWorkspace: () => void }
           </p>
           <div className="ch-ctas">
             <button type="button" className="ch-btn" onClick={onOpenWorkspace}>Open your workspace</button>
-            <a className="ch-link" href="#write">See how it works</a>
+            <a className="ch-btn ch-btn-2" href="#try">Try the sample memory</a>
           </div>
         </div>
         <div className="ch-scene" aria-hidden="true">
@@ -306,7 +306,7 @@ export function WriteChapter() {
   });
 
   return (
-    <section id="write" ref={ref} className="ch ch-write" aria-labelledby="write-h" style={{ height: "320vh" }}>
+    <section id="write" ref={ref} className="ch ch-write" aria-labelledby="write-h">
       <div className="ch-stage">
         <div className="ch-copy">
           <h2 id="write-h" className="ch-display ch-h2">Write it down while it’s still true.</h2>
@@ -468,7 +468,7 @@ export function FindChapter() {
   });
 
   return (
-    <section id="find" ref={ref} className="ch ch-find" aria-labelledby="find-h" style={{ height: "320vh" }}>
+    <section id="find" ref={ref} className="ch ch-find" aria-labelledby="find-h">
       <div className="ch-stage">
         <div ref={flood} className="ch-flood" />
         <div ref={copy} className="ch-copy" style={{ opacity: 0 }}>
@@ -559,7 +559,7 @@ export function NextChapter() {
   });
 
   return (
-    <section id="next" ref={ref} className="ch ch-next" aria-labelledby="next-h" style={{ height: "260vh" }}>
+    <section id="next" ref={ref} className="ch ch-next" aria-labelledby="next-h">
       <div className="ch-stage">
         <div className="ch-copy">
           <h2 id="next-h" className="ch-display ch-h2">See what’s next, and why.</h2>
@@ -615,7 +615,7 @@ export function NumberChapter() {
     });
   });
   return (
-    <section ref={ref} className="ch ch-number" aria-labelledby="num-h" style={{ height: "200vh" }}>
+    <section ref={ref} className="ch ch-number" aria-labelledby="num-h">
       <div className="ch-stage ch-number-stage">
         <h2 id="num-h" className="ch-display ch-h2 ch-center">
           When an issue has been filed before, how often does search find the original?

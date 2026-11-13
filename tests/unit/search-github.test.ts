@@ -51,3 +51,15 @@ describe("GitHub connector", () => {
     expect(r.stoppedBecause).toMatch(/token/);
   });
 });
+
+import { dequantize, quantize, vectorKey } from "@/search/store";
+
+describe("vector cache", () => {
+  it("int8 round-trips within a step, and keys change with content or model", () => {
+    const v = Float32Array.from([0.5, -0.25, 0.125, -1]);
+    const back = dequantize(quantize(v));
+    for (let i = 0; i < v.length; i++) expect(Math.abs(back[i]! - v[i]!)).toBeLessThan(1 / 127 + 1e-6);
+    expect(vectorKey("m@q8", "a", "x")).not.toBe(vectorKey("m@q8", "a", "y"));
+    expect(vectorKey("m@q8", "a", "x")).not.toBe(vectorKey("m2@q8", "a", "x"));
+  });
+});

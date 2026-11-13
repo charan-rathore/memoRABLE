@@ -1,6 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import type { SearchHit } from "@/search/engine";
+import type { useRepoSearch } from "./use-repo-search";
 import type { DailyEngine } from "@/daily/engine";
 import type { EntryKind } from "@/daily/types";
 import { dayLabel, formatMs, highlight, KIND_LABEL } from "./compose";
@@ -81,10 +83,22 @@ export function NextPanel({ engine, rev, run, onAnnounce, onHandle }: { engine: 
 
 // ── Recall ────────────────────────────────────────────────────────────────
 
-export function RecallPanel({ engine, rev, query, setQuery, inputRef, onHandle }: {
+type RepoSearch = ReturnType<typeof useRepoSearch>;
+
+export function RecallPanel({ engine, rev, query, setQuery, inputRef, onHandle, repo }: {
   engine: DailyEngine; rev: number; query: string; setQuery: (q: string) => void;
   inputRef: React.RefObject<HTMLInputElement | null>; onHandle: (h: string) => void;
+  repo?: RepoSearch;
 }) {
+  const [wide, setWide] = useState<{ notes: SearchHit[]; repos: SearchHit[]; ms: number; arm: string; embedMs?: number } | null>(null);
+  useEffect(() => {
+    const q = query.trim();
+    if (!repo || !q) { setWide(null); return; }
+    let alive = true;
+    const t = window.setTimeout(() => { void repo.search(q).then((r) => { if (alive) setWide(r); }); }, 60);
+    return () => { alive = false; window.clearTimeout(t); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query, repo?.version, repo?.model.state, rev]);
   const result = useMemo(() => {
     const q = query.trim();
     if (!q) return null;
@@ -149,7 +163,63 @@ export function RecallPanel({ engine, rev, query, setQuery, inputRef, onHandle }
           </ul>
         </>
       )}
-      {!result && <p className="td-empty-note">Recall reads only what you recorded here. It runs on this device with no model.</p>}
+      {result && wide && (() => {
+        const shown = new Set(result.hits.map((h) => h.entryId));
+        const related = wide.arm !== "bm25f+sig" ? wide.notes.filter((h) => !shown.has(h.id) && engine.entry(h.id)).slice(0, 3) : [];
+        return (
+          <>
+            {related.length > 0 && (
+              <>
+                <h3 className="td-sub-h">Related in meaning</h3>
+                <ul className="td-results">
+                  {related.map((h) => {
+                    const e = engine.entry(h.id)!;
+                    return (
+                      <li key={`sem-${h.id}`} className="td-result is-semantic">
+                        <Glyph kind={e.kind} task={e.task} />
+                        <div>
+                          <p>{e.text}</p>
+                          <div className="td-meta"><span>{dayLabel(toKey(e.createdAt))}</span><button type="button" className="td-handle-ref" onClick={() => onHandle(e.handle)}>#{e.handle}</button></div>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </>
+            )}
+            {wide.repos.length > 0 && (
+              <>
+                <h3 className="td-sub-h">From your repos</h3>
+                <ul className="td-results td-repo-results">
+                  {wide.repos.map((h) => {
+                    const d = repo?.doc(h.id);
+                    if (!d) return null;
+                    return (
+                      <li key={h.id} className="td-result is-repo">
+                        <RepoGlyph pr={d.kind === "pr"} />
+                        <div>
+                          <p><a href={d.url} target="_blank" rel="noreferrer noopener">{d.title}</a></p>
+                          <div className="td-meta">
+                            <span>{d.source} #{d.id.split("#")[1]}</span>
+                            {d.state && <span>{d.state}</span>}
+                            {h.signatureMatch && <span className="td-status s-current">Same error</span>}
+                          </div>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </>
+            )}
+            <p className="td-receipt">
+              {wide.arm === "bm25f+sig" ? "Keyword search" : "Semantic + keyword search"} over {repo?.repoDocCount.toLocaleString()} repo items in {formatMs(wide.ms)}
+              {wide.embedMs !== undefined ? ` (model ${formatMs(wide.embedMs)})` : ""}, on this device
+            </p>
+          </>
+        );
+      })()}
+      {!result && <p className="td-empty-note">Recall reads what you recorded here{repo?.repos.length ? " and the repos you connected" : ""}. It runs on this device.</p>}
+      {repo && <SearchSettings repo={repo} />}
     </section>
   );
 }
@@ -212,5 +282,84 @@ export function ReviewPanel({ engine, rev }: { engine: DailyEngine; rev: number 
         <div><dt>Spend</dt><dd>${r.system.costUsd.toFixed(2)}</dd></div>
       </dl>
     </section>
+  );
+}
+
+function RepoGlyph({ pr }: { pr: boolean }) {
+  return pr ? (
+    <svg width="11" height="11" viewBox="0 0 10 10" aria-hidden="true" className="td-glyph td-repo-glyph"><circle cx="2.5" cy="2.5" r="1.4" fill="none" stroke="currentColor" strokeWidth="1.1" /><circle cx="2.5" cy="7.5" r="1.4" fill="none" stroke="currentColor" strokeWidth="1.1" /><circle cx="7.5" cy="7.5" r="1.4" fill="none" stroke="currentColor" strokeWidth="1.1" /><path d="M2.5 3.9v2.2M7.5 6.1V4a1.5 1.5 0 0 0-1.5-1.5H5" fill="none" stroke="currentColor" strokeWidth="1.1" /></svg>
+  ) : (
+    <svg width="11" height="11" viewBox="0 0 10 10" aria-hidden="true" className="td-glyph td-repo-glyph"><circle cx="5" cy="5" r="3.8" fill="none" stroke="currentColor" strokeWidth="1.2" /><circle cx="5" cy="5" r="1.2" fill="currentColor" /></svg>
+  );
+}
+
+const mb = (b: number) => `${(b / 1e6).toFixed(b > 1e7 ? 0 : 1)} MB`;
+
+/** Connected repos and the on-device semantic model. */
+function SearchSettings({ repo }: { repo: RepoSearch }) {
+  const [name, setName] = useState("");
+  const [token, setToken] = useState("");
+  const [note, setNote] = useState<string | null>(null);
+  const m = repo.model;
+  return (
+    <div className="td-settings">
+      <div className="td-semantic" aria-live="polite">
+        {m.state === "off" && m.available === false && <p className="td-empty-note">Semantic search isn&apos;t included in this build. Keyword search is on.</p>}
+        {m.state === "off" && m.available !== false && (
+          <>
+            <button type="button" className="td-ghost td-semantic-on" onClick={() => void repo.enableSemantic()} disabled={m.available === null}>Turn on semantic search</button>
+            <p className="td-empty-note">Finds issues and notes by meaning, not just words. A 34 MB model downloads once from this site and runs on this device.</p>
+          </>
+        )}
+        {m.state === "loading" && (
+          <div className="td-progress" role="progressbar" aria-label="Loading the semantic model" aria-valuemin={0} aria-valuemax={m.total || 1} aria-valuenow={m.loaded}>
+            <span>Loading the model{m.total ? ` ${mb(m.loaded)} of ${mb(m.total)}` : ""}</span>
+            <i style={{ width: `${m.total ? Math.round((m.loaded / m.total) * 100) : 6}%` }} />
+          </div>
+        )}
+        {m.state === "embedding" && (
+          <div className="td-progress" role="progressbar" aria-label="Indexing by meaning" aria-valuemin={0} aria-valuemax={m.total} aria-valuenow={m.done}>
+            <span>Indexing by meaning, {m.done.toLocaleString()} of {m.total.toLocaleString()}</span>
+            <i style={{ width: `${Math.round((m.done / Math.max(1, m.total)) * 100)}%` }} />
+          </div>
+        )}
+        {m.state === "ready" && (
+          <p className="td-semantic-ready"><span className="td-dot-ok" aria-hidden="true" />Semantic search on, running on this device <button type="button" className="td-linkish" onClick={repo.disableSemantic}>Turn off</button></p>
+        )}
+        {m.state === "error" && <p className="td-error" role="alert">The model didn&apos;t load: {m.message}. Keyword search still works.</p>}
+      </div>
+
+      <details className="td-connect" open={repo.repos.length === 0 ? undefined : true}>
+        <summary>Connect a GitHub repo</summary>
+        <form onSubmit={async (e) => {
+          e.preventDefault();
+          setNote(null);
+          const msg = await repo.connect(name, token);
+          setNote(msg ?? "Synced.");
+          if (!msg) { setName(""); setToken(""); }
+        }}>
+          <label className="td-field"><span>Repository</span><input value={name} onChange={(e) => setName(e.target.value)} placeholder="owner/repo" aria-label="Repository, as owner/repo" autoComplete="off" spellCheck={false} /></label>
+          <label className="td-field"><span>Token (optional)</span><input value={token} onChange={(e) => setToken(e.target.value)} type="password" placeholder="Needed for private repos and big syncs" aria-label="GitHub token, optional" autoComplete="off" /></label>
+          <p className="td-empty-note">Issues, pull requests and comments are fetched by this browser straight from GitHub and kept here. A token is stored in this browser only and sent only to api.github.com.</p>
+          <button type="submit" className="td-save sm" disabled={!name.trim() || !!repo.syncing}>{repo.syncing ? "Syncing…" : "Connect"}</button>
+        </form>
+        {note && <p className="td-empty-note" role="status">{note}</p>}
+        {repo.repos.length > 0 && (
+          <ul className="td-repos">
+            {repo.repos.map((r) => (
+              <li key={r.repo}>
+                <div>
+                  <strong>{r.repo}</strong>
+                  <span>{(r.items ?? 0).toLocaleString()} items{r.syncedAt ? `, synced ${new Date(r.syncedAt).toLocaleString(undefined, { hour: "2-digit", minute: "2-digit", day: "numeric", month: "short" })}` : ""}</span>
+                  {r.error && <span className="td-repo-warn">{r.error}</span>}
+                </div>
+                <button type="button" className="td-linkish" disabled={!!repo.syncing} onClick={async () => setNote((await repo.connect(r.repo)) ?? `Synced ${r.repo}.`)}>Sync</button>
+                <button type="button" className="td-linkish" onClick={() => void repo.disconnect(r.repo)}>Remove</button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </details>
+    </div>
   );
 }

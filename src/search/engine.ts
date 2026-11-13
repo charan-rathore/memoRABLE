@@ -68,6 +68,17 @@ export class SearchIndex {
 
   get size() { return this.docs.size; }
 
+  /** Attach a model after construction (the browser loads it on demand). */
+  attachEmbedder(embedder: Embedder, quantize = true): void {
+    (this as { embedder: Embedder | null }).embedder = embedder;
+    this.vectors = new VectorIndex(embedder.dim, quantize);
+  }
+
+  /** Insert a precomputed vector (e.g. from the IndexedDB cache). */
+  setVector(id: string, v: ArrayLike<number>): void {
+    if (this.vectors && this.docs.has(id)) this.vectors.upsert(id, v);
+  }
+
   /** Lexical side is synchronous; call `embed` afterwards for the dense side. */
   upsert(doc: SearchDoc): void {
     this.removeSigs(doc.id);

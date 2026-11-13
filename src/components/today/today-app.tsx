@@ -50,7 +50,7 @@ export function TodayApp({ embedded = false }: { embedded?: boolean } = {}) {
     if (!e) { setAnnounce(`#${handle} was deleted or doesn't exist`); return; }
     setTab("today");
     requestAnimationFrame(() => {
-      document.getElementById(`entry-${e.id}`)?.scrollIntoView({ block: "center", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+      document.getElementById(`entry-${e.id}`)?.scrollIntoView({ block: "center", behavior: typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
       flash(e.id);
     });
   }, [engine, flash]);

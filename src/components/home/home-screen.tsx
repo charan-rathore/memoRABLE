@@ -213,7 +213,8 @@ export function HomeScreen({
 
   const openWorkspace = () => {
     const el = document.getElementById("workspace");
-    el?.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
+    const reduced = typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    el?.scrollIntoView({ behavior: reduced ? "auto" : "smooth", block: "start" });
     window.setTimeout(() => (el?.querySelector("textarea[aria-label='Entry text']") as HTMLTextAreaElement | null)?.focus({ preventScroll: true }), 450);
   };
 

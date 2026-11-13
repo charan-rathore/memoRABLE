@@ -40,6 +40,8 @@ interface Result {
   matched: Set<string>;
 }
 
+const prefersReducedMotion = () => typeof window !== "undefined" && typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
 function ago(iso: string, now: number) {
   const d = Math.round((now - Date.parse(iso)) / 86_400_000);
   return d <= 0 ? "today" : d === 1 ? "yesterday" : `${d} days ago`;
@@ -146,7 +148,7 @@ export function HeroRecall({ onOpenWorkspace }: { onOpenWorkspace: () => void })
   // Typed placeholder: cycles real example queries while the box is idle.
   useEffect(() => {
     if (focused || query) return;
-    if (typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if (prefersReducedMotion()) return;
     let ex = 0, ch = 0, hold = 0;
     const id = window.setInterval(() => {
       const word = EXAMPLES[ex % EXAMPLES.length]!;
@@ -161,7 +163,8 @@ export function HeroRecall({ onOpenWorkspace }: { onOpenWorkspace: () => void })
   useEffect(() => {
     const stage = stageRef.current;
     if (!stage || !orbitItems.length) return;
-    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const reduced = prefersReducedMotion();
+    if (typeof ResizeObserver === "undefined" || typeof IntersectionObserver === "undefined") return; // very old browsers, test DOMs
     let frameCount = 0;
     let raf = 0, last = performance.now(), visible = true, u = 0, speed = 1, pageVisible = !document.hidden;
     const pos = orbitItems.map(() => ({ x: 0, y: 0, o: 0, s: 1 }));

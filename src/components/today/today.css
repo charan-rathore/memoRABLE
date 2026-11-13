@@ -15,7 +15,7 @@ html:has(.td), html:has(.td) body { background: #000; color-scheme: dark; }
   --line-2: rgba(255, 255, 255, 0.16);
   --text: #f2f2f2;
   --muted: #9a9aa2;       /* 7.4:1 on black */
-  --faint: #6c6c74;       /* 4.0:1, used only at 13px+ meta that is also available elsewhere */
+  --faint: #84848c;       /* 5.6:1 on black, 4.7:1 on the raised panels: AA for small meta */
   --worked: #8ab4ff;
   --learned: #f5c451;
   --decided: #c9a2ff;

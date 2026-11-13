@@ -58,7 +58,7 @@ test("captures, recalls, supersedes and deletes, and survives a reload", async (
   const results = page.locator(".td-result");
   await expect(results.first()).toContainText("SQLite");
   await expect(page.locator(".td-result.is-stale")).toContainText("pgvector");
-  await expect(page.locator(".td-receipt")).toContainText(/matches? in/);
+  await expect(ws(page).locator(".td-receipt").first()).toContainText(/matches? in/);
 
   // Persisted in IndexedDB.
   await openWorkspace(page);
@@ -73,7 +73,7 @@ test("captures, recalls, supersedes and deletes, and survives a reload", async (
   await expect(lesson).toHaveCount(0);
   await openTab(page, "Recall");
   await ws(page).getByRole("searchbox").fill("cache keys permission");
-  await expect(page.locator(".td-receipt")).toContainText("No matches");
+  await expect(ws(page).locator(".td-receipt").first()).toContainText("No matches");
   await openWorkspace(page);
   await expect(page.locator(".td-entry", { hasText: "cache keys must include" })).toHaveCount(0);
 });

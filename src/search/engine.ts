@@ -1,4 +1,4 @@
-import { analyze, queryTerms } from "./analyze";
+import { analyze, queryTerms, structuredQueryTerms } from "./analyze";
 import { BM25_FLAT, BM25F_V1, Bm25fIndex, type Bm25fConfig } from "./bm25f";
 import { rrf, weightedSum, type Ranked } from "./fusion";
 import { expand } from "./lexicon";
@@ -40,6 +40,9 @@ export interface Embedder {
 export const ARMS = ["bm25", "bm25f", "bm25f+sig", "bm25f+sig+lex", "dense", "hybrid-rrf", "hybrid-wsum"] as const;
 export type Arm = (typeof ARMS)[number];
 export const LEXICAL_ARMS: Arm[] = ["bm25", "bm25f", "bm25f+sig", "bm25f+sig+lex"];
+
+/** A whole issue as the query: title and body are weighted differently. */
+export interface QueryParts { title: string; body: string }
 
 export interface SearchHit { id: string; score: number; signatureMatch?: boolean }
 export interface SearchResult { arm: Arm; hits: SearchHit[]; ms: number; scanned: number; embedMs?: number }
@@ -105,8 +108,8 @@ export class SearchIndex {
     this.docSigs.delete(id);
   }
 
-  private lexical(arm: Arm, text: string, k: number, allow?: (id: string) => boolean): { hits: SearchHit[]; scanned: number } {
-    const qtf = queryTerms(text);
+  private lexical(arm: Arm, text: string, k: number, allow?: (id: string) => boolean, parts?: QueryParts): { hits: SearchHit[]; scanned: number } {
+    const qtf = parts ? structuredQueryTerms(parts.title, parts.body) : queryTerms(text);
     if (arm === "bm25") return this.flat.search(qtf, k, allow);
     if (arm === "bm25f") return this.fielded.search(qtf, k, allow);
     if (arm === "bm25f+sig+lex") {
@@ -129,11 +132,11 @@ export class SearchIndex {
     return { hits, scanned: res.scanned };
   }
 
-  async search(text: string, opts: { arm: Arm; k?: number; allow?: (id: string) => boolean; queryVector?: Float32Array }): Promise<SearchResult> {
+  async search(text: string, opts: { arm: Arm; k?: number; allow?: (id: string) => boolean; queryVector?: Float32Array; parts?: QueryParts }): Promise<SearchResult> {
     const k = opts.k ?? 10;
     const t0 = performance.now();
     if (LEXICAL_ARMS.includes(opts.arm)) {
-      const r = this.lexical(opts.arm, text, k, opts.allow);
+      const r = this.lexical(opts.arm, text, k, opts.allow, opts.arm === "bm25" ? undefined : opts.parts);
       return { arm: opts.arm, hits: r.hits, scanned: r.scanned, ms: performance.now() - t0 };
     }
     if (!this.embedder || !this.vectors) throw new Error(`arm ${opts.arm} needs an embedder`);
@@ -143,7 +146,7 @@ export class SearchIndex {
     const depth = Math.max(50, k * 5);
     const dense = this.vectors.search(qv, depth, opts.allow);
     if (opts.arm === "dense") return { arm: "dense", hits: dense.slice(0, k), scanned: this.vectors.size, ms: performance.now() - t0, embedMs };
-    const lex = this.lexical("bm25f+sig", text, depth, opts.allow);
+    const lex = this.lexical("bm25f+sig", text, depth, opts.allow, opts.parts);
     const fused: Ranked[] = opts.arm === "hybrid-rrf" ? rrf([lex.hits, dense], 60) : weightedSum([lex.hits, dense], [0.5, 0.5]);
     const sigIds = new Set(lex.hits.filter((h) => h.signatureMatch).map((h) => h.id));
     return {

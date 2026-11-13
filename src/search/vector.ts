@@ -29,7 +29,7 @@ export class VectorIndex {
   }
 
   get size() { return this.n; }
-  get bytes() { return this.quantize ? this.i8!.byteLength + this.scale.byteLength : this.n * this.dim * 4; }
+  get bytes() { return this.quantize ? this.n * this.dim + this.n * 4 : this.n * this.dim * 4; }
 
   private grow() {
     const cap = Math.max(16, this.scale.length * 2);

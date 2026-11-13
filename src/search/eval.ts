@@ -18,6 +18,7 @@ export interface BenchSet { version: string; docs: BenchDoc[]; queries: BenchQue
 export type QueryMode = "short" | "full";
 
 export interface ArmReport {
+  byRepo?: Record<string, { n: number; recall10: number; ndcg10: number }>;
   arm: Arm;
   mode: QueryMode;
   n: number;
@@ -32,6 +33,15 @@ export function toSearchDoc(d: BenchDoc): SearchDoc {
 }
 
 export const queryText = (q: BenchQuery, mode: QueryMode) => (mode === "short" ? q.title : `${q.title}\n${q.body}`);
+
+/**
+ * Queries whose relevant issue was filed after them cannot be answered in the
+ * realistic setting (a triager only sees earlier issues); they are excluded.
+ */
+export function answerable(set: BenchSet): BenchSet {
+  const created = new Map(set.docs.map((d) => [d.id, Date.parse(d.createdAt)]));
+  return { ...set, queries: set.queries.filter((q) => q.relevant.some((r) => (created.get(r) ?? Infinity) < Date.parse(q.createdAt))) };
+}
 
 export function buildIndex(set: BenchSet, index: SearchIndex): { ms: number } {
   const t0 = performance.now();
@@ -48,16 +58,19 @@ export async function runArm(
 ): Promise<ArmReport> {
   const created = new Map(set.docs.map((d) => [d.id, Date.parse(d.createdAt)]));
   const repoOf = new Map(set.docs.map((d) => [d.id, d.repo]));
+  const repoAgg = new Map<string, { n: number; r10: number; ndcg: number }>();
   const r1: number[] = [], r5: number[] = [], r10: number[] = [], mrr: number[] = [], ndcg: number[] = [], ms: number[] = [], emb: number[] = [];
   for (const q of set.queries) {
     const before = Date.parse(q.createdAt);
     const allow = (id: string) => repoOf.get(id) === q.repo && (created.get(id) ?? 0) < before;
     const qv = queryVectors?.get(`${mode}:${q.id}`);
-    const res = await index.search(queryText(q, mode), { arm, k: 10, allow, ...(qv ? { queryVector: qv } : {}) });
+    const res = await index.search(queryText(q, mode), { arm, k: 10, allow, ...(qv ? { queryVector: qv } : {}), ...(mode === "full" ? { parts: { title: q.title, body: q.body } } : {}) });
     const ranked = res.hits.map((h) => h.id);
     const rel = new Set(q.relevant);
     r1.push(recallAt(ranked, rel, 1)); r5.push(recallAt(ranked, rel, 5)); r10.push(recallAt(ranked, rel, 10));
     mrr.push(mrrAt(ranked, rel)); ndcg.push(ndcgAt(ranked, rel));
+    const ra = repoAgg.get(q.repo) ?? { n: 0, r10: 0, ndcg: 0 };
+    ra.n++; ra.r10 += r10.at(-1)!; ra.ndcg += ndcg.at(-1)!; repoAgg.set(q.repo, ra);
     ms.push(res.ms); if (res.embedMs !== undefined) emb.push(res.embedMs);
   }
   const r = (x: number) => Math.round(x * 1000) / 1000;
@@ -67,6 +80,7 @@ export async function runArm(
     p50ms: r(percentile(ms, 50)), p95ms: r(percentile(ms, 95)),
     ...(emb.length ? { embedP50ms: r(percentile(emb, 50)) } : {}),
     perQueryNdcg: ndcg,
+    byRepo: Object.fromEntries([...repoAgg].map(([k, v]) => [k, { n: v.n, recall10: r(v.r10 / v.n), ndcg10: r(v.ndcg / v.n) }])),
   };
 }
 
@@ -86,5 +100,15 @@ export function markdownTable(reports: ArmReport[], baseline: Arm = "bm25"): str
       lines.push(`| ${rep.arm} (${mode}) | ${rep.n} | ${rep.recall1} | ${rep.recall5} | ${rep.recall10} | ${rep.mrr10} | ${rep.ndcg10} | ${delta} | ${rep.p50ms} | ${rep.p95ms} |`);
     }
   }
+  lines.push("", "Per repository (nDCG@10 / R@10):", "", "| arm | " + [...new Set(reports.flatMap((r) => Object.keys(r.byRepo ?? {})))].join(" | ") + " |", "|---|" + [...new Set(reports.flatMap((r) => Object.keys(r.byRepo ?? {})))].map(() => "---").join("|") + "|");
+  const repos = [...new Set(reports.flatMap((r) => Object.keys(r.byRepo ?? {})))];
+  for (const rep of reports) lines.push(`| ${rep.arm} (${rep.mode}) | ` + repos.map((k) => { const b = rep.byRepo?.[k]; return b ? `${b.ndcg10} / ${b.recall10} (n=${b.n})` : "-"; }).join(" | ") + " |");
   return lines.join("\n");
+}
+
+/** Report without per-query vectors, for JSON output. */
+export function summarize(r: ArmReport): Omit<ArmReport, "perQueryNdcg"> {
+  const { perQueryNdcg, ...rest } = r;
+  void perQueryNdcg;
+  return rest;
 }

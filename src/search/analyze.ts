@@ -64,7 +64,10 @@ export function analyze(text: string, opts: AnalyzeOptions = {}): string[] {
       continue;
     }
     if (/^\d+(?:\.\d+)+/.test(raw)) { out.push(raw.toLowerCase()); continue; } // version
-    const parts = splitCompound(raw);
+    // Versions inside compounds (next@16.4.5, node-v20.11.1) stay intact.
+    const versions = raw.match(/\d+(?:\.\d+)+/g) ?? [];
+    for (const v of versions) out.push(v);
+    const parts = splitCompound(versions.length ? raw.replace(/\d+(?:\.\d+)+/g, " ") : raw);
     const lower = raw.toLowerCase();
     const isCompound = parts.length > 1;
     if (isCompound && wholes && lower.length <= 48) out.push(lower);
@@ -82,5 +85,27 @@ export function analyze(text: string, opts: AnalyzeOptions = {}): string[] {
 export function queryTerms(text: string): Map<string, number> {
   const qtf = new Map<string, number>();
   for (const t of analyze(text)) qtf.set(t, (qtf.get(t) ?? 0) + 1);
+  return qtf;
+}
+
+/**
+ * Weighted terms for a structured query (a whole issue used as the query).
+ * Title words carry the topic; prose in the body adds context; code blocks
+ * and environment dumps are mostly incidental, so they count for less.
+ */
+export const QUERY_WEIGHTS = { title: 3, prose: 1, code: 0.3 } as const;
+
+export function structuredQueryTerms(title: string, body: string): Map<string, number> {
+  const qtf = new Map<string, number>();
+  const add = (text: string, w: number) => { for (const t of analyze(text)) qtf.set(t, (qtf.get(t) ?? 0) + w); };
+  add(title, QUERY_WEIGHTS.title);
+  const code: string[] = [];
+  const prose = body
+    .replace(/```[\s\S]*?(```|$)/g, (m) => { code.push(m); return " "; })
+    .split(/\r?\n/)
+    .filter((l) => !/^\s*(\|.*\||[-\w ]{2,40}\s*:\s*\S.*|https?:\/\/\S+)\s*$/.test(l)) // tables, "Key: value" env lines, bare links
+    .join("\n");
+  add(prose, QUERY_WEIGHTS.prose);
+  add(code.join("\n"), QUERY_WEIGHTS.code);
   return qtf;
 }

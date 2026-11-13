@@ -23,7 +23,7 @@
     "eval:docgraph": "node scripts/eval-docgraph-gate.mjs"
   },
   "dependencies": {
-    "@huggingface/transformers": "^3.7.0",
+    "@huggingface/transformers": "3.8.1",
     "@unlayer/react-elements": "0.1.20",
     "next": "15.5.22",
     "pdfjs-dist": "^4.10.38",

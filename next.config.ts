@@ -13,12 +13,14 @@ const securityHeaders = [
     key: "Content-Security-Policy",
     value: [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline'",
+      // 'wasm-unsafe-eval' lets the on-device search model (ONNX Runtime, WebAssembly) compile; no eval of JS.
+      "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'",
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data:",
       "media-src 'self' blob:",
       "font-src 'self' data:",
-      "connect-src 'self'",
+      // Connected repos are fetched by the browser straight from GitHub's API.
+      "connect-src 'self' https://api.github.com",
       "worker-src 'self'",
       "frame-ancestors 'none'",
       "base-uri 'self'",
@@ -32,7 +34,14 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
   // pdf.js ships ESM that Next otherwise tries to externalize incorrectly.
-  serverExternalPackages: ["pdfjs-dist"],
+  serverExternalPackages: ["pdfjs-dist", "@huggingface/transformers", "onnxruntime-node"],
+  webpack(config, { isServer }) {
+    if (!isServer) {
+      // Transformers.js runs in the browser on onnxruntime-web; its Node backends are never used there.
+      config.resolve.alias = { ...config.resolve.alias, "onnxruntime-node": false, sharp: false };
+    }
+    return config;
+  },
   // One front door: the daily workspace lives on the homepage, below the story.
   async redirects() {
     return [{ source: "/today", destination: "/#workspace", permanent: false }];

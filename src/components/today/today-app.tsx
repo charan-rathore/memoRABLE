@@ -9,6 +9,7 @@ import { dayKey, formatMs } from "./compose";
 import { EntryStream } from "./entry-stream";
 import { NextPanel, RecallPanel, ReviewPanel } from "./panels";
 import { useDaily } from "./use-daily";
+import { useRepoSearch } from "./use-repo-search";
 
 type Tab = "today" | "recall" | "next" | "review";
 const TABS: Array<{ id: Tab; label: string }> = [
@@ -25,6 +26,7 @@ const TABS: Array<{ id: Tab; label: string }> = [
  */
 export function TodayApp({ embedded = false }: { embedded?: boolean } = {}) {
   const { engine, rev, run, storage, online, error, clearError } = useDaily();
+  const repo = useRepoSearch(engine, rev);
   const [tab, setTab] = useState<Tab>("today");
   const [query, setQuery] = useState("");
   const [flashId, setFlashId] = useState<string | null>(null);
@@ -131,7 +133,7 @@ export function TodayApp({ embedded = false }: { embedded?: boolean } = {}) {
           {engine && (
             <>
               <div data-pane="next"><NextPanel engine={engine} rev={rev} run={run} onAnnounce={say} onHandle={openHandle} /></div>
-              <div data-pane="recall"><RecallPanel engine={engine} rev={rev} query={query} setQuery={setQuery} inputRef={searchRef} onHandle={openHandle} /></div>
+              <div data-pane="recall"><RecallPanel engine={engine} rev={rev} query={query} setQuery={setQuery} inputRef={searchRef} onHandle={openHandle} repo={repo} /></div>
               <div data-pane="review"><ReviewPanel engine={engine} rev={rev} /></div>
             </>
           )}

@@ -123,3 +123,53 @@ test("the page is pitch black and the empty state demo respects reduced motion",
     expect(anim).toBe("none");
   }
 });
+
+test("connects a GitHub repo and searches its issues alongside notes", async ({ page }) => {
+  // GitHub is mocked: CI must not depend on api.github.com or its rate limits.
+  await page.route("https://api.github.com/**", async (route) => {
+    const url = route.request().url();
+    if (url.includes("/issues/comments")) return route.fulfill({ json: [{ issue_url: "https://api.github.com/repos/acme/web/issues/101", body: "Fixed by upgrading to 16.4.6", updated_at: "2026-10-03T00:00:00Z", author_association: "MEMBER" }] });
+    return route.fulfill({
+      headers: { etag: 'W/"v1"', "x-ratelimit-remaining": "59" },
+      json: [
+        { number: 101, title: "Turbopack dev server memory grows over time", body: "After a few hours the process uses 6 GB.", state: "open", html_url: "https://github.com/acme/web/issues/101", created_at: "2026-10-01T00:00:00Z", updated_at: "2026-10-02T00:00:00Z", labels: [{ name: "bug" }], comments: 1 },
+        { number: 102, title: "Hydration mismatch when rendering dates", body: "Server renders UTC, client renders local time.", state: "closed", html_url: "https://github.com/acme/web/issues/102", created_at: "2026-10-04T00:00:00Z", updated_at: "2026-10-05T00:00:00Z", labels: [], comments: 0, pull_request: {} },
+      ],
+    });
+  });
+  await record(page, "Learned that restarting the dev server daily hides the memory leak");
+  await openTab(page, "Recall");
+  const recall = ws(page).locator(".td-recall");
+  await recall.getByText("Connect a GitHub repo").click();
+  await recall.getByRole("textbox", { name: "Repository, as owner/repo" }).fill("https://github.com/acme/web");
+  await recall.getByRole("button", { name: "Connect" }).click();
+  await expect(recall.locator(".td-repos")).toContainText("acme/web");
+  await expect(recall.locator(".td-repos")).toContainText("2 items");
+
+  await ws(page).getByRole("searchbox").fill("dev server memory leak");
+  await expect(recall.locator(".td-result").first()).toContainText("restarting the dev server");
+  const repoHit = recall.locator(".td-result.is-repo").first();
+  await expect(repoHit).toContainText("Turbopack dev server memory");
+  await expect(repoHit.locator("a")).toHaveAttribute("href", "https://github.com/acme/web/issues/101");
+  await expect(recall.locator(".td-receipt").last()).toContainText(/over 2 repo items/);
+
+  // Kept in this browser across reloads; removing it removes its items.
+  await openWorkspace(page);
+  await openTab(page, "Recall");
+  await expect(ws(page).locator(".td-repos")).toContainText("acme/web");
+  await ws(page).locator(".td-repos").getByRole("button", { name: "Remove" }).click();
+  await expect(ws(page).locator(".td-repos")).toHaveCount(0);
+});
+
+test("turns on semantic search when this build ships the model", async ({ page }) => {
+  const status = await page.evaluate(async () => (await fetch("/models/Xenova/bge-small-en-v1.5/config.json", { method: "HEAD" })).status);
+  test.skip(status !== 200, "model not bundled in this build");
+  test.setTimeout(180_000);
+  await record(page, "Learned that the dev server leaks memory over long sessions");
+  await openTab(page, "Recall");
+  const recall = ws(page).locator(".td-recall");
+  await recall.getByRole("button", { name: "Turn on semantic search" }).click();
+  await expect(recall.getByText("Semantic search on, running on this device")).toBeVisible({ timeout: 150_000 });
+  await ws(page).getByRole("searchbox").fill("process RAM keeps increasing");
+  await expect(recall.locator(".td-receipt").last()).toContainText("Semantic + keyword search");
+});

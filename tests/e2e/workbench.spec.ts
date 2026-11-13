@@ -58,7 +58,7 @@ test.describe("home screen", () => {
     await dismissOverlays(page);
 
     const home = page.getByTestId("home-screen");
-    await expect(home.getByRole("heading", { level: 1, name: "Remember what you decided, and why." })).toBeVisible();
+    await expect(home.getByRole("heading", { level: 1, name: "Your work, remembered." })).toBeVisible();
     await expect(home.getByRole("heading", { name: "Turn a document into a brief you can forward." })).toBeVisible();
     await expect(home.locator(".home-card")).toHaveCount(2);
     await expect(home.getByText("Drop a file")).toBeVisible();

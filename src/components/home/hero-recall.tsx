@@ -284,10 +284,10 @@ export function HeroRecall({ onOpenWorkspace }: { onOpenWorkspace: () => void })
       </div>
 
       <div className="hx-copy">
-        <h1 id="hx-title" className="hx-title">Remember what you decided, and&nbsp;why.</h1>
+        <h2 id="hx-title" className="hx-title">Try it on a sample memory.</h2>
         <p className="hx-sub">
-          memoRABLE keeps a running log of what you worked on, learned and decided, and searches it together with your GitHub issues.
-          It runs in your browser, with no account and no model bill.
+          Two weeks of one engineer’s notes and 320 real Next.js issues and pull requests, searched in your browser.
+          Ask about the Redis decision, an error message, or a flaky test.
         </p>
 
         <form className={`hx-search${results ? " has-results" : ""}`} role="search" onSubmit={(e) => e.preventDefault()}>

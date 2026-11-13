@@ -136,3 +136,62 @@ export class ClosedSpline {
     return { x: lerp(p.x, q.x, f), y: lerp(p.y, q.y, f) };
   }
 }
+
+/** Emil Kowalski's UI curves: strong ease-out for things arriving, ease-in-out for things already on screen. */
+export const EASE_OUT = cssCubicBezier(0.23, 1, 0.32, 1);
+export const EASE_IO = cssCubicBezier(0.77, 0, 0.175, 1);
+
+/** Local progress of `p` inside the window [a, b], clamped to [0, 1]. */
+export const span = (p: number, a: number, b: number) => clamp01(invLerp(a, b, p));
+
+/** First derivative of a cubic Bézier: the direction of travel at t. */
+export function bezierTangent(p0: Vec2, p1: Vec2, p2: Vec2, p3: Vec2, t: number): Vec2 {
+  const u = 1 - t;
+  return {
+    x: 3 * u * u * (p1.x - p0.x) + 6 * u * t * (p2.x - p1.x) + 3 * t * t * (p3.x - p2.x),
+    y: 3 * u * u * (p1.y - p0.y) + 6 * u * t * (p2.y - p1.y) + 3 * t * t * (p3.y - p2.y),
+  };
+}
+
+/**
+ * A flight from `a` to `b` on a cubic Bézier that leaves `a` going `out` and
+ * arrives at `b` coming from `inn` (handles are relative offsets). Returns
+ * the position and the heading in radians, so an object can bank into the turn.
+ */
+export function flight(a: Vec2, b: Vec2, out: Vec2, inn: Vec2, t: number): { x: number; y: number; angle: number } {
+  const p1 = { x: a.x + out.x, y: a.y + out.y };
+  const p2 = { x: b.x + inn.x, y: b.y + inn.y };
+  const p = bezier(a, p1, p2, b, t);
+  const d = bezierTangent(a, p1, p2, b, t);
+  return { x: p.x, y: p.y, angle: Math.atan2(d.y, d.x) };
+}
+
+/**
+ * Catmull-Rom through every point (it interpolates, unlike a B-spline),
+ * written as an SVG path of cubic Béziers. Each segment's handles are
+ * one sixth of the neighbouring chord, which is what makes the joins C¹.
+ */
+export function catmullRomPath(points: Vec2[]): string {
+  if (points.length < 2) return "";
+  const P = points;
+  let d = `M${P[0]!.x.toFixed(1)} ${P[0]!.y.toFixed(1)}`;
+  for (let i = 0; i < P.length - 1; i++) {
+    const p0 = P[Math.max(0, i - 1)]!, p1 = P[i]!, p2 = P[i + 1]!, p3 = P[Math.min(P.length - 1, i + 2)]!;
+    const c1 = { x: p1.x + (p2.x - p0.x) / 6, y: p1.y + (p2.y - p0.y) / 6 };
+    const c2 = { x: p2.x - (p3.x - p1.x) / 6, y: p2.y - (p3.y - p1.y) / 6 };
+    d += `C${c1.x.toFixed(1)} ${c1.y.toFixed(1)} ${c2.x.toFixed(1)} ${c2.y.toFixed(1)} ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`;
+  }
+  return d;
+}
+
+/** Small deterministic PRNG (mulberry32), so scattered layouts are the same on every load. */
+export function rng(seed: number) {
+  let s = seed >>> 0;
+  return () => {
+    s = (s + 0x6d2b79f5) >>> 0;
+    let t = s;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}

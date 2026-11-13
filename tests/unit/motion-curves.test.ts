@@ -46,3 +46,40 @@ describe("motion math", () => {
     for (const d of ds) expect(Math.abs(d - mean) / mean).toBeLessThan(0.03);
   });
 });
+
+describe("story motion helpers", () => {
+  it("span maps a window to 0..1 and clamps outside it", async () => {
+    const { span } = await import("@/motion/curves");
+    expect(span(0.1, 0.2, 0.4)).toBe(0);
+    expect(span(0.3, 0.2, 0.4)).toBeCloseTo(0.5);
+    expect(span(0.9, 0.2, 0.4)).toBe(1);
+  });
+
+  it("a flight starts and ends exactly on its endpoints, heading along the handles", async () => {
+    const { flight } = await import("@/motion/curves");
+    const a = { x: 0, y: 0 }, b = { x: 100, y: 50 };
+    const start = flight(a, b, { x: 0, y: -40 }, { x: -30, y: 0 }, 0);
+    const end = flight(a, b, { x: 0, y: -40 }, { x: -30, y: 0 }, 1);
+    expect([start.x, start.y]).toEqual([0, 0]);
+    expect(end.x).toBeCloseTo(100);
+    expect(end.y).toBeCloseTo(50);
+    expect(start.angle).toBeCloseTo(-Math.PI / 2); // leaves straight up
+    expect(end.angle).toBeCloseTo(0); // arrives moving right
+  });
+
+  it("the Catmull-Rom thread passes through every point", async () => {
+    const { catmullRomPath } = await import("@/motion/curves");
+    const pts = [{ x: 0, y: 0 }, { x: 10, y: 40 }, { x: -5, y: 80 }, { x: 3, y: 120 }];
+    const d = catmullRomPath(pts);
+    for (const p of pts) expect(d).toContain(`${p.x.toFixed(1)} ${p.y.toFixed(1)}`);
+    expect(d.match(/C/g)).toHaveLength(3);
+  });
+
+  it("scattered layouts are the same on every load", async () => {
+    const { rng } = await import("@/motion/curves");
+    const a = rng(7), b = rng(7);
+    const xs = Array.from({ length: 5 }, () => a());
+    expect(Array.from({ length: 5 }, () => b())).toEqual(xs);
+    for (const x of xs) { expect(x).toBeGreaterThanOrEqual(0); expect(x).toBeLessThan(1); }
+  });
+});

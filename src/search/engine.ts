@@ -69,6 +69,10 @@ export class SearchIndex {
   get size() { return this.docs.size; }
 
   /** Attach a model after construction (the browser loads it on demand). */
+  // Capability recheck for callers that chose a dense arm before an await:
+  // a disable swaps in an index without these, and the arm must be re-derived.
+  get denseCapable(): boolean { return !!(this.embedder && this.vectors); }
+
   attachEmbedder(embedder: Embedder, quantize = true): void {
     (this as { embedder: Embedder | null }).embedder = embedder;
     this.vectors = new VectorIndex(embedder.dim, quantize);

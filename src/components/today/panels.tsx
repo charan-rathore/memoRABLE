@@ -326,7 +326,12 @@ function SearchSettings({ repo }: { repo: RepoSearch }) {
         {m.state === "ready" && (
           <p className="td-semantic-ready"><span className="td-dot-ok" aria-hidden="true" />Semantic search on, running on this device <button type="button" className="td-linkish" onClick={repo.disableSemantic}>Turn off</button></p>
         )}
-        {m.state === "error" && <p className="td-error" role="alert">The model didn&apos;t load: {m.message}. Keyword search still works.</p>}
+        {m.state === "error" && (
+          <>
+            <p className="td-error" role="alert">The model didn&apos;t load: {m.message}. Keyword search still works.</p>
+            <button type="button" className="td-ghost td-semantic-on" onClick={() => void repo.enableSemantic()}>Turn on semantic search</button>
+          </>
+        )}
       </div>
 
       <details className="td-connect" open={repo.repos.length === 0 ? undefined : true}>

@@ -32,7 +32,7 @@ test.beforeEach(async ({ page }) => {
   await openWorkspace(page);
 });
 
-test("model load failure shows the alert, keeps keyword search, and the retry action recovers", async ({ page }) => {
+test("model load failure shows the alert, keeps keyword search, and the retry action recovers", async ({ page }, testInfo) => {
   const status = await page.evaluate(async () => (await fetch("/models/Xenova/bge-small-en-v1.5/config.json")).status);
   test.skip(status !== 200, "model not bundled in this build");
   test.setTimeout(180_000);
@@ -61,17 +61,17 @@ test("model load failure shows the alert, keeps keyword search, and the retry ac
   // Keyword search still works in the error state.
   await ws(page).getByRole("searchbox").fill("dev server memory");
   await expect(recall.locator(".td-result").first()).toContainText("dev server leaks memory");
-  await page.screenshot({ path: "/downloads/ui-error-state.png", fullPage: false });
+  await page.screenshot({ path: testInfo.outputPath("ui-error-state.png"), fullPage: false });
 
   // Opening Technical details reveals the raw cause.
   await details.locator("summary").click();
   await expect(details.getByText("/models/Xenova/bge-small-en-v1.5", { exact: false })).toBeVisible();
-  await page.screenshot({ path: "/downloads/ui-error-details-open.png", fullPage: false });
+  await page.screenshot({ path: testInfo.outputPath("ui-error-details-open.png"), fullPage: false });
 
   // Restore the network and retry with the same action: it becomes ready.
   await page.unroute("**/models/**");
   await retry.click();
   await expect(recall.getByText("Semantic search on, running on this device")).toBeVisible({ timeout: 150_000 });
   await expect(recall.getByRole("alert")).toHaveCount(0);
-  await page.screenshot({ path: "/downloads/ui-retry-ready.png", fullPage: false });
+  await page.screenshot({ path: testInfo.outputPath("ui-retry-ready.png"), fullPage: false });
 });

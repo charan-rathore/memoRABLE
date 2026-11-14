@@ -1,11 +1,11 @@
 import { expect, test, type Page } from "@playwright/test";
 
 /**
- * Semantic failure in the real UI, functional-only tree: when the model
- * cannot load, the existing alert appears and keyword search keeps working.
+ * Semantic failure recovery in the real UI: when the model cannot load, the
+ * existing alert appears, keyword search keeps working, and the person can
+ * retry with the same "Turn on semantic search" action until it is ready.
  * The failure is forced by aborting the model weight files only; the tiny
  * availability probe (config.json) is left intact so the control stays on.
- * The error-state retry action is a held UI change and is not exercised here.
  */
 
 const ws = (page: Page) => page.locator("#workspace");
@@ -32,7 +32,7 @@ test.beforeEach(async ({ page }) => {
   await openWorkspace(page);
 });
 
-test("model load failure shows the alert and keyword search keeps working", async ({ page }) => {
+test("model load failure shows the alert, keeps keyword search, and the retry action recovers", async ({ page }, testInfo) => {
   const status = await page.evaluate(async () => (await fetch("/models/Xenova/bge-small-en-v1.5/config.json")).status);
   test.skip(status !== 200, "model not bundled in this build");
   test.setTimeout(180_000);
@@ -49,14 +49,29 @@ test("model load failure shows the alert and keyword search keeps working", asyn
   const recall = ws(page).locator(".td-recall");
   await recall.getByRole("button", { name: "Turn on semantic search" }).click();
   const alert = recall.getByRole("alert");
-  await expect(alert).toContainText("The model didn't load", { timeout: 60_000 });
+  await expect(alert).toContainText("Semantic search isn't working right now", { timeout: 60_000 });
   await expect(alert).toContainText("Keyword search still works");
+  const retry = recall.getByRole("button", { name: "Turn on semantic search" });
+  await expect(retry).toBeVisible();
+
+  // The raw cause stays tucked away until asked for.
+  const details = recall.locator("details", { has: page.getByText("Technical details") });
+  await expect(details.getByText("/models/Xenova/bge-small-en-v1.5", { exact: false })).toBeHidden();
 
   // Keyword search still works in the error state.
   await ws(page).getByRole("searchbox").fill("dev server memory");
   await expect(recall.locator(".td-result").first()).toContainText("dev server leaks memory");
+  await page.screenshot({ path: testInfo.outputPath("ui-error-state.png"), fullPage: false });
 
-  // The error-state retry action is a separate UI change pending approval and
-  // is NOT part of this functional-only tree; the functional retry path
-  // (enableSemantic after a failure) is covered by unit tests.
+  // Opening Technical details reveals the raw cause.
+  await details.locator("summary").click();
+  await expect(details.getByText("/models/Xenova/bge-small-en-v1.5", { exact: false })).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath("ui-error-details-open.png"), fullPage: false });
+
+  // Restore the network and retry with the same action: it becomes ready.
+  await page.unroute("**/models/**");
+  await retry.click();
+  await expect(recall.getByText("Semantic search on, running on this device")).toBeVisible({ timeout: 150_000 });
+  await expect(recall.getByRole("alert")).toHaveCount(0);
+  await page.screenshot({ path: testInfo.outputPath("ui-retry-ready.png"), fullPage: false });
 });

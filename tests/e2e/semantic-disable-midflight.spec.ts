@@ -19,6 +19,14 @@ async function openWorkspace(page: Page, path = "/") {
   await expect(ws(page).getByText("Saved on this device")).toBeVisible();
 }
 
+// On the small-screen layout only the active section is rendered; the Recall
+// section must be opened before its controls exist (same helper as the
+// recovery spec).
+async function openTab(page: Page, name: "Recall" | "Next" | "Review" | "Today") {
+  const tabs = ws(page).getByRole("navigation", { name: "Sections" });
+  if (await tabs.isVisible()) await tabs.getByRole("button", { name }).click();
+}
+
 test.beforeEach(async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   // Wrap Worker before any app script runs: log embed posts and replies.
@@ -46,7 +54,7 @@ test.beforeEach(async ({ page }) => {
   await openWorkspace(page);
 });
 
-test("turning semantic off with a query embed PENDING still returns the matching issue, and re-enable serves the next query", async ({ page }) => {
+test("turning semantic off with a query embed PENDING still returns the matching issue, and re-enable serves the next query", async ({ page }, testInfo) => {
   const status = await page.evaluate(async () => (await fetch("/models/Xenova/bge-small-en-v1.5/config.json")).status);
   test.skip(status !== 200, "model not bundled in this build");
   test.setTimeout(180_000);
@@ -63,6 +71,7 @@ test("turning semantic off with a query embed PENDING still returns the matching
       ],
     });
   });
+  await openTab(page, "Recall");
   const recall = ws(page).locator(".td-recall");
   await recall.getByRole("button", { name: "Turn on semantic search" }).click();
   await expect(recall.getByText("Semantic search on, running on this device")).toBeVisible({ timeout: 150_000 });
@@ -87,7 +96,7 @@ test("turning semantic off with a query embed PENDING still returns the matching
   await expect(repoHit.locator("a")).toHaveAttribute("href", "https://github.com/acme/web/issues/201");
   await expect(recall.locator(".td-receipt").last()).toContainText("Keyword search");
   await expect(recall.getByRole("button", { name: "Turn on semantic search" })).toBeVisible(); // model off
-  await page.screenshot({ path: "/downloads/e2e-disable-midflight-recovered.png" });
+  await page.screenshot({ path: testInfo.outputPath("e2e-disable-midflight-recovered.png") });
 
   // Re-enable: the next query is served semantically, on fresh request ids.
   const postsBefore = await page.evaluate(() => (window as unknown as { __emb: { posts: unknown[] } }).__emb.posts.length);

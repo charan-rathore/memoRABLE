@@ -128,7 +128,7 @@ a.hx-result-title:hover { text-decoration: underline; text-decoration-color: rgb
 
 .hx-strip { display: none; }
 
-@keyframes hx-rise { from { opacity: 0; transform: translateY(14px); filter: blur(6px); } }
+@keyframes hx-rise { from { opacity: 0; transform: translateY(14px); } }
 @keyframes hx-in { from { opacity: 0; transform: translateY(8px); } }
 
 /* ---------- sections ---------- */

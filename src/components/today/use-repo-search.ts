@@ -105,23 +105,34 @@ export function useRepoSearch(engine: DailyEngine | null, rev: number) {
   const embedIds = useCallback(async (ids: string[]) => {
     const emb = embedder.current;
     if (!emb) return;
+    // An indexing pass belongs to the worker AND index that started it. A
+    // disable swaps both, a query failure swaps the worker, and a re-enable
+    // swaps both again: any continuation that finds a different current
+    // pair must stop without writing vectors, store entries, or model state
+    // for its stale pass (same origin pattern as the query path below).
+    const idx = index.current;
+    const owns = () => embedder.current === emb && index.current === idx;
     // Nothing to index yet (an empty workspace) still means the model is ready.
-    if (!ids.length) { setModel({ state: "ready", modelId: emb.id }); bump(); return; }
-    const docs = ids.map((id) => index.current.docs.get(id)).filter(Boolean) as SearchDoc[];
+    if (!ids.length) { if (owns()) { setModel({ state: "ready", modelId: emb.id }); bump(); } return; }
+    const docs = ids.map((id) => idx.docs.get(id)).filter(Boolean) as SearchDoc[];
     const keys = docs.map((d) => vectorKey(emb.id, d.id, embedText(d)));
     const cached = store.current ? await store.current.getVectors(keys) : new Map();
+    if (!owns()) return;
     const todo: SearchDoc[] = [];
-    docs.forEach((d, i) => { const c = cached.get(keys[i]!); if (c) index.current.setVector(d.id, dequantize(c)); else todo.push(d); });
+    docs.forEach((d, i) => { const c = cached.get(keys[i]!); if (c) idx.setVector(d.id, dequantize(c)); else todo.push(d); });
     let done = docs.length - todo.length;
     if (todo.length > 8) setModel({ state: "embedding", done, total: docs.length });
     for (let i = 0; i < todo.length; i += 16) {
       const batch = todo.slice(i, i + 16);
       const vecs = await emb.embedDocs(batch.map(embedText));
-      const toStore = batch.map((d, j) => { index.current.setVector(d.id, vecs[j]!); const q = quantize(vecs[j]!); return { key: vectorKey(emb.id, d.id, embedText(d)), i8: q.i8, scale: q.scale }; });
+      if (!owns()) return;
+      const toStore = batch.map((d, j) => { idx.setVector(d.id, vecs[j]!); const q = quantize(vecs[j]!); return { key: vectorKey(emb.id, d.id, embedText(d)), i8: q.i8, scale: q.scale }; });
       await store.current?.putVectors(toStore).catch(() => undefined);
+      if (!owns()) return;
       done += batch.length;
       if (todo.length > 8) setModel({ state: "embedding", done, total: docs.length });
     }
+    if (!owns()) return;
     setModel({ state: "ready", modelId: emb.id });
     bump();
   }, []);

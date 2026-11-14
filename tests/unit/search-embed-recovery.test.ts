@@ -4,6 +4,7 @@
 // no cleanup) and on this scoped recovery branch (passes). No query routing
 // changes in this candidate.
 import { act, renderHook } from "@testing-library/react";
+import type * as EmbedClientModule from "@/search/embed-client";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const loadMock = vi.fn();
@@ -104,7 +105,7 @@ describe("model load and indexing failures", () => {
     }
     vi.stubGlobal("Worker", FakeWorker);
     try {
-      const { WorkerEmbedder } = await vi.importActual<typeof import("@/search/embed-client")>("@/search/embed-client");
+      const { WorkerEmbedder } = await vi.importActual<typeof EmbedClientModule>("@/search/embed-client");
       await expect(WorkerEmbedder.load()).rejects.toThrow("init boom");
       expect(terminate).toHaveBeenCalled();
     } finally {
@@ -226,7 +227,7 @@ describe("real worker lifecycle", () => {
   it("dispose settles an in-flight embed and rejects later calls (actual WorkerEmbedder)", async () => {
     vi.stubGlobal("Worker", HangWorker);
     try {
-      const { WorkerEmbedder } = await vi.importActual<typeof import("@/search/embed-client")>("@/search/embed-client");
+      const { WorkerEmbedder } = await vi.importActual<typeof EmbedClientModule>("@/search/embed-client");
       const emb = await WorkerEmbedder.load();
       const inFlight = emb.embedQueries(["a query that never answers"]);
       emb.dispose();

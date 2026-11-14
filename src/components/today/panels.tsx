@@ -328,8 +328,12 @@ function SearchSettings({ repo }: { repo: RepoSearch }) {
         )}
         {m.state === "error" && (
           <>
-            <p className="td-error" role="alert">The model didn&apos;t load: {m.message}. Keyword search still works.</p>
+            <p className="td-error" role="alert">Semantic search isn&apos;t working right now. Keyword search still works.</p>
             <button type="button" className="td-ghost td-semantic-on" onClick={() => void repo.enableSemantic()}>Turn on semantic search</button>
+            <details className="td-connect td-tech-details">
+              <summary>Technical details</summary>
+              <p className="td-empty-note">{m.message}</p>
+            </details>
           </>
         )}
       </div>

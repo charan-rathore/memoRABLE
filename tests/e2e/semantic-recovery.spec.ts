@@ -49,15 +49,24 @@ test("model load failure shows the alert, keeps keyword search, and the retry ac
   const recall = ws(page).locator(".td-recall");
   await recall.getByRole("button", { name: "Turn on semantic search" }).click();
   const alert = recall.getByRole("alert");
-  await expect(alert).toContainText("The model didn't load", { timeout: 60_000 });
+  await expect(alert).toContainText("Semantic search isn't working right now", { timeout: 60_000 });
   await expect(alert).toContainText("Keyword search still works");
   const retry = recall.getByRole("button", { name: "Turn on semantic search" });
   await expect(retry).toBeVisible();
+
+  // The raw cause stays tucked away until asked for.
+  const details = recall.locator("details", { has: page.getByText("Technical details") });
+  await expect(details.getByText("/models/Xenova/bge-small-en-v1.5", { exact: false })).toBeHidden();
 
   // Keyword search still works in the error state.
   await ws(page).getByRole("searchbox").fill("dev server memory");
   await expect(recall.locator(".td-result").first()).toContainText("dev server leaks memory");
   await page.screenshot({ path: "/downloads/ui-error-state.png", fullPage: false });
+
+  // Opening Technical details reveals the raw cause.
+  await details.locator("summary").click();
+  await expect(details.getByText("/models/Xenova/bge-small-en-v1.5", { exact: false })).toBeVisible();
+  await page.screenshot({ path: "/downloads/ui-error-details-open.png", fullPage: false });
 
   // Restore the network and retry with the same action: it becomes ready.
   await page.unroute("**/models/**");

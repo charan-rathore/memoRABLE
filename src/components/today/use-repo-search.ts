@@ -102,6 +102,18 @@ export function useRepoSearch(engine: DailyEngine | null, rev: number) {
   const semanticGen = useRef(0);
   const loadInFlight = useRef(false);
 
+  // The workspace owns its worker. Unmount can also happen through an app
+  // error/reset without closing the tab, so document teardown is not enough.
+  // Invalidate an unfinished load and detach before disposal so pending
+  // continuations cannot restore state or persist vectors for this owner.
+  useEffect(() => () => {
+    semanticGen.current++;
+    loadInFlight.current = false;
+    const emb = embedder.current;
+    embedder.current = null;
+    emb?.dispose();
+  }, []);
+
   const embedIds = useCallback(async (ids: string[]) => {
     const emb = embedder.current;
     if (!emb) return;

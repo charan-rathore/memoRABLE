@@ -1,4 +1,5 @@
-import { apply, handleOf, project } from "./projection";
+import { DESIRED_RETENTION, dueOf, intervalDays, review as fsrsReview, type Grade } from "./fsrs";
+import { apply, handleOf, project, projectAsOf, RECONFIRM_KINDS } from "./projection";
 import { rankNext, type PlanCandidate } from "./planner";
 import { Recall, type RecallHit, type RecallResult } from "./recall";
 import { review, type Review } from "./review";
@@ -25,6 +26,21 @@ export interface RecallWithLinks extends RecallResult {
 }
 
 const HANDLE_RE = /#([a-z0-9]{6})\b/gi;
+
+/** Plain answers to "does this still hold?", mapped to FSRS grades. */
+export type ReconfirmAnswer = "holds" | "unsure" | "changed";
+const GRADE: Record<ReconfirmAnswer, Grade> = { holds: 3, unsure: 2, changed: 1 };
+
+export interface ReconfirmItem {
+  entryId: string;
+  /** Predicted probability you still recall why this holds (FSRS). */
+  retrievability: number;
+  dueAt: string;
+  overdueDays: number;
+  reviews: number;
+  /** Days until the next check if you answer "still holds" now. Shown so the schedule can be argued with. */
+  nextIfHolds: number;
+}
 
 /**
  * The daily memory engine: append-only events in, projections and receipts
@@ -185,6 +201,67 @@ export class DailyEngine {
 
   review(lastDays = 7): Review { return review(this.state, this.receiptsLog, lastDays, this.now()); }
 
+  /**
+   * Decisions and lessons whose predicted recall has fallen below the target
+   * retention, weakest first. Superseded entries never come back, and
+   * proposed/unresolved decisions are already in the next-action planner.
+   */
+  dueForReconfirm(limit = 5, retention = DESIRED_RETENTION): ReconfirmItem[] {
+    const now = this.now();
+    const out: ReconfirmItem[] = [];
+    for (const e of this.state.entries.values()) {
+      if (!e.memory || !RECONFIRM_KINDS.has(e.kind) || e.supersededBy) continue;
+      if (e.status === "proposed" || e.status === "unresolved") continue;
+      const d = dueOf(e.memory, now, retention);
+      if (d.retrievability >= retention) continue;
+      const after = fsrsReview(e.memory, 3, now.toISOString());
+      out.push({ entryId: e.id, retrievability: round3(d.retrievability), dueAt: d.dueAt, overdueDays: round3(d.overdueDays), reviews: e.memory.reviews, nextIfHolds: Math.max(1, Math.round(intervalDays(after.stability, retention))) });
+    }
+    out.sort((a, b) => a.retrievability - b.retrievability || (a.entryId < b.entryId ? -1 : 1));
+    return out.slice(0, limit);
+  }
+
+  /** The next time anything will need re-confirming, for an honest empty state. */
+  nextReconfirmAt(retention = DESIRED_RETENTION): string | null {
+    let best: string | null = null;
+    for (const e of this.state.entries.values()) {
+      if (!e.memory || !RECONFIRM_KINDS.has(e.kind) || e.supersededBy || e.status === "proposed" || e.status === "unresolved") continue;
+      const at = dueOf(e.memory, this.now(), retention).dueAt;
+      if (!best || at < best) best = at;
+    }
+    return best;
+  }
+
+  /**
+   * Answer "does this still hold?". "changed" on a decision also reopens it
+   * (status unresolved, basis recorded), so it enters the planner instead of
+   * silently staying authoritative.
+   */
+  async reconfirm(entryId: string, answer: ReconfirmAnswer): Promise<Entry> {
+    const e = this.must(entryId);
+    if (!e.memory) throw new Error("Only decisions and lessons are re-confirmed.");
+    if (e.supersededBy) throw new Error("That entry was already replaced.");
+    const t0 = this.timer();
+    let invalidated = await this.commit({ type: "entry.reviewed", entryId, grade: GRADE[answer] });
+    if (answer === "changed" && e.kind === "decided") {
+      invalidated += await this.commit({ type: "entry.status", entryId, status: "unresolved", basis: "you said it no longer holds" });
+    }
+    this.receipt({ op: "reconfirm", started: t0, scanned: 0, cache: "n/a", invalidated });
+    return this.state.entries.get(entryId)!;
+  }
+
+  /**
+   * The workspace as it stood at `at`, rebuilt from the event log. Read-only;
+   * deleted entries stay deleted in every past view.
+   */
+  async asOf(at: Date): Promise<WorkspaceState> {
+    const t0 = this.timer();
+    const events = await this.opts.store.load(this.state.workspaceId);
+    const past = projectAsOf(this.state.workspaceId, events, at);
+    this.receipt({ op: "asof", started: t0, scanned: events.length, cache: "n/a", invalidated: 0 });
+    return past;
+  }
+
   // ── internals ─────────────────────────────────────────────────────────
 
   private async commit(body: DailyEventBody): Promise<number> {
@@ -227,6 +304,8 @@ export class DailyEngine {
 
 export { handleOf };
 export type { RecallHit, PlanCandidate, Review };
+
+const round3 = (n: number) => Math.round(n * 1000) / 1000;
 
 function normTags(tags?: string[]): string[] {
   return [...new Set((tags ?? []).map((t) => t.trim().toLowerCase().replace(/^#/, "")).filter(Boolean))].slice(0, 12);

@@ -1,4 +1,8 @@
+import { initialState, review as fsrsReview } from "./fsrs";
 import type { DailyEvent, DecisionStatus, Entry, WorkspaceState } from "./types";
+
+/** Kinds whose rationale is worth re-confirming over time. */
+export const RECONFIRM_KINDS: ReadonlySet<Entry["kind"]> = new Set(["decided", "learned"]);
 
 /**
  * Status only when the words support it. Each rule names itself, so the UI
@@ -40,6 +44,7 @@ export function apply(s: WorkspaceState, e: DailyEvent): string[] {
         createdAt: e.at, updatedAt: e.at, version: 1, supersedes: [],
         ...(inferred.status ? { status: inferred.status, statusBasis: inferred.basis } : {}),
         ...(e.kind === "task" ? { task: "open" as const } : {}),
+        ...(RECONFIRM_KINDS.has(e.kind) ? { memory: initialState(e.at) } : {}),
         history: [{ version: 1, at: e.at, text: e.text }],
       });
       touched.push(e.entryId);
@@ -67,7 +72,7 @@ export function apply(s: WorkspaceState, e: DailyEvent): string[] {
     case "entry.superseded": {
       const old = s.entries.get(e.entryId), next = s.entries.get(e.by);
       if (!old || !next || e.entryId === e.by) break;
-      old.status = "superseded"; old.statusBasis = `superseded by #${next.handle}`; old.supersededBy = e.by; old.updatedAt = e.at;
+      old.status = "superseded"; old.statusBasis = `superseded by #${next.handle}`; old.supersededBy = e.by; old.supersededAt = e.at; old.updatedAt = e.at;
       if (!next.supersedes.includes(e.entryId)) next.supersedes.push(e.entryId);
       touched.push(e.entryId, e.by);
       break;
@@ -76,7 +81,7 @@ export function apply(s: WorkspaceState, e: DailyEvent): string[] {
       if (s.entries.delete(e.entryId)) touched.push(e.entryId);
       s.deleted.add(e.entryId);
       for (const x of s.entries.values()) {
-        if (x.supersededBy === e.entryId) { delete x.supersededBy; delete x.status; delete x.statusBasis; const inf = inferStatus(x.kind, x.text); if (inf.status) { x.status = inf.status; x.statusBasis = inf.basis; } touched.push(x.id); }
+        if (x.supersededBy === e.entryId) { delete x.supersededBy; delete x.supersededAt; delete x.status; delete x.statusBasis; const inf = inferStatus(x.kind, x.text); if (inf.status) { x.status = inf.status; x.statusBasis = inf.basis; } touched.push(x.id); }
         x.supersedes = x.supersedes.filter((id) => id !== e.entryId);
         x.refs = x.refs.filter((id) => id !== e.entryId);
       }
@@ -90,6 +95,13 @@ export function apply(s: WorkspaceState, e: DailyEvent): string[] {
       const x = s.entries.get(e.entryId);
       if (!x || x.kind !== "task") break;
       x.task = e.state; x.updatedAt = e.at;
+      touched.push(e.entryId);
+      break;
+    }
+    case "entry.reviewed": {
+      const x = s.entries.get(e.entryId);
+      if (!x || !x.memory) break;
+      x.memory = fsrsReview(x.memory, e.grade, e.at);
       touched.push(e.entryId);
       break;
     }
@@ -107,5 +119,20 @@ export function project(workspaceId: string, events: Iterable<DailyEvent>): Work
   // Deletion wins regardless of order: collect tombstones first.
   for (const e of sorted) if (e.type === "entry.deleted") s.deleted.add(e.entryId);
   for (const e of sorted) apply(s, e);
+  return s;
+}
+
+/**
+ * The workspace as it stood at `at` (transaction time): replay only events
+ * recorded at or before it. Deletion still wins for every point in time, so a
+ * deleted entry never reappears in a past view. Answers "what had we decided
+ * on 3 October, and was it already superseded?" from the log itself.
+ */
+export function projectAsOf(workspaceId: string, events: Iterable<DailyEvent>, at: Date): WorkspaceState {
+  const all = [...events];
+  const cutoff = at.getTime();
+  const s = emptyState(workspaceId);
+  for (const e of all) if (e.type === "entry.deleted") s.deleted.add(e.entryId);
+  for (const e of all.filter((x) => Date.parse(x.at) <= cutoff).sort((a, b) => a.seq - b.seq)) apply(s, e);
   return s;
 }

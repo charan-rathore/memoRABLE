@@ -1,0 +1,6564 @@
+{
+ "generatedBy": "scripts/codegraph.mjs",
+ "stats": {
+  "files": 308,
+  "edges": 707,
+  "tests": 131,
+  "cycles": 2
+ },
+ "nodes": [
+  {
+   "id": "bench/search/build-dataset.mjs",
+   "layer": "bench/search",
+   "loc": 158,
+   "test": false,
+   "exports": [
+    "cleanBody"
+   ],
+   "fanIn": 0,
+   "fanOut": 0
+  },
+  {
+   "id": "eslint.config.mjs",
+   "layer": "(root)",
+   "loc": 46,
+   "test": false,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 0
+  },
+  {
+   "id": "next.config.ts",
+   "layer": "(root)",
+   "loc": 55,
+   "test": false,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 0
+  },
+  {
+   "id": "playwright.config.ts",
+   "layer": "(root)",
+   "loc": 40,
+   "test": false,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 0
+  },
+  {
+   "id": "scripts/build-demo-memory.mjs",
+   "layer": "scripts",
+   "loc": 58,
+   "test": false,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 0
+  },
+  {
+   "id": "scripts/capture-media.mjs",
+   "layer": "scripts",
+   "loc": 151,
+   "test": false,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 0
+  },
+  {
+   "id": "scripts/codegraph.mjs",
+   "layer": "scripts",
+   "loc": 211,
+   "test": false,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 0
+  },
+  {
+   "id": "scripts/diagrams/draw_architecture.py",
+   "layer": "scripts/diagrams",
+   "loc": 82,
+   "test": false,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 1
+  },
+  {
+   "id": "scripts/diagrams/sketch.py",
+   "layer": "scripts/diagrams",
+   "loc": 134,
+   "test": false,
+   "exports": [
+    "Sketch"
+   ],
+   "fanIn": 1,
+   "fanOut": 0
+  },
+  {
+   "id": "scripts/docgraph-cache.test.mjs",
+   "layer": "scripts",
+   "loc": 33,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 1
+  },
+  {
+   "id": "scripts/eval-docgraph-compare.mjs",
+   "layer": "scripts",
+   "loc": 448,
+   "test": false,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 0
+  },
+  {
+   "id": "scripts/eval-docgraph-gate.mjs",
+   "layer": "scripts",
+   "loc": 574,
+   "test": false,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 0
+  },
+  {
+   "id": "scripts/fetch-search-model.mjs",
+   "layer": "scripts",
+   "loc": 49,
+   "test": false,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 0
+  },
+  {
+   "id": "scripts/gauntlet-export.mts",
+   "layer": "scripts",
+   "loc": 30,
+   "test": false,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 4
+  },
+  {
+   "id": "scripts/inspect-archetypes.ts",
+   "layer": "scripts",
+   "loc": 70,
+   "test": false,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 2
+  },
+  {
+   "id": "scripts/inspect-prd.ts",
+   "layer": "scripts",
+   "loc": 60,
+   "test": false,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 2
+  },
+  {
+   "id": "scripts/make-demo-video.mjs",
+   "layer": "scripts",
+   "loc": 755,
+   "test": false,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 0
+  },
+  {
+   "id": "scripts/perf/ocr-worker.mjs",
+   "layer": "scripts/perf",
+   "loc": 31,
+   "test": false,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 0
+  },
+  {
+   "id": "services/docgraph/build_graph.py",
+   "layer": "services/docgraph",
+   "loc": 361,
+   "test": false,
+   "exports": [
+    "extract_paper_graph",
+    "enrich_with_graphify",
+    "build_knowledge_graph"
+   ],
+   "fanIn": 1,
+   "fanOut": 0
+  },
+  {
+   "id": "services/docgraph/cache.py",
+   "layer": "services/docgraph",
+   "loc": 64,
+   "test": false,
+   "exports": [
+    "cache_dir",
+    "sha256_bytes",
+    "cache_path",
+    "load_cached",
+    "save_cached"
+   ],
+   "fanIn": 1,
+   "fanOut": 0
+  },
+  {
+   "id": "services/docgraph/parse_docling.py",
+   "layer": "services/docgraph",
+   "loc": 142,
+   "test": false,
+   "exports": [
+    "parse_with_docling",
+    "sections_from_markdown"
+   ],
+   "fanIn": 1,
+   "fanOut": 0
+  },
+  {
+   "id": "services/docgraph/server.py",
+   "layer": "services/docgraph",
+   "loc": 217,
+   "test": false,
+   "exports": [
+    "MarkdownParseRequest",
+    "health",
+    "parse_upload",
+    "graph_from_markdown"
+   ],
+   "fanIn": 0,
+   "fanOut": 3
+  },
+  {
+   "id": "src/ai/contract.ts",
+   "layer": "src/ai",
+   "loc": 62,
+   "test": false,
+   "exports": [
+    "aiExtractRequestSchema",
+    "aiExtractResponseSchema",
+    "AiExtractRequest",
+    "AiExtractResponse",
+    "AiFailureReason",
+    "AiFailure",
+    "AiSuccess",
+    "AiResult",
+    "aiFailure"
+   ],
+   "fanIn": 3,
+   "fanOut": 2
+  },
+  {
+   "id": "src/ai/openai-extractor.server.ts",
+   "layer": "src/ai",
+   "loc": 182,
+   "test": false,
+   "exports": [
+    "AiCallMeta",
+    "AiCallOutcome",
+    "isAiEnabled",
+    "extractWithAi"
+   ],
+   "fanIn": 2,
+   "fanOut": 5
+  },
+  {
+   "id": "src/ai/prompt.ts",
+   "layer": "src/ai",
+   "loc": 13,
+   "test": false,
+   "exports": [
+    "LEGACY_IMPROVE_PROMPT"
+   ],
+   "fanIn": 1,
+   "fanOut": 1
+  },
+  {
+   "id": "src/ai/v6/index.ts",
+   "layer": "src/ai/v6",
+   "loc": 95,
+   "test": false,
+   "exports": [
+    "CognitivePipelineResult",
+    "runCognitivePipeline"
+   ],
+   "fanIn": 3,
+   "fanOut": 6
+  },
+  {
+   "id": "src/ai/v6/project.ts",
+   "layer": "src/ai/v6",
+   "loc": 224,
+   "test": false,
+   "exports": [
+    "ProjectResult",
+    "projectV6ToMemorySource"
+   ],
+   "fanIn": 1,
+   "fanOut": 6
+  },
+  {
+   "id": "src/ai/v6/prompt.ts",
+   "layer": "src/ai/v6",
+   "loc": 201,
+   "test": false,
+   "exports": [
+    "V6_SYSTEM_PROMPT",
+    "buildV6UserPrompt"
+   ],
+   "fanIn": 2,
+   "fanOut": 0
+  },
+  {
+   "id": "src/ai/v6/schema.ts",
+   "layer": "src/ai/v6",
+   "loc": 201,
+   "test": false,
+   "exports": [
+    "TIMELINE_MODES",
+    "CONFIDENCE_LEVELS",
+    "DATE_ROLES",
+    "SIGNAL_TYPES",
+    "provenanceSchema",
+    "v6DocumentMetaSchema",
+    "v6SnapshotItemSchema",
+    "v6SignalItemSchema",
+    "v6TimelineItemSchema",
+    "v6RiskItemSchema",
+    "v6DecisionItemSchema",
+    "v6ActionItemSchema",
+    "v6ExtractionSchema",
+    "V6Extraction",
+    "V6TimelineMode",
+    "TimelineConfidenceLevel",
+    "parseV6Extraction"
+   ],
+   "fanIn": 5,
+   "fanOut": 0
+  },
+  {
+   "id": "src/ai/v6/score.ts",
+   "layer": "src/ai/v6",
+   "loc": 123,
+   "test": false,
+   "exports": [
+    "scoreMemorySource",
+    "scoreV6Extraction"
+   ],
+   "fanIn": 1,
+   "fanOut": 3
+  },
+  {
+   "id": "src/ai/v6/validate.ts",
+   "layer": "src/ai/v6",
+   "loc": 363,
+   "test": false,
+   "exports": [
+    "FailureMode",
+    "RepairEvent",
+    "ValidatedV6",
+    "validateAndRepairV6",
+    "shouldFallbackToCandidate",
+    "MemoryQualityScore"
+   ],
+   "fanIn": 3,
+   "fanOut": 1
+  },
+  {
+   "id": "src/app/api/docgraph/route.ts",
+   "layer": "src/app/api",
+   "loc": 118,
+   "test": false,
+   "exports": [
+    "GET",
+    "POST",
+    "PUT"
+   ],
+   "fanIn": 0,
+   "fanOut": 0
+  },
+  {
+   "id": "src/app/api/extract/route.ts",
+   "layer": "src/app/api",
+   "loc": 67,
+   "test": false,
+   "exports": [
+    "runtime",
+    "dynamic",
+    "GET",
+    "POST"
+   ],
+   "fanIn": 0,
+   "fanOut": 2
+  },
+  {
+   "id": "src/app/api/umbrex-guidance/core.ts",
+   "layer": "src/app/api",
+   "loc": 479,
+   "test": false,
+   "exports": [
+    "__setUmbrexFetchTimeoutForTests",
+    "SourceStatus",
+    "__clearUmbrexGuidanceCacheForTests",
+    "allowlistedUrls",
+    "SectionExcerpt",
+    "SectionExtraction",
+    "extractSectionExcerpts",
+    "checkOneSource"
+   ],
+   "fanIn": 3,
+   "fanOut": 1
+  },
+  {
+   "id": "src/app/api/umbrex-guidance/route.ts",
+   "layer": "src/app/api",
+   "loc": 29,
+   "test": false,
+   "exports": [
+    "runtime",
+    "dynamic",
+    "GET"
+   ],
+   "fanIn": 1,
+   "fanOut": 1
+  },
+  {
+   "id": "src/app/error.tsx",
+   "layer": "src/app",
+   "loc": 36,
+   "test": false,
+   "exports": [
+    "GlobalError"
+   ],
+   "fanIn": 0,
+   "fanOut": 0
+  },
+  {
+   "id": "src/app/layout.tsx",
+   "layer": "src/app",
+   "loc": 41,
+   "test": false,
+   "exports": [
+    "metadata",
+    "viewport",
+    "RootLayout"
+   ],
+   "fanIn": 0,
+   "fanOut": 0
+  },
+  {
+   "id": "src/app/page.tsx",
+   "layer": "src/app",
+   "loc": 33,
+   "test": false,
+   "exports": [
+    "Page"
+   ],
+   "fanIn": 0,
+   "fanOut": 4
+  },
+  {
+   "id": "src/components/async-operation.ts",
+   "layer": "src/components",
+   "loc": 20,
+   "test": false,
+   "exports": [
+    "createAsyncOperation"
+   ],
+   "fanIn": 4,
+   "fanOut": 0
+  },
+  {
+   "id": "src/components/blocks/blocks-panel.tsx",
+   "layer": "src/components/blocks",
+   "loc": 116,
+   "test": false,
+   "exports": [
+    "BlocksPanel"
+   ],
+   "fanIn": 2,
+   "fanOut": 2
+  },
+  {
+   "id": "src/components/blocks/brief-receipt.tsx",
+   "layer": "src/components/blocks",
+   "loc": 140,
+   "test": false,
+   "exports": [
+    "ReceiptCounts",
+    "receiptFor",
+    "BriefReceipt"
+   ],
+   "fanIn": 2,
+   "fanOut": 3
+  },
+  {
+   "id": "src/components/blocks/inspector.tsx",
+   "layer": "src/components/blocks",
+   "loc": 199,
+   "test": false,
+   "exports": [
+    "Inspector"
+   ],
+   "fanIn": 2,
+   "fanOut": 1
+  },
+  {
+   "id": "src/components/export/publish-panel.tsx",
+   "layer": "src/components/export",
+   "loc": 245,
+   "test": false,
+   "exports": [
+    "PublishPanel"
+   ],
+   "fanIn": 1,
+   "fanOut": 6
+  },
+  {
+   "id": "src/components/home/bench-results.ts",
+   "layer": "src/components/home",
+   "loc": 20,
+   "test": false,
+   "exports": [
+    "BENCH"
+   ],
+   "fanIn": 2,
+   "fanOut": 0
+  },
+  {
+   "id": "src/components/home/chapters.tsx",
+   "layer": "src/components/home",
+   "loc": 644,
+   "test": false,
+   "exports": [
+    "HeroChapter",
+    "WriteChapter",
+    "FindChapter",
+    "NextChapter",
+    "NumberChapter"
+   ],
+   "fanIn": 1,
+   "fanOut": 4
+  },
+  {
+   "id": "src/components/home/hero-recall.tsx",
+   "layer": "src/components/home",
+   "loc": 364,
+   "test": false,
+   "exports": [
+    "KindGlyph",
+    "HeroRecall"
+   ],
+   "fanIn": 2,
+   "fanOut": 3
+  },
+  {
+   "id": "src/components/home/home-screen.tsx",
+   "layer": "src/components/home",
+   "loc": 472,
+   "test": false,
+   "exports": [
+    "HomeScreen"
+   ],
+   "fanIn": 4,
+   "fanOut": 15
+  },
+  {
+   "id": "src/components/home/story.tsx",
+   "layer": "src/components/home",
+   "loc": 58,
+   "test": false,
+   "exports": [
+    "SearchProof"
+   ],
+   "fanIn": 1,
+   "fanOut": 3
+  },
+  {
+   "id": "src/components/import/import-panel.tsx",
+   "layer": "src/components/import",
+   "loc": 366,
+   "test": false,
+   "exports": [
+    "ImportPanel"
+   ],
+   "fanIn": 5,
+   "fanOut": 8
+  },
+  {
+   "id": "src/components/import/import-stages.ts",
+   "layer": "src/components/import",
+   "loc": 43,
+   "test": false,
+   "exports": [
+    "yieldFrame",
+    "ImportStage",
+    "IMPORT_STAGE_LABEL",
+    "IMPORT_STAGE_VERB",
+    "IMPORT_STAGE_PERCENT"
+   ],
+   "fanIn": 2,
+   "fanOut": 0
+  },
+  {
+   "id": "src/components/import/read-file.ts",
+   "layer": "src/components/import",
+   "loc": 121,
+   "test": false,
+   "exports": [
+    "FileReadResult",
+    "ReadProgress",
+    "ReadOptions",
+    "readTextFileWithProgress",
+    "formatBytes"
+   ],
+   "fanIn": 4,
+   "fanOut": 0
+  },
+  {
+   "id": "src/components/journey-strip.tsx",
+   "layer": "src/components",
+   "loc": 296,
+   "test": false,
+   "exports": [
+    "StepStatus",
+    "SourceMeta",
+    "JourneyStep",
+    "journeyOf",
+    "JourneyStrip"
+   ],
+   "fanIn": 4,
+   "fanOut": 3
+  },
+  {
+   "id": "src/components/preview/elements-story.tsx",
+   "layer": "src/components/preview",
+   "loc": 87,
+   "test": false,
+   "exports": [
+    "ElementsStory"
+   ],
+   "fanIn": 1,
+   "fanOut": 4
+  },
+  {
+   "id": "src/components/preview/live-guidance-panel.tsx",
+   "layer": "src/components/preview",
+   "loc": 103,
+   "test": false,
+   "exports": [
+    "LiveGuidancePanel"
+   ],
+   "fanIn": 2,
+   "fanOut": 0
+  },
+  {
+   "id": "src/components/preview/preview-pane.tsx",
+   "layer": "src/components/preview",
+   "loc": 133,
+   "test": false,
+   "exports": [
+    "PreviewPane"
+   ],
+   "fanIn": 1,
+   "fanOut": 4
+  },
+  {
+   "id": "src/components/preview/source-modal.tsx",
+   "layer": "src/components/preview",
+   "loc": 166,
+   "test": false,
+   "exports": [
+    "SourceModal",
+    "highlightRange"
+   ],
+   "fanIn": 1,
+   "fanOut": 1
+  },
+  {
+   "id": "src/components/preview/visual-reading.tsx",
+   "layer": "src/components/preview",
+   "loc": 20,
+   "test": false,
+   "exports": [
+    "VisualReadingPanel"
+   ],
+   "fanIn": 2,
+   "fanOut": 2
+  },
+  {
+   "id": "src/components/replay/use-replay.ts",
+   "layer": "src/components/replay",
+   "loc": 163,
+   "test": false,
+   "exports": [
+    "ReplayView",
+    "useReplay"
+   ],
+   "fanIn": 2,
+   "fanOut": 1
+  },
+  {
+   "id": "src/components/today/capture-loop.tsx",
+   "layer": "src/components/today",
+   "loc": 48,
+   "test": false,
+   "exports": [
+    "CaptureLoop"
+   ],
+   "fanIn": 1,
+   "fanOut": 0
+  },
+  {
+   "id": "src/components/today/compose.ts",
+   "layer": "src/components/today",
+   "loc": 57,
+   "test": false,
+   "exports": [
+    "detectKind",
+    "parseReplaces",
+    "highlight",
+    "KIND_LABEL",
+    "dayKey",
+    "dayLabel",
+    "timeOf",
+    "formatMs"
+   ],
+   "fanIn": 6,
+   "fanOut": 2
+  },
+  {
+   "id": "src/components/today/composer.tsx",
+   "layer": "src/components/today",
+   "loc": 175,
+   "test": false,
+   "exports": [
+    "Composer"
+   ],
+   "fanIn": 1,
+   "fanOut": 4
+  },
+  {
+   "id": "src/components/today/entry-stream.tsx",
+   "layer": "src/components/today",
+   "loc": 136,
+   "test": false,
+   "exports": [
+    "EntryStream"
+   ],
+   "fanIn": 1,
+   "fanOut": 4
+  },
+  {
+   "id": "src/components/today/glyph.tsx",
+   "layer": "src/components/today",
+   "loc": 22,
+   "test": false,
+   "exports": [
+    "Glyph"
+   ],
+   "fanIn": 4,
+   "fanOut": 1
+  },
+  {
+   "id": "src/components/today/panels.tsx",
+   "layer": "src/components/today",
+   "loc": 375,
+   "test": false,
+   "exports": [
+    "NextPanel",
+    "RecallPanel",
+    "ReviewPanel"
+   ],
+   "fanIn": 1,
+   "fanOut": 6
+  },
+  {
+   "id": "src/components/today/recheck-panel.tsx",
+   "layer": "src/components/today",
+   "loc": 194,
+   "test": false,
+   "exports": [
+    "StillTruePanel",
+    "LookBackPanel"
+   ],
+   "fanIn": 1,
+   "fanOut": 5
+  },
+  {
+   "id": "src/components/today/today-app.tsx",
+   "layer": "src/components/today",
+   "loc": 189,
+   "test": false,
+   "exports": [
+    "TodayApp"
+   ],
+   "fanIn": 1,
+   "fanOut": 9
+  },
+  {
+   "id": "src/components/today/use-daily.ts",
+   "layer": "src/components/today",
+   "loc": 76,
+   "test": false,
+   "exports": [
+    "StorageMode",
+    "useDaily"
+   ],
+   "fanIn": 1,
+   "fanOut": 3
+  },
+  {
+   "id": "src/components/today/use-repo-search.ts",
+   "layer": "src/components/today",
+   "loc": 295,
+   "test": false,
+   "exports": [
+    "ModelState",
+    "useRepoSearch"
+   ],
+   "fanIn": 7,
+   "fanOut": 5
+  },
+  {
+   "id": "src/components/topbar.tsx",
+   "layer": "src/components",
+   "loc": 307,
+   "test": false,
+   "exports": [
+    "Topbar"
+   ],
+   "fanIn": 1,
+   "fanOut": 4
+  },
+  {
+   "id": "src/components/ui/brand-mark.tsx",
+   "layer": "src/components/ui",
+   "loc": 46,
+   "test": false,
+   "exports": [
+    "BrandMark"
+   ],
+   "fanIn": 3,
+   "fanOut": 0
+  },
+  {
+   "id": "src/components/ui/brand-splash.tsx",
+   "layer": "src/components/ui",
+   "loc": 63,
+   "test": false,
+   "exports": [
+    "BrandSplash"
+   ],
+   "fanIn": 1,
+   "fanOut": 1
+  },
+  {
+   "id": "src/components/ui/demo-video.tsx",
+   "layer": "src/components/ui",
+   "loc": 93,
+   "test": false,
+   "exports": [
+    "DemoVideo"
+   ],
+   "fanIn": 1,
+   "fanOut": 0
+  },
+  {
+   "id": "src/components/ui/stage-announcer.tsx",
+   "layer": "src/components/ui",
+   "loc": 12,
+   "test": false,
+   "exports": [
+    "StageAnnouncer"
+   ],
+   "fanIn": 1,
+   "fanOut": 0
+  },
+  {
+   "id": "src/components/ui/stagger-title.tsx",
+   "layer": "src/components/ui",
+   "loc": 33,
+   "test": false,
+   "exports": [
+    "StaggerTitle"
+   ],
+   "fanIn": 0,
+   "fanOut": 0
+  },
+  {
+   "id": "src/components/ui/unlayer-mark.tsx",
+   "layer": "src/components/ui",
+   "loc": 35,
+   "test": false,
+   "exports": [
+    "UnlayerMark"
+   ],
+   "fanIn": 1,
+   "fanOut": 0
+  },
+  {
+   "id": "src/components/workbench-state.ts",
+   "layer": "src/components",
+   "loc": 240,
+   "test": false,
+   "exports": [
+    "RenderCacheEntry",
+    "RENDER_CACHE_SIZE",
+    "WorkbenchState",
+    "WorkbenchAction",
+    "initialWorkbenchState",
+    "workbenchReducer",
+    "renderAll",
+    "displayHtml"
+   ],
+   "fanIn": 5,
+   "fanOut": 7
+  },
+  {
+   "id": "src/components/workbench.tsx",
+   "layer": "src/components",
+   "loc": 690,
+   "test": false,
+   "exports": [
+    "WorkbenchInitial",
+    "Workbench"
+   ],
+   "fanIn": 4,
+   "fanOut": 28
+  },
+  {
+   "id": "src/daily/bench.ts",
+   "layer": "src/daily",
+   "loc": 175,
+   "test": false,
+   "exports": [
+    "BenchFixture",
+    "BenchReport",
+    "runBench"
+   ],
+   "fanIn": 1,
+   "fanOut": 4
+  },
+  {
+   "id": "src/daily/engine.ts",
+   "layer": "src/daily",
+   "loc": 320,
+   "test": false,
+   "exports": [
+    "EngineOptions",
+    "RecallWithLinks",
+    "ReconfirmAnswer",
+    "ReconfirmItem",
+    "DailyEngine"
+   ],
+   "fanIn": 9,
+   "fanOut": 7
+  },
+  {
+   "id": "src/daily/fsrs.ts",
+   "layer": "src/daily",
+   "loc": 123,
+   "test": false,
+   "exports": [
+    "FSRS5_WEIGHTS",
+    "FSRS_ID",
+    "DESIRED_RETENTION",
+    "Grade",
+    "MemoryState",
+    "retrievability",
+    "intervalDays",
+    "initialState",
+    "review",
+    "Due",
+    "dueOf"
+   ],
+   "fanIn": 5,
+   "fanOut": 0
+  },
+  {
+   "id": "src/daily/idb-store.ts",
+   "layer": "src/daily",
+   "loc": 66,
+   "test": false,
+   "exports": [
+    "IdbStore"
+   ],
+   "fanIn": 1,
+   "fanOut": 2
+  },
+  {
+   "id": "src/daily/lexical.ts",
+   "layer": "src/daily",
+   "loc": 141,
+   "test": false,
+   "exports": [
+    "tokenize",
+    "stem",
+    "Bm25Config",
+    "BM25_V1",
+    "LEXICAL_CONFIG_ID",
+    "CorpusStats",
+    "LexicalIndex"
+   ],
+   "fanIn": 4,
+   "fanOut": 0
+  },
+  {
+   "id": "src/daily/planner.ts",
+   "layer": "src/daily",
+   "loc": 59,
+   "test": false,
+   "exports": [
+    "PlanCandidate",
+    "PLANNER_ID",
+    "rankNext"
+   ],
+   "fanIn": 1,
+   "fanOut": 2
+  },
+  {
+   "id": "src/daily/projection.ts",
+   "layer": "src/daily",
+   "loc": 139,
+   "test": false,
+   "exports": [
+    "RECONFIRM_KINDS",
+    "inferStatus",
+    "handleOf",
+    "emptyState",
+    "apply",
+    "project",
+    "projectAsOf"
+   ],
+   "fanIn": 4,
+   "fanOut": 2
+  },
+  {
+   "id": "src/daily/recall.ts",
+   "layer": "src/daily",
+   "loc": 139,
+   "test": false,
+   "exports": [
+    "RecallHit",
+    "RecallResult",
+    "SUPERSEDED_WEIGHT",
+    "RECALL_CONFIG_ID",
+    "recallKey",
+    "Recall"
+   ],
+   "fanIn": 1,
+   "fanOut": 2
+  },
+  {
+   "id": "src/daily/review.ts",
+   "layer": "src/daily",
+   "loc": 64,
+   "test": false,
+   "exports": [
+    "OpStats",
+    "Review",
+    "percentile",
+    "review"
+   ],
+   "fanIn": 2,
+   "fanOut": 1
+  },
+  {
+   "id": "src/daily/store.ts",
+   "layer": "src/daily",
+   "loc": 46,
+   "test": false,
+   "exports": [
+    "EventStore",
+    "REDACTED",
+    "redactEvent",
+    "MemoryStore"
+   ],
+   "fanIn": 6,
+   "fanOut": 1
+  },
+  {
+   "id": "src/daily/types.ts",
+   "layer": "src/daily",
+   "loc": 99,
+   "test": false,
+   "exports": [
+    "DAILY_SCHEMA",
+    "EntryKind",
+    "DecisionStatus",
+    "TaskState",
+    "DailyEventBody",
+    "DailyEvent",
+    "SourceRef",
+    "Entry",
+    "WorkspaceState",
+    "Receipt"
+   ],
+   "fanIn": 15,
+   "fanOut": 1
+  },
+  {
+   "id": "src/domain/memory/canonicalize.ts",
+   "layer": "src/domain/memory",
+   "loc": 102,
+   "test": false,
+   "exports": [
+    "stableStringify",
+    "canonicalBlockProjection",
+    "canonicalDocumentProjection",
+    "canonicalizeDocument",
+    "contentHashOf",
+    "stableBlockId",
+    "shortHash"
+   ],
+   "fanIn": 3,
+   "fanOut": 2
+  },
+  {
+   "id": "src/domain/memory/limits.ts",
+   "layer": "src/domain/memory",
+   "loc": 43,
+   "test": false,
+   "exports": [
+    "LIMITS",
+    "UNSAFE_KEYS"
+   ],
+   "fanIn": 13,
+   "fanOut": 0
+  },
+  {
+   "id": "src/domain/memory/normalize.ts",
+   "layer": "src/domain/memory",
+   "loc": 128,
+   "test": false,
+   "exports": [
+    "BlockInput",
+    "DocumentInput",
+    "buildBlockId",
+    "finalizeDocument",
+    "normalizeSource",
+    "reorderBlocks"
+   ],
+   "fanIn": 5,
+   "fanOut": 3
+  },
+  {
+   "id": "src/domain/memory/schema.ts",
+   "layer": "src/domain/memory",
+   "loc": 623,
+   "test": false,
+   "exports": [
+    "BLOCK_KINDS",
+    "blockKindSchema",
+    "BlockKind",
+    "PROVENANCE_METHODS",
+    "provenanceMethodSchema",
+    "ProvenanceMethod",
+    "ENTRY_FACETS",
+    "entryFacetSchema",
+    "EntryFacet",
+    "signalEntrySchema",
+    "decisionEntrySchema",
+    "timelineEntrySchema",
+    "riskEntrySchema",
+    "ACTION_STATUSES",
+    "actionStatusSchema",
+    "ActionStatus",
+    "actionEntrySchema",
+    "snapshotPayloadSchema",
+    "signalsPayloadSchema",
+    "decisionsPayloadSchema",
+    "timelinePayloadSchema",
+    "risksPayloadSchema",
+    "actionsPayloadSchema",
+    "blockPayloadSchema",
+    "SnapshotPayload",
+    "SignalsPayload",
+    "DecisionsPayload",
+    "TimelinePayload",
+    "RisksPayload",
+    "ActionsPayload",
+    "BlockPayload",
+    "SignalEntry",
+    "DecisionEntry",
+    "TimelineEntry",
+    "RiskEntry",
+    "ActionEntry",
+    "MEMORY_RELATIONS",
+    "memoryRelationKindSchema",
+    "MemoryRelationKind",
+    "memoryRefSchema"
+   ],
+   "fanIn": 73,
+   "fanOut": 1
+  },
+  {
+   "id": "src/domain/memory/types.ts",
+   "layer": "src/domain/memory",
+   "loc": 41,
+   "test": false,
+   "exports": [
+    "OUTPUT_MODES",
+    "OutputMode",
+    "OUTPUT_MODE_LABELS"
+   ],
+   "fanIn": 14,
+   "fanOut": 3
+  },
+  {
+   "id": "src/evidence-core/contracts.ts",
+   "layer": "src/evidence-core",
+   "loc": 251,
+   "test": false,
+   "exports": [
+    "CONTRACT_VERSION",
+    "SourceVersion",
+    "EvidenceLocator",
+    "ExtractionMethod",
+    "EvidenceSpan",
+    "ClaimStatus",
+    "ClaimAuthor",
+    "Claim",
+    "AnswerTrace",
+    "EvidencePackage",
+    "locateExactText",
+    "recoverExactText",
+    "ContractIssue",
+    "answerCacheKey",
+    "validateEvidencePackage"
+   ],
+   "fanIn": 2,
+   "fanOut": 0
+  },
+  {
+   "id": "src/evidence-core/memorable-adapter.ts",
+   "layer": "src/evidence-core",
+   "loc": 161,
+   "test": false,
+   "exports": [
+    "BriefEvidenceContext",
+    "sourceVersionFor",
+    "recoverLeadingPassage",
+    "briefToEvidencePackage",
+    "claimsNeedingJudgment"
+   ],
+   "fanIn": 2,
+   "fanOut": 3
+  },
+  {
+   "id": "src/import/docgraph/client.ts",
+   "layer": "src/import/docgraph",
+   "loc": 101,
+   "test": false,
+   "exports": [
+    "probeDocGraph",
+    "ParseDocGraphOptions",
+    "parseWithDocGraph",
+    "graphFromMarkdown"
+   ],
+   "fanIn": 5,
+   "fanOut": 3
+  },
+  {
+   "id": "src/import/docgraph/index.ts",
+   "layer": "src/import/docgraph",
+   "loc": 29,
+   "test": false,
+   "exports": [],
+   "fanIn": 2,
+   "fanOut": 4
+  },
+  {
+   "id": "src/import/docgraph/progressive-pdf.ts",
+   "layer": "src/import/docgraph",
+   "loc": 164,
+   "test": false,
+   "exports": [
+    "ProgressivePdfQuick",
+    "readPdfQuick",
+    "ocrProvenanceNote",
+    "hasReadablePdfText",
+    "composePdfReadNote",
+    "refinedReadNote",
+    "scheduleDoclingRefine"
+   ],
+   "fanIn": 3,
+   "fanOut": 4
+  },
+  {
+   "id": "src/import/docgraph/result-cache.ts",
+   "layer": "src/import/docgraph",
+   "loc": 52,
+   "test": false,
+   "exports": [
+    "ResultCache"
+   ],
+   "fanIn": 2,
+   "fanOut": 0
+  },
+  {
+   "id": "src/import/docgraph/select.ts",
+   "layer": "src/import/docgraph",
+   "loc": 86,
+   "test": false,
+   "exports": [
+    "isDocgraphEnabled",
+    "DoclingSelectInput",
+    "shouldRefineWithDocling",
+    "isDoclingRefinementBetter"
+   ],
+   "fanIn": 4,
+   "fanOut": 0
+  },
+  {
+   "id": "src/import/docgraph/types.ts",
+   "layer": "src/import/docgraph",
+   "loc": 78,
+   "test": false,
+   "exports": [
+    "GRAPH_CONFIDENCE",
+    "GraphConfidence",
+    "KnowledgeGraphNode",
+    "KnowledgeGraphEdge",
+    "KnowledgeGraphAnalysis",
+    "KnowledgeGraph",
+    "DocGraphSection",
+    "DocGraphParseResult",
+    "DocGraphHealth"
+   ],
+   "fanIn": 4,
+   "fanOut": 0
+  },
+  {
+   "id": "src/import/examples/catalog.ts",
+   "layer": "src/import/examples",
+   "loc": 293,
+   "test": false,
+   "exports": [
+    "ExampleEntry",
+    "ATLAS_JSON_SOURCE",
+    "ATLAS_NOTES_SOURCE",
+    "ATLAS_NOTES_VERIFIED",
+    "EXAMPLES",
+    "getExample",
+    "verifiedExtractionFor",
+    "hasVerifiedExtraction"
+   ],
+   "fanIn": 22,
+   "fanOut": 2
+  },
+  {
+   "id": "src/import/import-source.ts",
+   "layer": "src/import",
+   "loc": 66,
+   "test": false,
+   "exports": [
+    "ImportSourceInput",
+    "ImportMethod",
+    "importSource",
+    "detectFormat",
+    "sanitizeLabel",
+    "importSourceOrNull"
+   ],
+   "fanIn": 60,
+   "fanOut": 5
+  },
+  {
+   "id": "src/import/json/import-json.ts",
+   "layer": "src/import/json",
+   "loc": 294,
+   "test": false,
+   "exports": [
+    "JsonImportInput",
+    "importJson",
+    "syntaxDiagnostic",
+    "capExcerpt",
+    "sourceFingerprint"
+   ],
+   "fanIn": 8,
+   "fanOut": 7
+  },
+  {
+   "id": "src/import/pdf/images.ts",
+   "layer": "src/import/pdf",
+   "loc": 265,
+   "test": false,
+   "exports": [
+    "ExtractedPdfImage",
+    "extractPageImages",
+    "encodeRgbaPng"
+   ],
+   "fanIn": 3,
+   "fanOut": 0
+  },
+  {
+   "id": "src/import/pdf/layout.ts",
+   "layer": "src/import/pdf",
+   "loc": 840,
+   "test": false,
+   "exports": [
+    "PdfTextItem",
+    "LayoutLine",
+    "LayoutPage",
+    "LayoutDocument",
+    "detectColumnGutter",
+    "reconstructPageLines",
+    "annotateHeadings",
+    "layoutToMarkdown",
+    "joinSoftWrap",
+    "dehyphenateText",
+    "buildLayoutDocument"
+   ],
+   "fanIn": 4,
+   "fanOut": 0
+  },
+  {
+   "id": "src/import/pdf/ocr.ts",
+   "layer": "src/import/pdf",
+   "loc": 257,
+   "test": false,
+   "exports": [
+    "OcrBlock",
+    "OcrOptions",
+    "disposeOcrWorker",
+    "ocrImages",
+    "structureOcrText",
+    "mergeOcrIntoMarkdown"
+   ],
+   "fanIn": 6,
+   "fanOut": 0
+  },
+  {
+   "id": "src/import/pdf/read-structured.ts",
+   "layer": "src/import/pdf",
+   "loc": 113,
+   "test": false,
+   "exports": [
+    "PDF_MAX_PAGES",
+    "StructuredPdfResult",
+    "ReadPdfOptions",
+    "readPdfBytes"
+   ],
+   "fanIn": 5,
+   "fanOut": 3
+  },
+  {
+   "id": "src/import/preflight.ts",
+   "layer": "src/import",
+   "loc": 126,
+   "test": false,
+   "exports": [
+    "PreflightedInput",
+    "preflightInput",
+    "checkJsonSafety",
+    "joinPath",
+    "lineColumnOf",
+    "formatBytes"
+   ],
+   "fanIn": 3,
+   "fanOut": 3
+  },
+  {
+   "id": "src/import/read-pdf.ts",
+   "layer": "src/import",
+   "loc": 41,
+   "test": false,
+   "exports": [
+    "isPdfFile",
+    "readPdfFile",
+    "readPdfBuffer",
+    "pdfTruncationNote"
+   ],
+   "fanIn": 6,
+   "fanOut": 1
+  },
+  {
+   "id": "src/import/text/entity-groups.ts",
+   "layer": "src/import/text",
+   "loc": 334,
+   "test": false,
+   "exports": [
+    "GroupLine",
+    "EntityGroup",
+    "DateRange",
+    "findDateRange",
+    "isPastRange",
+    "isCompletionLabelLine",
+    "isReadinessLabelLine",
+    "detectEntityGroups",
+    "groupLineNumbers",
+    "buildActionFromGroup",
+    "buildTimelineFromGroup"
+   ],
+   "fanIn": 2,
+   "fanOut": 4
+  },
+  {
+   "id": "src/import/text/parse-text.ts",
+   "layer": "src/import/text",
+   "loc": 1518,
+   "test": false,
+   "exports": [
+    "TextImportInput",
+    "parseText"
+   ],
+   "fanIn": 7,
+   "fanOut": 15
+  },
+  {
+   "id": "src/import/text/patterns.ts",
+   "layer": "src/import/text",
+   "loc": 1098,
+   "test": false,
+   "exports": [
+    "ListItem",
+    "splitListItem",
+    "splitTableRow",
+    "isTableSeparator",
+    "stripListMarker",
+    "stripEmphasis",
+    "plainContentOf",
+    "isDecorativeLine",
+    "isListLike",
+    "spanState",
+    "isEntirelyDate",
+    "looksLikeDate",
+    "findDateToken",
+    "parseOpenQuestionLine",
+    "parseMetricTargetLine",
+    "parseSignalLine",
+    "parseDecisionLine",
+    "parseAcceptanceCriterionLine",
+    "parseCasesMatrixRow",
+    "parseCasesRuleLine",
+    "titleAroundRemovedDate",
+    "parseTimelineLine",
+    "parseObligationDateLine",
+    "parseLegTimelineLine",
+    "parseRiskLine",
+    "parseUserStoryLine",
+    "isTaskTableHeaderRow",
+    "remapActionEntryByHeader",
+    "parseActionLine",
+    "parseSignalLineLenient",
+    "parseSignalSalvage",
+    "parseDecisionLineLenient",
+    "parseTimelineLineLenient",
+    "parseRiskLineLenient",
+    "parseActionLineLenient"
+   ],
+   "fanIn": 17,
+   "fanOut": 2
+  },
+  {
+   "id": "src/import/text/sections.ts",
+   "layer": "src/import/text",
+   "loc": 447,
+   "test": false,
+   "exports": [
+    "HeadingMatch",
+    "matchHeading",
+    "classifyHeading",
+    "kindClaimedByHeading",
+    "matchOrdinalHeading",
+    "inferKindFromLines",
+    "isStructuralLine",
+    "resumeFacetForHeading"
+   ],
+   "fanIn": 6,
+   "fanOut": 2
+  },
+  {
+   "id": "src/motion/curves.ts",
+   "layer": "src/motion",
+   "loc": 198,
+   "test": false,
+   "exports": [
+    "Vec2",
+    "lerp",
+    "invLerp",
+    "clamp01",
+    "remap",
+    "decayFromHalfLife",
+    "damp",
+    "damp2",
+    "bezier",
+    "cssCubicBezier",
+    "EASE_OUT_EXPO",
+    "EASE_IN_OUT",
+    "bspline",
+    "ClosedSpline",
+    "EASE_OUT",
+    "EASE_IO",
+    "span",
+    "bezierTangent",
+    "flight",
+    "catmullRomPath",
+    "rng"
+   ],
+   "fanIn": 4,
+   "fanOut": 0
+  },
+  {
+   "id": "src/motion/scroll-scene.ts",
+   "layer": "src/motion",
+   "loc": 101,
+   "test": false,
+   "exports": [
+    "StageSize",
+    "useScrollScene",
+    "place"
+   ],
+   "fanIn": 1,
+   "fanOut": 1
+  },
+  {
+   "id": "src/reliability/capabilities.ts",
+   "layer": "src/reliability",
+   "loc": 44,
+   "test": false,
+   "exports": [
+    "Capabilities",
+    "detectCapabilities"
+   ],
+   "fanIn": 1,
+   "fanOut": 0
+  },
+  {
+   "id": "src/reliability/diagnostics.ts",
+   "layer": "src/reliability",
+   "loc": 61,
+   "test": false,
+   "exports": [
+    "DiagnosticCode",
+    "Diagnostic",
+    "diagnostic",
+    "formatDiagnostic"
+   ],
+   "fanIn": 11,
+   "fanOut": 0
+  },
+  {
+   "id": "src/reliability/result.ts",
+   "layer": "src/reliability",
+   "loc": 22,
+   "test": false,
+   "exports": [
+    "Result",
+    "ok",
+    "err",
+    "isOk"
+   ],
+   "fanIn": 6,
+   "fanOut": 1
+  },
+  {
+   "id": "src/reliability/storage.ts",
+   "layer": "src/reliability",
+   "loc": 44,
+   "test": false,
+   "exports": [
+    "StoredDocumentRef",
+    "safeLoadRef",
+    "safeSaveRef",
+    "safeClearRef"
+   ],
+   "fanIn": 1,
+   "fanOut": 0
+  },
+  {
+   "id": "src/render/block-registry.ts",
+   "layer": "src/render",
+   "loc": 62,
+   "test": false,
+   "exports": [
+    "BlockRenderer",
+    "blockRenderers",
+    "RenderedBlock",
+    "renderBlockRows"
+   ],
+   "fanIn": 2,
+   "fanOut": 9
+  },
+  {
+   "id": "src/render/blocks/actions.tsx",
+   "layer": "src/render/blocks",
+   "loc": 114,
+   "test": false,
+   "exports": [
+    "renderActionsRows"
+   ],
+   "fanIn": 1,
+   "fanOut": 4
+  },
+  {
+   "id": "src/render/blocks/common.tsx",
+   "layer": "src/render/blocks",
+   "loc": 297,
+   "test": false,
+   "exports": [
+    "BlockRenderContext",
+    "defaultThemeContext",
+    "scaledPx",
+    "roman",
+    "ordinal",
+    "PAD",
+    "padFor",
+    "sectionLabelRow",
+    "asideParagraph",
+    "emptyBlockMessage",
+    "emptyBlockRow",
+    "notesRows",
+    "blockSpacerRow"
+   ],
+   "fanIn": 8,
+   "fanOut": 5
+  },
+  {
+   "id": "src/render/blocks/decisions.tsx",
+   "layer": "src/render/blocks",
+   "loc": 112,
+   "test": false,
+   "exports": [
+    "renderDecisionsRows"
+   ],
+   "fanIn": 1,
+   "fanOut": 4
+  },
+  {
+   "id": "src/render/blocks/risks.tsx",
+   "layer": "src/render/blocks",
+   "loc": 137,
+   "test": false,
+   "exports": [
+    "renderRisksRows"
+   ],
+   "fanIn": 1,
+   "fanOut": 4
+  },
+  {
+   "id": "src/render/blocks/signals.tsx",
+   "layer": "src/render/blocks",
+   "loc": 191,
+   "test": false,
+   "exports": [
+    "renderSignalsRows"
+   ],
+   "fanIn": 1,
+   "fanOut": 4
+  },
+  {
+   "id": "src/render/blocks/snapshot.tsx",
+   "layer": "src/render/blocks",
+   "loc": 375,
+   "test": false,
+   "exports": [
+    "renderSnapshotRows"
+   ],
+   "fanIn": 1,
+   "fanOut": 3
+  },
+  {
+   "id": "src/render/blocks/timeline.tsx",
+   "layer": "src/render/blocks",
+   "loc": 100,
+   "test": false,
+   "exports": [
+    "renderTimelineRows"
+   ],
+   "fanIn": 1,
+   "fanOut": 4
+  },
+  {
+   "id": "src/render/build-root.tsx",
+   "layer": "src/render",
+   "loc": 560,
+   "test": false,
+   "exports": [
+    "BuiltRoot",
+    "sectionAnchor",
+    "buildRoot",
+    "buildEmailRoot",
+    "buildPageRoot",
+    "buildDocumentRoot"
+   ],
+   "fanIn": 3,
+   "fanOut": 8
+  },
+  {
+   "id": "src/render/compatibility.ts",
+   "layer": "src/render",
+   "loc": 91,
+   "test": false,
+   "exports": [
+    "DesignJsonSummary",
+    "validateDesignJson"
+   ],
+   "fanIn": 3,
+   "fanOut": 2
+  },
+  {
+   "id": "src/render/elements-used.ts",
+   "layer": "src/render",
+   "loc": 77,
+   "test": false,
+   "exports": [
+    "ElementRef",
+    "elementsFor",
+    "ELEMENTS_BY_MODE",
+    "ELEMENTS_REPO"
+   ],
+   "fanIn": 1,
+   "fanOut": 2
+  },
+  {
+   "id": "src/render/export-source.ts",
+   "layer": "src/render",
+   "loc": 35,
+   "test": false,
+   "exports": [
+    "toMemorySource",
+    "canonicalJsonString"
+   ],
+   "fanIn": 6,
+   "fanOut": 1
+  },
+  {
+   "id": "src/render/insight-composition.tsx",
+   "layer": "src/render",
+   "loc": 84,
+   "test": false,
+   "exports": [
+    "buildInsightRoot"
+   ],
+   "fanIn": 1,
+   "fanOut": 8
+  },
+  {
+   "id": "src/render/market-research.tsx",
+   "layer": "src/render",
+   "loc": 126,
+   "test": false,
+   "exports": [
+    "buildMarketResearchRoot"
+   ],
+   "fanIn": 1,
+   "fanOut": 4
+  },
+  {
+   "id": "src/render/recovery-row.tsx",
+   "layer": "src/render",
+   "loc": 58,
+   "test": false,
+   "exports": [
+    "recoveryRow"
+   ],
+   "fanIn": 1,
+   "fanOut": 1
+  },
+  {
+   "id": "src/render/render-bundle.ts",
+   "layer": "src/render",
+   "loc": 102,
+   "test": false,
+   "exports": [
+    "ModeOutput",
+    "RenderBundle",
+    "renderBundle",
+    "renderMode",
+    "minimalFallbackHtml"
+   ],
+   "fanIn": 15,
+   "fanOut": 5
+  },
+  {
+   "id": "src/render/safe-inline.ts",
+   "layer": "src/render",
+   "loc": 51,
+   "test": false,
+   "exports": [
+    "escapeHtml",
+    "inlineText",
+    "inlineBold",
+    "inlineItalic",
+    "inlineJoin",
+    "inlineLink"
+   ],
+   "fanIn": 11,
+   "fanOut": 0
+  },
+  {
+   "id": "src/render/themes.ts",
+   "layer": "src/render",
+   "loc": 255,
+   "test": false,
+   "exports": [
+    "PUBLISH_THEME_IDS",
+    "PublishThemeId",
+    "ThemeColors",
+    "ThemeFonts",
+    "ThemeChrome",
+    "PublishTheme",
+    "PUBLISH_THEMES",
+    "PUBLICATION_PRESETS",
+    "resolveTheme",
+    "isPublishThemeId"
+   ],
+   "fanIn": 13,
+   "fanOut": 1
+  },
+  {
+   "id": "src/render/tokens.ts",
+   "layer": "src/render",
+   "loc": 124,
+   "test": false,
+   "exports": [
+    "fonts",
+    "colors",
+    "HAIRLINE",
+    "hairline",
+    "themedStatusColor",
+    "trendColor",
+    "severityColor",
+    "statusColor",
+    "facetLabel",
+    "statusLabel"
+   ],
+   "fanIn": 7,
+   "fanOut": 0
+  },
+  {
+   "id": "src/search/analyze.ts",
+   "layer": "src/search",
+   "loc": 112,
+   "test": false,
+   "exports": [
+    "stem",
+    "splitCompound",
+    "AnalyzeOptions",
+    "analyze",
+    "queryTerms",
+    "QUERY_WEIGHTS",
+    "structuredQueryTerms"
+   ],
+   "fanIn": 6,
+   "fanOut": 0
+  },
+  {
+   "id": "src/search/bm25f.ts",
+   "layer": "src/search",
+   "loc": 151,
+   "test": false,
+   "exports": [
+    "Field",
+    "FIELDS",
+    "FieldParams",
+    "Bm25fConfig",
+    "BM25F_V1",
+    "BM25_FLAT",
+    "FieldText",
+    "Bm25fIndex"
+   ],
+   "fanIn": 2,
+   "fanOut": 1
+  },
+  {
+   "id": "src/search/embed-client.ts",
+   "layer": "src/search",
+   "loc": 81,
+   "test": false,
+   "exports": [
+    "ModelLoad",
+    "WorkerEmbedder",
+    "modelAvailable"
+   ],
+   "fanIn": 2,
+   "fanOut": 1
+  },
+  {
+   "id": "src/search/embed.worker.ts",
+   "layer": "src/search",
+   "loc": 49,
+   "test": false,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 2
+  },
+  {
+   "id": "src/search/engine.ts",
+   "layer": "src/search",
+   "loc": 176,
+   "test": false,
+   "exports": [
+    "DocKind",
+    "SearchDoc",
+    "Embedder",
+    "ARMS",
+    "Arm",
+    "LEXICAL_ARMS",
+    "QueryParts",
+    "SearchHit",
+    "SearchResult",
+    "embedText",
+    "SearchIndex"
+   ],
+   "fanIn": 13,
+   "fanOut": 6
+  },
+  {
+   "id": "src/search/eval.ts",
+   "layer": "src/search",
+   "loc": 115,
+   "test": false,
+   "exports": [
+    "BenchDoc",
+    "BenchQuery",
+    "BenchSet",
+    "QueryMode",
+    "ArmReport",
+    "toSearchDoc",
+    "queryText",
+    "answerable",
+    "buildIndex",
+    "runArm",
+    "markdownTable",
+    "summarize"
+   ],
+   "fanIn": 2,
+   "fanOut": 2
+  },
+  {
+   "id": "src/search/fusion.ts",
+   "layer": "src/search",
+   "loc": 33,
+   "test": false,
+   "exports": [
+    "Ranked",
+    "rrf",
+    "weightedSum"
+   ],
+   "fanIn": 2,
+   "fanOut": 0
+  },
+  {
+   "id": "src/search/github.ts",
+   "layer": "src/search",
+   "loc": 153,
+   "test": false,
+   "exports": [
+    "GithubCursor",
+    "SyncProgress",
+    "SyncResult",
+    "cleanMarkdown",
+    "validRepo",
+    "syncRepo"
+   ],
+   "fanIn": 3,
+   "fanOut": 1
+  },
+  {
+   "id": "src/search/lexicon.ts",
+   "layer": "src/search",
+   "loc": 63,
+   "test": false,
+   "exports": [
+    "expand",
+    "LEXICON_SIZE"
+   ],
+   "fanIn": 2,
+   "fanOut": 1
+  },
+  {
+   "id": "src/search/metrics.ts",
+   "layer": "src/search",
+   "loc": 46,
+   "test": false,
+   "exports": [
+    "recallAt",
+    "mrrAt",
+    "ndcgAt",
+    "percentile",
+    "mean",
+    "pairedBootstrap"
+   ],
+   "fanIn": 2,
+   "fanOut": 0
+  },
+  {
+   "id": "src/search/models.ts",
+   "layer": "src/search",
+   "loc": 86,
+   "test": false,
+   "exports": [
+    "ModelSpec",
+    "MODELS",
+    "createEmbedder"
+   ],
+   "fanIn": 2,
+   "fanOut": 1
+  },
+  {
+   "id": "src/search/signature.ts",
+   "layer": "src/search",
+   "loc": 49,
+   "test": false,
+   "exports": [
+    "normalizeErrorLine",
+    "errorSignatures",
+    "hashSignature"
+   ],
+   "fanIn": 3,
+   "fanOut": 0
+  },
+  {
+   "id": "src/search/store.ts",
+   "layer": "src/search",
+   "loc": 77,
+   "test": false,
+   "exports": [
+    "StoredVector",
+    "RepoState",
+    "contentHash",
+    "vectorKey",
+    "quantize",
+    "dequantize",
+    "SearchStore"
+   ],
+   "fanIn": 2,
+   "fanOut": 2
+  },
+  {
+   "id": "src/search/vector.ts",
+   "layer": "src/search",
+   "loc": 110,
+   "test": false,
+   "exports": [
+    "VectorHit",
+    "VectorIndex"
+   ],
+   "fanIn": 2,
+   "fanOut": 0
+  },
+  {
+   "id": "src/stats/doc-library.ts",
+   "layer": "src/stats",
+   "loc": 91,
+   "test": false,
+   "exports": [
+    "LibraryDoc",
+    "listLibraryDocs",
+    "searchLibraryDocs",
+    "rememberLibraryDoc"
+   ],
+   "fanIn": 4,
+   "fanOut": 0
+  },
+  {
+   "id": "src/stats/local-stats.ts",
+   "layer": "src/stats",
+   "loc": 96,
+   "test": false,
+   "exports": [
+    "LocalStats",
+    "EMPTY_STATS",
+    "readStats",
+    "recordDocument",
+    "recordPublished",
+    "summarize"
+   ],
+   "fanIn": 3,
+   "fanOut": 0
+  },
+  {
+   "id": "src/understanding/archetype.ts",
+   "layer": "src/understanding",
+   "loc": 255,
+   "test": false,
+   "exports": [
+    "DocumentArchetype",
+    "MIN_SCORE",
+    "MIN_MARGIN",
+    "ARCHETYPE_CONFIDENCE_THRESHOLD",
+    "ArchetypeScores",
+    "ArchetypeResult",
+    "classifyArchetype"
+   ],
+   "fanIn": 10,
+   "fanOut": 1
+  },
+  {
+   "id": "src/understanding/concepts.ts",
+   "layer": "src/understanding",
+   "loc": 247,
+   "test": false,
+   "exports": [
+    "Concept",
+    "ConceptInput",
+    "extractConcepts",
+    "conceptsIn",
+    "labelFor"
+   ],
+   "fanIn": 4,
+   "fanOut": 1
+  },
+  {
+   "id": "src/understanding/graph.ts",
+   "layer": "src/understanding",
+   "loc": 321,
+   "test": false,
+   "exports": [
+    "buildRelations",
+    "ResolvedRef",
+    "parseRef",
+    "relationsFor",
+    "relationsFrom",
+    "relationsTo"
+   ],
+   "fanIn": 4,
+   "fanOut": 3
+  },
+  {
+   "id": "src/understanding/index.ts",
+   "layer": "src/understanding",
+   "loc": 329,
+   "test": false,
+   "exports": [
+    "UnderstandingSection",
+    "UnderstandingInput",
+    "Understanding",
+    "understand",
+    "recallFrom"
+   ],
+   "fanIn": 5,
+   "fanOut": 18
+  },
+  {
+   "id": "src/understanding/infer-events.ts",
+   "layer": "src/understanding",
+   "loc": 275,
+   "test": false,
+   "exports": [
+    "InferredTimeline",
+    "InferredAction",
+    "inferTimeline",
+    "inferActions"
+   ],
+   "fanIn": 3,
+   "fanOut": 7
+  },
+  {
+   "id": "src/understanding/inference.ts",
+   "layer": "src/understanding",
+   "loc": 569,
+   "test": false,
+   "exports": [
+    "Statement",
+    "Inferred",
+    "InferredSignal",
+    "InferredDecision",
+    "InferredRisk",
+    "InferredArtifact",
+    "inferSignals",
+    "VERDICT_HEADING",
+    "OPEN_QUESTION",
+    "readCommitment",
+    "inferDecisions",
+    "readRisk",
+    "riskReasoning",
+    "inferRisks",
+    "inferArtifact",
+    "inferReadiness"
+   ],
+   "fanIn": 11,
+   "fanOut": 6
+  },
+  {
+   "id": "src/understanding/insights.ts",
+   "layer": "src/understanding",
+   "loc": 109,
+   "test": false,
+   "exports": [
+    "HeroInsight",
+    "deriveHeroInsights"
+   ],
+   "fanIn": 1,
+   "fanOut": 6
+  },
+  {
+   "id": "src/understanding/intent.ts",
+   "layer": "src/understanding",
+   "loc": 181,
+   "test": false,
+   "exports": [
+    "DOCUMENT_INTENTS",
+    "DocumentIntent",
+    "Intent",
+    "IntentInput",
+    "readIntent",
+    "understandIntent",
+    "sameIntent"
+   ],
+   "fanIn": 3,
+   "fanOut": 1
+  },
+  {
+   "id": "src/understanding/knowledge-graph.ts",
+   "layer": "src/understanding",
+   "loc": 347,
+   "test": false,
+   "exports": [
+    "buildResearchKnowledgeGraph",
+    "mergeKnowledgeGraphs"
+   ],
+   "fanIn": 3,
+   "fanOut": 5
+  },
+  {
+   "id": "src/understanding/language.ts",
+   "layer": "src/understanding",
+   "loc": 383,
+   "test": false,
+   "exports": [
+    "isStopword",
+    "tokenize",
+    "contentTokens",
+    "stem",
+    "stemTokens",
+    "normalizeKey",
+    "wordCount",
+    "splitSentences",
+    "overlap",
+    "saysTheSame",
+    "dedupeByMeaning",
+    "normalizeDecisionText",
+    "sameDecision",
+    "isDecisionChrome",
+    "clampWords",
+    "shorten",
+    "spellCount",
+    "sentenceCase",
+    "unpunctuated",
+    "decapitalize",
+    "readsAsFragment",
+    "speakList"
+   ],
+   "fanIn": 16,
+   "fanOut": 0
+  },
+  {
+   "id": "src/understanding/market-research/guidance-pack.ts",
+   "layer": "src/understanding/market-research",
+   "loc": 151,
+   "test": false,
+   "exports": [
+    "GUIDANCE_RETRIEVED",
+    "GuidanceStep",
+    "UMBREX_GUIDANCE_PACK",
+    "ILLUSTRATIVE_EXAMPLE_BAN"
+   ],
+   "fanIn": 5,
+   "fanOut": 0
+  },
+  {
+   "id": "src/understanding/projection-profiles.ts",
+   "layer": "src/understanding",
+   "loc": 380,
+   "test": false,
+   "exports": [
+    "BucketView",
+    "ProjectionProfile",
+    "EmptyApplicablePolicy",
+    "AdaptiveMemoryProjection",
+    "NOT_APPLICABLE_NOTE",
+    "memoryProjectionFor",
+    "projectionProfileFor",
+    "bucketLabel",
+    "bucketSubtitle",
+    "isKindApplicable",
+    "isKindRequired",
+    "isEmptyMemoryPayload",
+    "isNotApplicableBlock",
+    "applyProjectionTitles",
+    "projectAdaptiveMemories"
+   ],
+   "fanIn": 5,
+   "fanOut": 2
+  },
+  {
+   "id": "src/understanding/projection.ts",
+   "layer": "src/understanding",
+   "loc": 154,
+   "test": false,
+   "exports": [
+    "ProjectionConfidence",
+    "obligationDateConfidence",
+    "shouldProjectInvoiceDueToTimeline",
+    "projectSingleLegTimeline",
+    "harvestSingleLegLine",
+    "KIND_PRECEDENCE",
+    "PrecedenceKind",
+    "strongestCategory",
+    "blocksDecisionInference",
+    "hasExplicitCommitmentVerb",
+    "isProblemStatement",
+    "allowSlideDecision",
+    "isInvoiceArchetype"
+   ],
+   "fanIn": 6,
+   "fanOut": 3
+  },
+  {
+   "id": "src/understanding/recall.ts",
+   "layer": "src/understanding",
+   "loc": 309,
+   "test": false,
+   "exports": [
+    "RecallInput",
+    "Recall",
+    "composeRecall",
+    "isCopyOf",
+    "recallHeading"
+   ],
+   "fanIn": 1,
+   "fanOut": 5
+  },
+  {
+   "id": "src/understanding/research.ts",
+   "layer": "src/understanding",
+   "loc": 850,
+   "test": false,
+   "exports": [
+    "ResearchSectionRole",
+    "ResearchSectionInput",
+    "buildResearchWorldModel",
+    "summarizeResearchSections"
+   ],
+   "fanIn": 4,
+   "fanOut": 5
+  },
+  {
+   "id": "src/understanding/segment.ts",
+   "layer": "src/understanding",
+   "loc": 315,
+   "test": false,
+   "exports": [
+    "SegmentKind",
+    "SemanticSegment",
+    "SegmentDocument",
+    "hybridSegment",
+    "GraphNode",
+    "DocumentGraph",
+    "buildDocumentGraph"
+   ],
+   "fanIn": 5,
+   "fanOut": 1
+  },
+  {
+   "id": "src/understanding/temporal.ts",
+   "layer": "src/understanding",
+   "loc": 171,
+   "test": false,
+   "exports": [
+    "AnchorDate",
+    "findAnchorDate",
+    "TemporalGateResult",
+    "gateTimelineEntries"
+   ],
+   "fanIn": 2,
+   "fanOut": 3
+  },
+  {
+   "id": "src/utils/download.ts",
+   "layer": "src/utils",
+   "loc": 81,
+   "test": false,
+   "exports": [
+    "DownloadRequest",
+    "DownloadOutcome",
+    "sanitizeFilename",
+    "downloadTextFile",
+    "copyToClipboard",
+    "baseNameFor"
+   ],
+   "fanIn": 2,
+   "fanOut": 0
+  },
+  {
+   "id": "src/utils/mailto.ts",
+   "layer": "src/utils",
+   "loc": 124,
+   "test": false,
+   "exports": [
+    "MAILTO_URL_LIMIT",
+    "EmailHandoff",
+    "safeMailSubject",
+    "htmlToPlainText",
+    "buildEmailHandoff"
+   ],
+   "fanIn": 2,
+   "fanOut": 1
+  },
+  {
+   "id": "src/utils/print-export.ts",
+   "layer": "src/utils",
+   "loc": 231,
+   "test": false,
+   "exports": [
+    "bodyOf",
+    "stylesOf",
+    "unwrapLeadingLayoutTable",
+    "buildWordDocument",
+    "buildPrintDocument",
+    "PrintOutcome",
+    "printHtmlDocument"
+   ],
+   "fanIn": 5,
+   "fanOut": 0
+  },
+  {
+   "id": "src/utils/sha256.ts",
+   "layer": "src/utils",
+   "loc": 106,
+   "test": false,
+   "exports": [
+    "sha256Hex"
+   ],
+   "fanIn": 7,
+   "fanOut": 0
+  },
+  {
+   "id": "src/visuals/evidence.ts",
+   "layer": "src/visuals",
+   "loc": 65,
+   "test": false,
+   "exports": [
+    "SourceSpan",
+    "VisualReading",
+    "validSpan",
+    "visualReading"
+   ],
+   "fanIn": 6,
+   "fanOut": 1
+  },
+  {
+   "id": "tests/e2e/email-handoff.spec.ts",
+   "layer": "tests/e2e",
+   "loc": 94,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 0
+  },
+  {
+   "id": "tests/e2e/semantic-disable-midflight.spec.ts",
+   "layer": "tests/e2e",
+   "loc": 117,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 0
+  },
+  {
+   "id": "tests/e2e/semantic-recovery.spec.ts",
+   "layer": "tests/e2e",
+   "loc": 78,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 0
+  },
+  {
+   "id": "tests/e2e/today.spec.ts",
+   "layer": "tests/e2e",
+   "loc": 179,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 0
+  },
+  {
+   "id": "tests/e2e/workbench.spec.ts",
+   "layer": "tests/e2e",
+   "loc": 423,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 0
+  },
+  {
+   "id": "tests/integration/ai-completion-contract.test.ts",
+   "layer": "tests/integration",
+   "loc": 24,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 2
+  },
+  {
+   "id": "tests/integration/atlas-pipeline.test.ts",
+   "layer": "tests/integration",
+   "loc": 71,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 5
+  },
+  {
+   "id": "tests/integration/empty-import-announce.test.tsx",
+   "layer": "tests/integration",
+   "loc": 62,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 3
+  },
+  {
+   "id": "tests/integration/home-import-ownership.test.tsx",
+   "layer": "tests/integration",
+   "loc": 44,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 3
+  },
+  {
+   "id": "tests/integration/home-pdf-handoff.test.tsx",
+   "layer": "tests/integration",
+   "loc": 57,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 3
+  },
+  {
+   "id": "tests/integration/ocr-provenance-display.test.tsx",
+   "layer": "tests/integration",
+   "loc": 183,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 4
+  },
+  {
+   "id": "tests/integration/render-modes.test.tsx",
+   "layer": "tests/integration",
+   "loc": 273,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 9
+  },
+  {
+   "id": "tests/integration/stale-ai-result.test.tsx",
+   "layer": "tests/integration",
+   "loc": 100,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 3
+  },
+  {
+   "id": "tests/integration/stale-pdf-refinement.test.tsx",
+   "layer": "tests/integration",
+   "loc": 34,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 2
+  },
+  {
+   "id": "tests/setup.ts",
+   "layer": "tests",
+   "loc": 11,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 0
+  },
+  {
+   "id": "tests/unit/archetype-blockers.test.ts",
+   "layer": "tests/unit",
+   "loc": 109,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 2
+  },
+  {
+   "id": "tests/unit/architecture-docs.test.ts",
+   "layer": "tests/unit",
+   "loc": 57,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 0
+  },
+  {
+   "id": "tests/unit/async-operation.test.ts",
+   "layer": "tests/unit",
+   "loc": 30,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 1
+  },
+  {
+   "id": "tests/unit/brief-receipt.test.ts",
+   "layer": "tests/unit",
+   "loc": 42,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 2
+  },
+  {
+   "id": "tests/unit/canonicalize.test.ts",
+   "layer": "tests/unit",
+   "loc": 91,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 5
+  },
+  {
+   "id": "tests/unit/capabilities.test.ts",
+   "layer": "tests/unit",
+   "loc": 65,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 1
+  },
+  {
+   "id": "tests/unit/checkbox-is-todo.test.ts",
+   "layer": "tests/unit",
+   "loc": 91,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 1
+  },
+  {
+   "id": "tests/unit/checklist-section-routing.test.ts",
+   "layer": "tests/unit",
+   "loc": 81,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 1
+  },
+  {
+   "id": "tests/unit/compatibility.test.ts",
+   "layer": "tests/unit",
+   "loc": 59,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 1
+  },
+  {
+   "id": "tests/unit/components.test.tsx",
+   "layer": "tests/unit",
+   "loc": 131,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 6
+  },
+  {
+   "id": "tests/unit/daily-bench.test.ts",
+   "layer": "tests/unit",
+   "loc": 32,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 1
+  },
+  {
+   "id": "tests/unit/daily-engine.test.ts",
+   "layer": "tests/unit",
+   "loc": 201,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 4
+  },
+  {
+   "id": "tests/unit/daily-reconfirm.test.ts",
+   "layer": "tests/unit",
+   "loc": 138,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 4
+  },
+  {
+   "id": "tests/unit/day10-dedupe-scale.test.ts",
+   "layer": "tests/unit",
+   "loc": 55,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 2
+  },
+  {
+   "id": "tests/unit/day7-number-dedupe.test.ts",
+   "layer": "tests/unit",
+   "loc": 93,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 3
+  },
+  {
+   "id": "tests/unit/day9-artifact-word-boundary.test.ts",
+   "layer": "tests/unit",
+   "loc": 41,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 1
+  },
+  {
+   "id": "tests/unit/day9-compact-labels.test.ts",
+   "layer": "tests/unit",
+   "loc": 29,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 1
+  },
+  {
+   "id": "tests/unit/decision-compress.test.ts",
+   "layer": "tests/unit",
+   "loc": 70,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 3
+  },
+  {
+   "id": "tests/unit/doc-library-differential.test.ts",
+   "layer": "tests/unit",
+   "loc": 161,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 1
+  },
+  {
+   "id": "tests/unit/doc-library.test.ts",
+   "layer": "tests/unit",
+   "loc": 53,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 1
+  },
+  {
+   "id": "tests/unit/doc-sweep-oct17.test.ts",
+   "layer": "tests/unit",
+   "loc": 185,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 3
+  },
+  {
+   "id": "tests/unit/docgraph-client-cache.test.ts",
+   "layer": "tests/unit",
+   "loc": 49,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 1
+  },
+  {
+   "id": "tests/unit/docgraph-payload.test.ts",
+   "layer": "tests/unit",
+   "loc": 8,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 1
+  },
+  {
+   "id": "tests/unit/docgraph-select.test.ts",
+   "layer": "tests/unit",
+   "loc": 91,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 1
+  },
+  {
+   "id": "tests/unit/docgraph-timeout.test.ts",
+   "layer": "tests/unit",
+   "loc": 12,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 1
+  },
+  {
+   "id": "tests/unit/download.test.ts",
+   "layer": "tests/unit",
+   "loc": 67,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 1
+  },
+  {
+   "id": "tests/unit/entity-evidence-fidelity.test.ts",
+   "layer": "tests/unit",
+   "loc": 382,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 5
+  },
+  {
+   "id": "tests/unit/entity-grouping.test.ts",
+   "layer": "tests/unit",
+   "loc": 237,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 2
+  },
+  {
+   "id": "tests/unit/evidence-core.test.ts",
+   "layer": "tests/unit",
+   "loc": 110,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 4
+  },
+  {
+   "id": "tests/unit/examples.test.ts",
+   "layer": "tests/unit",
+   "loc": 58,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 3
+  },
+  {
+   "id": "tests/unit/facet-semantics-consumers.test.ts",
+   "layer": "tests/unit",
+   "loc": 68,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 4
+  },
+  {
+   "id": "tests/unit/fraction-guard-followups.test.ts",
+   "layer": "tests/unit",
+   "loc": 42,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 1
+  },
+  {
+   "id": "tests/unit/fraction-not-date.test.ts",
+   "layer": "tests/unit",
+   "loc": 62,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 1
+  },
+  {
+   "id": "tests/unit/gauntlet-source-fidelity.test.ts",
+   "layer": "tests/unit",
+   "loc": 219,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 1
+  },
+  {
+   "id": "tests/unit/import-json.test.ts",
+   "layer": "tests/unit",
+   "loc": 144,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 3
+  },
+  {
+   "id": "tests/unit/indent-po-grn-regression.test.ts",
+   "layer": "tests/unit",
+   "loc": 198,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 3
+  },
+  {
+   "id": "tests/unit/insight-composition.test.tsx",
+   "layer": "tests/unit",
+   "loc": 16,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 4
+  },
+  {
+   "id": "tests/unit/journey-replay.test.tsx",
+   "layer": "tests/unit",
+   "loc": 122,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 7
+  },
+  {
+   "id": "tests/unit/knowledge-graph.test.ts",
+   "layer": "tests/unit",
+   "loc": 105,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 2
+  },
+  {
+   "id": "tests/unit/lazy-source-identity.test.ts",
+   "layer": "tests/unit",
+   "loc": 5,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 0
+  },
+  {
+   "id": "tests/unit/lesson-label-readable.test.ts",
+   "layer": "tests/unit",
+   "loc": 62,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 1
+  },
+  {
+   "id": "tests/unit/live-guidance-panel.test.tsx",
+   "layer": "tests/unit",
+   "loc": 62,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 1
+  },
+  {
+   "id": "tests/unit/local-stats.test.ts",
+   "layer": "tests/unit",
+   "loc": 102,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 1
+  },
+  {
+   "id": "tests/unit/mailto.test.ts",
+   "layer": "tests/unit",
+   "loc": 101,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 1
+  },
+  {
+   "id": "tests/unit/market-research-mode.test.ts",
+   "layer": "tests/unit",
+   "loc": 104,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 3
+  },
+  {
+   "id": "tests/unit/market-research-pack.test.ts",
+   "layer": "tests/unit",
+   "loc": 59,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 1
+  },
+  {
+   "id": "tests/unit/meaning-number-index.test.ts",
+   "layer": "tests/unit",
+   "loc": 48,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 2
+  },
+  {
+   "id": "tests/unit/memory-layer-benchmark.test.ts",
+   "layer": "tests/unit",
+   "loc": 173,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 4
+  },
+  {
+   "id": "tests/unit/motion-curves.test.ts",
+   "layer": "tests/unit",
+   "loc": 86,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 1
+  },
+  {
+   "id": "tests/unit/ocr-provenance-note.test.ts",
+   "layer": "tests/unit",
+   "loc": 53,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 1
+  },
+  {
+   "id": "tests/unit/ocr-recognize-timeout.test.ts",
+   "layer": "tests/unit",
+   "loc": 41,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 1
+  },
+  {
+   "id": "tests/unit/ocr-startup-failure.test.ts",
+   "layer": "tests/unit",
+   "loc": 43,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 2
+  },
+  {
+   "id": "tests/unit/ocr-worker-ownership.test.ts",
+   "layer": "tests/unit",
+   "loc": 46,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 1
+  },
+  {
+   "id": "tests/unit/ocr-worker-recovery.test.ts",
+   "layer": "tests/unit",
+   "loc": 25,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 1
+  },
+  {
+   "id": "tests/unit/open-question-not-decision.test.ts",
+   "layer": "tests/unit",
+   "loc": 101,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 1
+  },
+  {
+   "id": "tests/unit/ordinal-phantom-week.test.ts",
+   "layer": "tests/unit",
+   "loc": 85,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 2
+  },
+  {
+   "id": "tests/unit/parse-spec-document.test.ts",
+   "layer": "tests/unit",
+   "loc": 94,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 2
+  },
+  {
+   "id": "tests/unit/parse-text.test.ts",
+   "layer": "tests/unit",
+   "loc": 306,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 4
+  },
+  {
+   "id": "tests/unit/pdf-byte-count-native.test.ts",
+   "layer": "tests/unit",
+   "loc": 11,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 1
+  },
+  {
+   "id": "tests/unit/pdf-byte-count.test.ts",
+   "layer": "tests/unit",
+   "loc": 36,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 1
+  },
+  {
+   "id": "tests/unit/pdf-cleanup.test.ts",
+   "layer": "tests/unit",
+   "loc": 10,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 1
+  },
+  {
+   "id": "tests/unit/pdf-inline-images.test.ts",
+   "layer": "tests/unit",
+   "loc": 91,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 1
+  },
+  {
+   "id": "tests/unit/pdf-layout.test.ts",
+   "layer": "tests/unit",
+   "loc": 102,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 3
+  },
+  {
+   "id": "tests/unit/pdf-png-checksum.test.ts",
+   "layer": "tests/unit",
+   "loc": 17,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 1
+  },
+  {
+   "id": "tests/unit/prd-projection-order.test.ts",
+   "layer": "tests/unit",
+   "loc": 120,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 4
+  },
+  {
+   "id": "tests/unit/preflight.test.ts",
+   "layer": "tests/unit",
+   "loc": 92,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 2
+  },
+  {
+   "id": "tests/unit/preview-source-switch.test.tsx",
+   "layer": "tests/unit",
+   "loc": 5,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 0
+  },
+  {
+   "id": "tests/unit/print-export.test.ts",
+   "layer": "tests/unit",
+   "loc": 121,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 1
+  },
+  {
+   "id": "tests/unit/projection-profiles.test.ts",
+   "layer": "tests/unit",
+   "loc": 330,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 4
+  },
+  {
+   "id": "tests/unit/projection-rules.test.ts",
+   "layer": "tests/unit",
+   "loc": 68,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 2
+  },
+  {
+   "id": "tests/unit/publish-themes.test.ts",
+   "layer": "tests/unit",
+   "loc": 51,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 4
+  },
+  {
+   "id": "tests/unit/read-file.test.ts",
+   "layer": "tests/unit",
+   "loc": 59,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 1
+  },
+  {
+   "id": "tests/unit/readiness.test.ts",
+   "layer": "tests/unit",
+   "loc": 56,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 2
+  },
+  {
+   "id": "tests/unit/relation-link-equivalence.test.ts",
+   "layer": "tests/unit",
+   "loc": 3,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 2
+  },
+  {
+   "id": "tests/unit/render-conversation-signals.test.ts",
+   "layer": "tests/unit",
+   "loc": 55,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 3
+  },
+  {
+   "id": "tests/unit/research-pdf-quality.test.ts",
+   "layer": "tests/unit",
+   "loc": 127,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 3
+  },
+  {
+   "id": "tests/unit/research-world-model.test.ts",
+   "layer": "tests/unit",
+   "loc": 209,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 3
+  },
+  {
+   "id": "tests/unit/results-table-signals-r2.test.ts",
+   "layer": "tests/unit",
+   "loc": 99,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 1
+  },
+  {
+   "id": "tests/unit/results-table-signals.test.ts",
+   "layer": "tests/unit",
+   "loc": 76,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 1
+  },
+  {
+   "id": "tests/unit/resume-facets.test.ts",
+   "layer": "tests/unit",
+   "loc": 99,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 3
+  },
+  {
+   "id": "tests/unit/review98-boundaries.test.tsx",
+   "layer": "tests/unit",
+   "loc": 16,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 3
+  },
+  {
+   "id": "tests/unit/review98-currency-print.test.tsx",
+   "layer": "tests/unit",
+   "loc": 21,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 4
+  },
+  {
+   "id": "tests/unit/review98.test.tsx",
+   "layer": "tests/unit",
+   "loc": 20,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 6
+  },
+  {
+   "id": "tests/unit/risk-topical-scope.test.ts",
+   "layer": "tests/unit",
+   "loc": 55,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 2
+  },
+  {
+   "id": "tests/unit/schema.test.ts",
+   "layer": "tests/unit",
+   "loc": 95,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 1
+  },
+  {
+   "id": "tests/unit/score-not-date.test.ts",
+   "layer": "tests/unit",
+   "loc": 62,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 1
+  },
+  {
+   "id": "tests/unit/search-bench.test.ts",
+   "layer": "tests/unit",
+   "loc": 40,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 2
+  },
+  {
+   "id": "tests/unit/search-core.test.ts",
+   "layer": "tests/unit",
+   "loc": 126,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 8
+  },
+  {
+   "id": "tests/unit/search-dense.test.ts",
+   "layer": "tests/unit",
+   "loc": 65,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 3
+  },
+  {
+   "id": "tests/unit/search-disable-midflight.test.ts",
+   "layer": "tests/unit",
+   "loc": 157,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 2
+  },
+  {
+   "id": "tests/unit/search-embed-recovery.test.ts",
+   "layer": "tests/unit",
+   "loc": 358,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 2
+  },
+  {
+   "id": "tests/unit/search-github.test.ts",
+   "layer": "tests/unit",
+   "loc": 66,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 2
+  },
+  {
+   "id": "tests/unit/search-index-continuation.test.ts",
+   "layer": "tests/unit",
+   "loc": 149,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 1
+  },
+  {
+   "id": "tests/unit/search-unmount-cleanup.test.ts",
+   "layer": "tests/unit",
+   "loc": 64,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 1
+  },
+  {
+   "id": "tests/unit/search-unmount-real-client.test.ts",
+   "layer": "tests/unit",
+   "loc": 40,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 1
+  },
+  {
+   "id": "tests/unit/semantic-primary.test.ts",
+   "layer": "tests/unit",
+   "loc": 120,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 3
+  },
+  {
+   "id": "tests/unit/semantic-version.test.ts",
+   "layer": "tests/unit",
+   "loc": 12,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 3
+  },
+  {
+   "id": "tests/unit/sha256.test.ts",
+   "layer": "tests/unit",
+   "loc": 26,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 1
+  },
+  {
+   "id": "tests/unit/storage.test.ts",
+   "layer": "tests/unit",
+   "loc": 61,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 1
+  },
+  {
+   "id": "tests/unit/table-rows-not-todos.test.ts",
+   "layer": "tests/unit",
+   "loc": 221,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 2
+  },
+  {
+   "id": "tests/unit/temporal-anchor.test.ts",
+   "layer": "tests/unit",
+   "loc": 30,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 1
+  },
+  {
+   "id": "tests/unit/time-tokens.test.ts",
+   "layer": "tests/unit",
+   "loc": 94,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 3
+  },
+  {
+   "id": "tests/unit/timeline-year-span-dash-state.test.ts",
+   "layer": "tests/unit",
+   "loc": 73,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 1
+  },
+  {
+   "id": "tests/unit/timeline-year-span.test.ts",
+   "layer": "tests/unit",
+   "loc": 48,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 2
+  },
+  {
+   "id": "tests/unit/today-compose.test.ts",
+   "layer": "tests/unit",
+   "loc": 37,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 2
+  },
+  {
+   "id": "tests/unit/topic-bucket-equivalence.test.ts",
+   "layer": "tests/unit",
+   "loc": 3,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 1
+  },
+  {
+   "id": "tests/unit/topic-import-equivalence.test.ts",
+   "layer": "tests/unit",
+   "loc": 3,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 1
+  },
+  {
+   "id": "tests/unit/topic-shifts-equivalence.test.ts",
+   "layer": "tests/unit",
+   "loc": 3,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 1
+  },
+  {
+   "id": "tests/unit/umbrex-guidance-route.test.ts",
+   "layer": "tests/unit",
+   "loc": 181,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 3
+  },
+  {
+   "id": "tests/unit/umbrex-section-excerpt.test.ts",
+   "layer": "tests/unit",
+   "loc": 121,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 1
+  },
+  {
+   "id": "tests/unit/v6-cognitive.test.ts",
+   "layer": "tests/unit",
+   "loc": 203,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 2
+  },
+  {
+   "id": "tests/unit/verdict-not-todo.test.ts",
+   "layer": "tests/unit",
+   "loc": 67,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 1
+  },
+  {
+   "id": "tests/unit/visual-reading.test.tsx",
+   "layer": "tests/unit",
+   "loc": 37,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 3
+  },
+  {
+   "id": "tests/unit/visual-semantics.test.tsx",
+   "layer": "tests/unit",
+   "loc": 37,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 2
+  },
+  {
+   "id": "tests/unit/workbench-state.test.ts",
+   "layer": "tests/unit",
+   "loc": 168,
+   "test": true,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 7
+  },
+  {
+   "id": "vitest.config.ts",
+   "layer": "(root)",
+   "loc": 20,
+   "test": false,
+   "exports": [],
+   "fanIn": 0,
+   "fanOut": 0
+  }
+ ],
+ "edges": [
+  {
+   "from": "scripts/diagrams/draw_architecture.py",
+   "to": "scripts/diagrams/sketch.py"
+  },
+  {
+   "from": "scripts/docgraph-cache.test.mjs",
+   "to": "src/import/docgraph/result-cache.ts"
+  },
+  {
+   "from": "scripts/gauntlet-export.mts",
+   "to": "src/import/read-pdf.ts"
+  },
+  {
+   "from": "scripts/gauntlet-export.mts",
+   "to": "src/import/import-source.ts"
+  },
+  {
+   "from": "scripts/gauntlet-export.mts",
+   "to": "src/render/render-bundle.ts"
+  },
+  {
+   "from": "scripts/gauntlet-export.mts",
+   "to": "src/utils/print-export.ts"
+  },
+  {
+   "from": "scripts/inspect-archetypes.ts",
+   "to": "src/import/import-source.ts"
+  },
+  {
+   "from": "scripts/inspect-archetypes.ts",
+   "to": "src/understanding/archetype.ts"
+  },
+  {
+   "from": "scripts/inspect-prd.ts",
+   "to": "src/import/read-pdf.ts"
+  },
+  {
+   "from": "scripts/inspect-prd.ts",
+   "to": "src/import/import-source.ts"
+  },
+  {
+   "from": "services/docgraph/server.py",
+   "to": "services/docgraph/build_graph.py"
+  },
+  {
+   "from": "services/docgraph/server.py",
+   "to": "services/docgraph/cache.py"
+  },
+  {
+   "from": "services/docgraph/server.py",
+   "to": "services/docgraph/parse_docling.py"
+  },
+  {
+   "from": "src/ai/contract.ts",
+   "to": "src/domain/memory/schema.ts"
+  },
+  {
+   "from": "src/ai/contract.ts",
+   "to": "src/domain/memory/limits.ts"
+  },
+  {
+   "from": "src/ai/openai-extractor.server.ts",
+   "to": "src/domain/memory/limits.ts"
+  },
+  {
+   "from": "src/ai/openai-extractor.server.ts",
+   "to": "src/domain/memory/schema.ts"
+  },
+  {
+   "from": "src/ai/openai-extractor.server.ts",
+   "to": "src/ai/contract.ts"
+  },
+  {
+   "from": "src/ai/openai-extractor.server.ts",
+   "to": "src/ai/prompt.ts"
+  },
+  {
+   "from": "src/ai/openai-extractor.server.ts",
+   "to": "src/ai/v6/index.ts"
+  },
+  {
+   "from": "src/ai/prompt.ts",
+   "to": "src/ai/v6/prompt.ts"
+  },
+  {
+   "from": "src/ai/v6/index.ts",
+   "to": "src/ai/v6/prompt.ts"
+  },
+  {
+   "from": "src/ai/v6/index.ts",
+   "to": "src/ai/v6/schema.ts"
+  },
+  {
+   "from": "src/ai/v6/index.ts",
+   "to": "src/ai/v6/validate.ts"
+  },
+  {
+   "from": "src/ai/v6/index.ts",
+   "to": "src/ai/v6/project.ts"
+  },
+  {
+   "from": "src/ai/v6/index.ts",
+   "to": "src/ai/v6/score.ts"
+  },
+  {
+   "from": "src/ai/v6/index.ts",
+   "to": "src/domain/memory/schema.ts"
+  },
+  {
+   "from": "src/ai/v6/project.ts",
+   "to": "src/domain/memory/schema.ts"
+  },
+  {
+   "from": "src/ai/v6/project.ts",
+   "to": "src/domain/memory/limits.ts"
+  },
+  {
+   "from": "src/ai/v6/project.ts",
+   "to": "src/understanding/projection-profiles.ts"
+  },
+  {
+   "from": "src/ai/v6/project.ts",
+   "to": "src/understanding/archetype.ts"
+  },
+  {
+   "from": "src/ai/v6/project.ts",
+   "to": "src/ai/v6/schema.ts"
+  },
+  {
+   "from": "src/ai/v6/project.ts",
+   "to": "src/ai/v6/validate.ts"
+  },
+  {
+   "from": "src/ai/v6/score.ts",
+   "to": "src/domain/memory/schema.ts"
+  },
+  {
+   "from": "src/ai/v6/score.ts",
+   "to": "src/ai/v6/validate.ts"
+  },
+  {
+   "from": "src/ai/v6/score.ts",
+   "to": "src/ai/v6/schema.ts"
+  },
+  {
+   "from": "src/ai/v6/validate.ts",
+   "to": "src/ai/v6/schema.ts"
+  },
+  {
+   "from": "src/app/api/extract/route.ts",
+   "to": "src/ai/contract.ts"
+  },
+  {
+   "from": "src/app/api/extract/route.ts",
+   "to": "src/ai/openai-extractor.server.ts"
+  },
+  {
+   "from": "src/app/api/umbrex-guidance/core.ts",
+   "to": "src/understanding/market-research/guidance-pack.ts"
+  },
+  {
+   "from": "src/app/api/umbrex-guidance/route.ts",
+   "to": "src/app/api/umbrex-guidance/core.ts"
+  },
+  {
+   "from": "src/app/page.tsx",
+   "to": "src/import/import-source.ts"
+  },
+  {
+   "from": "src/app/page.tsx",
+   "to": "src/render/render-bundle.ts"
+  },
+  {
+   "from": "src/app/page.tsx",
+   "to": "src/import/examples/catalog.ts"
+  },
+  {
+   "from": "src/app/page.tsx",
+   "to": "src/components/workbench.tsx"
+  },
+  {
+   "from": "src/components/blocks/blocks-panel.tsx",
+   "to": "src/domain/memory/schema.ts"
+  },
+  {
+   "from": "src/components/blocks/blocks-panel.tsx",
+   "to": "src/understanding/projection-profiles.ts"
+  },
+  {
+   "from": "src/components/blocks/brief-receipt.tsx",
+   "to": "src/domain/memory/schema.ts"
+  },
+  {
+   "from": "src/components/blocks/brief-receipt.tsx",
+   "to": "src/evidence-core/memorable-adapter.ts"
+  },
+  {
+   "from": "src/components/blocks/brief-receipt.tsx",
+   "to": "src/components/journey-strip.tsx"
+  },
+  {
+   "from": "src/components/blocks/inspector.tsx",
+   "to": "src/domain/memory/schema.ts"
+  },
+  {
+   "from": "src/components/export/publish-panel.tsx",
+   "to": "src/domain/memory/types.ts"
+  },
+  {
+   "from": "src/components/export/publish-panel.tsx",
+   "to": "src/components/workbench-state.ts"
+  },
+  {
+   "from": "src/components/export/publish-panel.tsx",
+   "to": "src/render/export-source.ts"
+  },
+  {
+   "from": "src/components/export/publish-panel.tsx",
+   "to": "src/utils/download.ts"
+  },
+  {
+   "from": "src/components/export/publish-panel.tsx",
+   "to": "src/utils/print-export.ts"
+  },
+  {
+   "from": "src/components/export/publish-panel.tsx",
+   "to": "src/utils/mailto.ts"
+  },
+  {
+   "from": "src/components/home/chapters.tsx",
+   "to": "src/motion/curves.ts"
+  },
+  {
+   "from": "src/components/home/chapters.tsx",
+   "to": "src/motion/scroll-scene.ts"
+  },
+  {
+   "from": "src/components/home/chapters.tsx",
+   "to": "src/components/home/hero-recall.tsx"
+  },
+  {
+   "from": "src/components/home/chapters.tsx",
+   "to": "src/components/home/bench-results.ts"
+  },
+  {
+   "from": "src/components/home/hero-recall.tsx",
+   "to": "src/search/engine.ts"
+  },
+  {
+   "from": "src/components/home/hero-recall.tsx",
+   "to": "src/search/analyze.ts"
+  },
+  {
+   "from": "src/components/home/hero-recall.tsx",
+   "to": "src/motion/curves.ts"
+  },
+  {
+   "from": "src/components/home/home-screen.tsx",
+   "to": "src/components/async-operation.ts"
+  },
+  {
+   "from": "src/components/home/home-screen.tsx",
+   "to": "src/reliability/diagnostics.ts"
+  },
+  {
+   "from": "src/components/home/home-screen.tsx",
+   "to": "src/import/import-source.ts"
+  },
+  {
+   "from": "src/components/home/home-screen.tsx",
+   "to": "src/components/ui/brand-mark.tsx"
+  },
+  {
+   "from": "src/components/home/home-screen.tsx",
+   "to": "src/components/today/today-app.tsx"
+  },
+  {
+   "from": "src/components/home/home-screen.tsx",
+   "to": "src/components/home/hero-recall.tsx"
+  },
+  {
+   "from": "src/components/home/home-screen.tsx",
+   "to": "src/components/home/story.tsx"
+  },
+  {
+   "from": "src/components/home/home-screen.tsx",
+   "to": "src/components/home/chapters.tsx"
+  },
+  {
+   "from": "src/components/home/home-screen.tsx",
+   "to": "src/components/import/read-file.ts"
+  },
+  {
+   "from": "src/components/home/home-screen.tsx",
+   "to": "src/import/read-pdf.ts"
+  },
+  {
+   "from": "src/components/home/home-screen.tsx",
+   "to": "src/import/docgraph/index.ts"
+  },
+  {
+   "from": "src/components/home/home-screen.tsx",
+   "to": "src/domain/memory/schema.ts"
+  },
+  {
+   "from": "src/components/home/home-screen.tsx",
+   "to": "src/components/journey-strip.tsx"
+  },
+  {
+   "from": "src/components/home/home-screen.tsx",
+   "to": "src/stats/local-stats.ts"
+  },
+  {
+   "from": "src/components/home/home-screen.tsx",
+   "to": "src/components/import/import-stages.ts"
+  },
+  {
+   "from": "src/components/home/story.tsx",
+   "to": "src/search/analyze.ts"
+  },
+  {
+   "from": "src/components/home/story.tsx",
+   "to": "src/search/signature.ts"
+  },
+  {
+   "from": "src/components/home/story.tsx",
+   "to": "src/components/home/bench-results.ts"
+  },
+  {
+   "from": "src/components/import/import-panel.tsx",
+   "to": "src/components/async-operation.ts"
+  },
+  {
+   "from": "src/components/import/import-panel.tsx",
+   "to": "src/reliability/diagnostics.ts"
+  },
+  {
+   "from": "src/components/import/import-panel.tsx",
+   "to": "src/domain/memory/schema.ts"
+  },
+  {
+   "from": "src/components/import/import-panel.tsx",
+   "to": "src/import/examples/catalog.ts"
+  },
+  {
+   "from": "src/components/import/import-panel.tsx",
+   "to": "src/import/import-source.ts"
+  },
+  {
+   "from": "src/components/import/import-panel.tsx",
+   "to": "src/components/import/read-file.ts"
+  },
+  {
+   "from": "src/components/import/import-panel.tsx",
+   "to": "src/import/read-pdf.ts"
+  },
+  {
+   "from": "src/components/import/import-panel.tsx",
+   "to": "src/import/docgraph/index.ts"
+  },
+  {
+   "from": "src/components/journey-strip.tsx",
+   "to": "src/components/workbench-state.ts"
+  },
+  {
+   "from": "src/components/journey-strip.tsx",
+   "to": "src/domain/memory/types.ts"
+  },
+  {
+   "from": "src/components/journey-strip.tsx",
+   "to": "src/components/import/read-file.ts"
+  },
+  {
+   "from": "src/components/preview/elements-story.tsx",
+   "to": "src/domain/memory/types.ts"
+  },
+  {
+   "from": "src/components/preview/elements-story.tsx",
+   "to": "src/render/elements-used.ts"
+  },
+  {
+   "from": "src/components/preview/elements-story.tsx",
+   "to": "src/render/themes.ts"
+  },
+  {
+   "from": "src/components/preview/elements-story.tsx",
+   "to": "src/components/ui/unlayer-mark.tsx"
+  },
+  {
+   "from": "src/components/preview/preview-pane.tsx",
+   "to": "src/domain/memory/types.ts"
+  },
+  {
+   "from": "src/components/preview/preview-pane.tsx",
+   "to": "src/components/preview/elements-story.tsx"
+  },
+  {
+   "from": "src/components/preview/preview-pane.tsx",
+   "to": "src/components/preview/live-guidance-panel.tsx"
+  },
+  {
+   "from": "src/components/preview/preview-pane.tsx",
+   "to": "src/render/themes.ts"
+  },
+  {
+   "from": "src/components/preview/source-modal.tsx",
+   "to": "src/domain/memory/schema.ts"
+  },
+  {
+   "from": "src/components/preview/visual-reading.tsx",
+   "to": "src/domain/memory/schema.ts"
+  },
+  {
+   "from": "src/components/preview/visual-reading.tsx",
+   "to": "src/visuals/evidence.ts"
+  },
+  {
+   "from": "src/components/replay/use-replay.ts",
+   "to": "src/domain/memory/types.ts"
+  },
+  {
+   "from": "src/components/today/compose.ts",
+   "to": "src/daily/lexical.ts"
+  },
+  {
+   "from": "src/components/today/compose.ts",
+   "to": "src/daily/types.ts"
+  },
+  {
+   "from": "src/components/today/composer.tsx",
+   "to": "src/daily/engine.ts"
+  },
+  {
+   "from": "src/components/today/composer.tsx",
+   "to": "src/daily/types.ts"
+  },
+  {
+   "from": "src/components/today/composer.tsx",
+   "to": "src/components/today/compose.ts"
+  },
+  {
+   "from": "src/components/today/composer.tsx",
+   "to": "src/components/today/glyph.tsx"
+  },
+  {
+   "from": "src/components/today/entry-stream.tsx",
+   "to": "src/daily/engine.ts"
+  },
+  {
+   "from": "src/components/today/entry-stream.tsx",
+   "to": "src/daily/types.ts"
+  },
+  {
+   "from": "src/components/today/entry-stream.tsx",
+   "to": "src/components/today/compose.ts"
+  },
+  {
+   "from": "src/components/today/entry-stream.tsx",
+   "to": "src/components/today/glyph.tsx"
+  },
+  {
+   "from": "src/components/today/glyph.tsx",
+   "to": "src/daily/types.ts"
+  },
+  {
+   "from": "src/components/today/panels.tsx",
+   "to": "src/search/engine.ts"
+  },
+  {
+   "from": "src/components/today/panels.tsx",
+   "to": "src/components/today/use-repo-search.ts"
+  },
+  {
+   "from": "src/components/today/panels.tsx",
+   "to": "src/daily/engine.ts"
+  },
+  {
+   "from": "src/components/today/panels.tsx",
+   "to": "src/daily/types.ts"
+  },
+  {
+   "from": "src/components/today/panels.tsx",
+   "to": "src/components/today/compose.ts"
+  },
+  {
+   "from": "src/components/today/panels.tsx",
+   "to": "src/components/today/glyph.tsx"
+  },
+  {
+   "from": "src/components/today/recheck-panel.tsx",
+   "to": "src/daily/engine.ts"
+  },
+  {
+   "from": "src/components/today/recheck-panel.tsx",
+   "to": "src/daily/types.ts"
+  },
+  {
+   "from": "src/components/today/recheck-panel.tsx",
+   "to": "src/daily/fsrs.ts"
+  },
+  {
+   "from": "src/components/today/recheck-panel.tsx",
+   "to": "src/components/today/compose.ts"
+  },
+  {
+   "from": "src/components/today/recheck-panel.tsx",
+   "to": "src/components/today/glyph.tsx"
+  },
+  {
+   "from": "src/components/today/today-app.tsx",
+   "to": "src/daily/types.ts"
+  },
+  {
+   "from": "src/components/today/today-app.tsx",
+   "to": "src/components/today/capture-loop.tsx"
+  },
+  {
+   "from": "src/components/today/today-app.tsx",
+   "to": "src/components/today/composer.tsx"
+  },
+  {
+   "from": "src/components/today/today-app.tsx",
+   "to": "src/components/today/compose.ts"
+  },
+  {
+   "from": "src/components/today/today-app.tsx",
+   "to": "src/components/today/entry-stream.tsx"
+  },
+  {
+   "from": "src/components/today/today-app.tsx",
+   "to": "src/components/today/panels.tsx"
+  },
+  {
+   "from": "src/components/today/today-app.tsx",
+   "to": "src/components/today/recheck-panel.tsx"
+  },
+  {
+   "from": "src/components/today/today-app.tsx",
+   "to": "src/components/today/use-daily.ts"
+  },
+  {
+   "from": "src/components/today/today-app.tsx",
+   "to": "src/components/today/use-repo-search.ts"
+  },
+  {
+   "from": "src/components/today/use-daily.ts",
+   "to": "src/daily/engine.ts"
+  },
+  {
+   "from": "src/components/today/use-daily.ts",
+   "to": "src/daily/idb-store.ts"
+  },
+  {
+   "from": "src/components/today/use-daily.ts",
+   "to": "src/daily/store.ts"
+  },
+  {
+   "from": "src/components/today/use-repo-search.ts",
+   "to": "src/daily/engine.ts"
+  },
+  {
+   "from": "src/components/today/use-repo-search.ts",
+   "to": "src/search/engine.ts"
+  },
+  {
+   "from": "src/components/today/use-repo-search.ts",
+   "to": "src/search/embed-client.ts"
+  },
+  {
+   "from": "src/components/today/use-repo-search.ts",
+   "to": "src/search/github.ts"
+  },
+  {
+   "from": "src/components/today/use-repo-search.ts",
+   "to": "src/search/store.ts"
+  },
+  {
+   "from": "src/components/topbar.tsx",
+   "to": "src/domain/memory/types.ts"
+  },
+  {
+   "from": "src/components/topbar.tsx",
+   "to": "src/components/ui/brand-mark.tsx"
+  },
+  {
+   "from": "src/components/topbar.tsx",
+   "to": "src/render/themes.ts"
+  },
+  {
+   "from": "src/components/topbar.tsx",
+   "to": "src/stats/doc-library.ts"
+  },
+  {
+   "from": "src/components/ui/brand-splash.tsx",
+   "to": "src/components/ui/brand-mark.tsx"
+  },
+  {
+   "from": "src/components/workbench-state.ts",
+   "to": "src/utils/sha256.ts"
+  },
+  {
+   "from": "src/components/workbench-state.ts",
+   "to": "src/reliability/diagnostics.ts"
+  },
+  {
+   "from": "src/components/workbench-state.ts",
+   "to": "src/domain/memory/schema.ts"
+  },
+  {
+   "from": "src/components/workbench-state.ts",
+   "to": "src/domain/memory/normalize.ts"
+  },
+  {
+   "from": "src/components/workbench-state.ts",
+   "to": "src/render/render-bundle.ts"
+  },
+  {
+   "from": "src/components/workbench-state.ts",
+   "to": "src/domain/memory/types.ts"
+  },
+  {
+   "from": "src/components/workbench-state.ts",
+   "to": "src/render/themes.ts"
+  },
+  {
+   "from": "src/components/workbench.tsx",
+   "to": "src/domain/memory/schema.ts"
+  },
+  {
+   "from": "src/components/workbench.tsx",
+   "to": "src/domain/memory/types.ts"
+  },
+  {
+   "from": "src/components/workbench.tsx",
+   "to": "src/import/import-source.ts"
+  },
+  {
+   "from": "src/components/workbench.tsx",
+   "to": "src/render/export-source.ts"
+  },
+  {
+   "from": "src/components/workbench.tsx",
+   "to": "src/import/json/import-json.ts"
+  },
+  {
+   "from": "src/components/workbench.tsx",
+   "to": "src/import/examples/catalog.ts"
+  },
+  {
+   "from": "src/components/workbench.tsx",
+   "to": "src/render/render-bundle.ts"
+  },
+  {
+   "from": "src/components/workbench.tsx",
+   "to": "src/components/workbench-state.ts"
+  },
+  {
+   "from": "src/components/workbench.tsx",
+   "to": "src/components/topbar.tsx"
+  },
+  {
+   "from": "src/components/workbench.tsx",
+   "to": "src/components/journey-strip.tsx"
+  },
+  {
+   "from": "src/components/workbench.tsx",
+   "to": "src/components/import/import-panel.tsx"
+  },
+  {
+   "from": "src/components/workbench.tsx",
+   "to": "src/components/blocks/blocks-panel.tsx"
+  },
+  {
+   "from": "src/components/workbench.tsx",
+   "to": "src/components/blocks/brief-receipt.tsx"
+  },
+  {
+   "from": "src/components/workbench.tsx",
+   "to": "src/components/blocks/inspector.tsx"
+  },
+  {
+   "from": "src/components/workbench.tsx",
+   "to": "src/components/preview/visual-reading.tsx"
+  },
+  {
+   "from": "src/components/workbench.tsx",
+   "to": "src/components/preview/preview-pane.tsx"
+  },
+  {
+   "from": "src/components/workbench.tsx",
+   "to": "src/components/preview/source-modal.tsx"
+  },
+  {
+   "from": "src/components/workbench.tsx",
+   "to": "src/components/export/publish-panel.tsx"
+  },
+  {
+   "from": "src/components/workbench.tsx",
+   "to": "src/components/ui/stage-announcer.tsx"
+  },
+  {
+   "from": "src/components/workbench.tsx",
+   "to": "src/components/ui/brand-splash.tsx"
+  },
+  {
+   "from": "src/components/workbench.tsx",
+   "to": "src/components/ui/demo-video.tsx"
+  },
+  {
+   "from": "src/components/workbench.tsx",
+   "to": "src/stats/local-stats.ts"
+  },
+  {
+   "from": "src/components/workbench.tsx",
+   "to": "src/stats/doc-library.ts"
+  },
+  {
+   "from": "src/components/workbench.tsx",
+   "to": "src/render/themes.ts"
+  },
+  {
+   "from": "src/components/workbench.tsx",
+   "to": "src/components/home/home-screen.tsx"
+  },
+  {
+   "from": "src/components/workbench.tsx",
+   "to": "src/components/replay/use-replay.ts"
+  },
+  {
+   "from": "src/components/workbench.tsx",
+   "to": "src/components/import/import-stages.ts"
+  },
+  {
+   "from": "src/components/workbench.tsx",
+   "to": "src/components/async-operation.ts"
+  },
+  {
+   "from": "src/daily/bench.ts",
+   "to": "src/daily/engine.ts"
+  },
+  {
+   "from": "src/daily/bench.ts",
+   "to": "src/daily/review.ts"
+  },
+  {
+   "from": "src/daily/bench.ts",
+   "to": "src/daily/store.ts"
+  },
+  {
+   "from": "src/daily/bench.ts",
+   "to": "src/daily/types.ts"
+  },
+  {
+   "from": "src/daily/engine.ts",
+   "to": "src/daily/fsrs.ts"
+  },
+  {
+   "from": "src/daily/engine.ts",
+   "to": "src/daily/projection.ts"
+  },
+  {
+   "from": "src/daily/engine.ts",
+   "to": "src/daily/planner.ts"
+  },
+  {
+   "from": "src/daily/engine.ts",
+   "to": "src/daily/recall.ts"
+  },
+  {
+   "from": "src/daily/engine.ts",
+   "to": "src/daily/review.ts"
+  },
+  {
+   "from": "src/daily/engine.ts",
+   "to": "src/daily/store.ts"
+  },
+  {
+   "from": "src/daily/engine.ts",
+   "to": "src/daily/types.ts"
+  },
+  {
+   "from": "src/daily/idb-store.ts",
+   "to": "src/daily/store.ts"
+  },
+  {
+   "from": "src/daily/idb-store.ts",
+   "to": "src/daily/types.ts"
+  },
+  {
+   "from": "src/daily/planner.ts",
+   "to": "src/daily/lexical.ts"
+  },
+  {
+   "from": "src/daily/planner.ts",
+   "to": "src/daily/types.ts"
+  },
+  {
+   "from": "src/daily/projection.ts",
+   "to": "src/daily/fsrs.ts"
+  },
+  {
+   "from": "src/daily/projection.ts",
+   "to": "src/daily/types.ts"
+  },
+  {
+   "from": "src/daily/recall.ts",
+   "to": "src/daily/lexical.ts"
+  },
+  {
+   "from": "src/daily/recall.ts",
+   "to": "src/daily/types.ts"
+  },
+  {
+   "from": "src/daily/review.ts",
+   "to": "src/daily/types.ts"
+  },
+  {
+   "from": "src/daily/store.ts",
+   "to": "src/daily/types.ts"
+  },
+  {
+   "from": "src/daily/types.ts",
+   "to": "src/daily/fsrs.ts"
+  },
+  {
+   "from": "src/domain/memory/canonicalize.ts",
+   "to": "src/utils/sha256.ts"
+  },
+  {
+   "from": "src/domain/memory/canonicalize.ts",
+   "to": "src/domain/memory/schema.ts"
+  },
+  {
+   "from": "src/domain/memory/normalize.ts",
+   "to": "src/understanding/graph.ts"
+  },
+  {
+   "from": "src/domain/memory/normalize.ts",
+   "to": "src/domain/memory/canonicalize.ts"
+  },
+  {
+   "from": "src/domain/memory/normalize.ts",
+   "to": "src/domain/memory/schema.ts"
+  },
+  {
+   "from": "src/domain/memory/schema.ts",
+   "to": "src/domain/memory/limits.ts"
+  },
+  {
+   "from": "src/domain/memory/types.ts",
+   "to": "src/domain/memory/schema.ts"
+  },
+  {
+   "from": "src/domain/memory/types.ts",
+   "to": "src/reliability/diagnostics.ts"
+  },
+  {
+   "from": "src/domain/memory/types.ts",
+   "to": "src/reliability/result.ts"
+  },
+  {
+   "from": "src/evidence-core/memorable-adapter.ts",
+   "to": "src/domain/memory/schema.ts"
+  },
+  {
+   "from": "src/evidence-core/memorable-adapter.ts",
+   "to": "src/utils/sha256.ts"
+  },
+  {
+   "from": "src/evidence-core/memorable-adapter.ts",
+   "to": "src/evidence-core/contracts.ts"
+  },
+  {
+   "from": "src/import/docgraph/client.ts",
+   "to": "src/import/docgraph/types.ts"
+  },
+  {
+   "from": "src/import/docgraph/client.ts",
+   "to": "src/import/docgraph/select.ts"
+  },
+  {
+   "from": "src/import/docgraph/client.ts",
+   "to": "src/import/docgraph/result-cache.ts"
+  },
+  {
+   "from": "src/import/docgraph/index.ts",
+   "to": "src/import/docgraph/types.ts"
+  },
+  {
+   "from": "src/import/docgraph/index.ts",
+   "to": "src/import/docgraph/client.ts"
+  },
+  {
+   "from": "src/import/docgraph/index.ts",
+   "to": "src/import/docgraph/select.ts"
+  },
+  {
+   "from": "src/import/docgraph/index.ts",
+   "to": "src/import/docgraph/progressive-pdf.ts"
+  },
+  {
+   "from": "src/import/docgraph/progressive-pdf.ts",
+   "to": "src/import/read-pdf.ts"
+  },
+  {
+   "from": "src/import/docgraph/progressive-pdf.ts",
+   "to": "src/import/docgraph/client.ts"
+  },
+  {
+   "from": "src/import/docgraph/progressive-pdf.ts",
+   "to": "src/import/docgraph/types.ts"
+  },
+  {
+   "from": "src/import/docgraph/progressive-pdf.ts",
+   "to": "src/import/docgraph/select.ts"
+  },
+  {
+   "from": "src/import/examples/catalog.ts",
+   "to": "src/domain/memory/schema.ts"
+  },
+  {
+   "from": "src/import/examples/catalog.ts",
+   "to": "src/import/json/import-json.ts"
+  },
+  {
+   "from": "src/import/import-source.ts",
+   "to": "src/reliability/result.ts"
+  },
+  {
+   "from": "src/import/import-source.ts",
+   "to": "src/domain/memory/schema.ts"
+  },
+  {
+   "from": "src/import/import-source.ts",
+   "to": "src/import/preflight.ts"
+  },
+  {
+   "from": "src/import/import-source.ts",
+   "to": "src/import/json/import-json.ts"
+  },
+  {
+   "from": "src/import/import-source.ts",
+   "to": "src/import/text/parse-text.ts"
+  },
+  {
+   "from": "src/import/json/import-json.ts",
+   "to": "src/reliability/diagnostics.ts"
+  },
+  {
+   "from": "src/import/json/import-json.ts",
+   "to": "src/reliability/result.ts"
+  },
+  {
+   "from": "src/import/json/import-json.ts",
+   "to": "src/import/preflight.ts"
+  },
+  {
+   "from": "src/import/json/import-json.ts",
+   "to": "src/domain/memory/limits.ts"
+  },
+  {
+   "from": "src/import/json/import-json.ts",
+   "to": "src/domain/memory/normalize.ts"
+  },
+  {
+   "from": "src/import/json/import-json.ts",
+   "to": "src/domain/memory/schema.ts"
+  },
+  {
+   "from": "src/import/json/import-json.ts",
+   "to": "src/utils/sha256.ts"
+  },
+  {
+   "from": "src/import/pdf/read-structured.ts",
+   "to": "src/import/pdf/layout.ts"
+  },
+  {
+   "from": "src/import/pdf/read-structured.ts",
+   "to": "src/import/pdf/images.ts"
+  },
+  {
+   "from": "src/import/pdf/read-structured.ts",
+   "to": "src/import/pdf/ocr.ts"
+  },
+  {
+   "from": "src/import/preflight.ts",
+   "to": "src/reliability/diagnostics.ts"
+  },
+  {
+   "from": "src/import/preflight.ts",
+   "to": "src/domain/memory/limits.ts"
+  },
+  {
+   "from": "src/import/preflight.ts",
+   "to": "src/reliability/result.ts"
+  },
+  {
+   "from": "src/import/read-pdf.ts",
+   "to": "src/import/pdf/read-structured.ts"
+  },
+  {
+   "from": "src/import/text/entity-groups.ts",
+   "to": "src/domain/memory/schema.ts"
+  },
+  {
+   "from": "src/import/text/entity-groups.ts",
+   "to": "src/domain/memory/limits.ts"
+  },
+  {
+   "from": "src/import/text/entity-groups.ts",
+   "to": "src/understanding/inference.ts"
+  },
+  {
+   "from": "src/import/text/entity-groups.ts",
+   "to": "src/import/text/patterns.ts"
+  },
+  {
+   "from": "src/import/text/parse-text.ts",
+   "to": "src/import/text/entity-groups.ts"
+  },
+  {
+   "from": "src/import/text/parse-text.ts",
+   "to": "src/reliability/result.ts"
+  },
+  {
+   "from": "src/import/text/parse-text.ts",
+   "to": "src/reliability/diagnostics.ts"
+  },
+  {
+   "from": "src/import/text/parse-text.ts",
+   "to": "src/domain/memory/normalize.ts"
+  },
+  {
+   "from": "src/import/text/parse-text.ts",
+   "to": "src/domain/memory/schema.ts"
+  },
+  {
+   "from": "src/import/text/parse-text.ts",
+   "to": "src/understanding/index.ts"
+  },
+  {
+   "from": "src/import/text/parse-text.ts",
+   "to": "src/understanding/research.ts"
+  },
+  {
+   "from": "src/import/text/parse-text.ts",
+   "to": "src/understanding/knowledge-graph.ts"
+  },
+  {
+   "from": "src/import/text/parse-text.ts",
+   "to": "src/understanding/projection.ts"
+  },
+  {
+   "from": "src/import/text/parse-text.ts",
+   "to": "src/understanding/segment.ts"
+  },
+  {
+   "from": "src/import/text/parse-text.ts",
+   "to": "src/understanding/language.ts"
+  },
+  {
+   "from": "src/import/text/parse-text.ts",
+   "to": "src/domain/memory/limits.ts"
+  },
+  {
+   "from": "src/import/text/parse-text.ts",
+   "to": "src/import/json/import-json.ts"
+  },
+  {
+   "from": "src/import/text/parse-text.ts",
+   "to": "src/import/text/sections.ts"
+  },
+  {
+   "from": "src/import/text/parse-text.ts",
+   "to": "src/import/text/patterns.ts"
+  },
+  {
+   "from": "src/import/text/patterns.ts",
+   "to": "src/domain/memory/schema.ts"
+  },
+  {
+   "from": "src/import/text/patterns.ts",
+   "to": "src/understanding/inference.ts"
+  },
+  {
+   "from": "src/import/text/sections.ts",
+   "to": "src/domain/memory/schema.ts"
+  },
+  {
+   "from": "src/import/text/sections.ts",
+   "to": "src/import/text/patterns.ts"
+  },
+  {
+   "from": "src/motion/scroll-scene.ts",
+   "to": "src/motion/curves.ts"
+  },
+  {
+   "from": "src/reliability/result.ts",
+   "to": "src/reliability/diagnostics.ts"
+  },
+  {
+   "from": "src/render/block-registry.ts",
+   "to": "src/domain/memory/schema.ts"
+  },
+  {
+   "from": "src/render/block-registry.ts",
+   "to": "src/render/blocks/snapshot.tsx"
+  },
+  {
+   "from": "src/render/block-registry.ts",
+   "to": "src/render/blocks/signals.tsx"
+  },
+  {
+   "from": "src/render/block-registry.ts",
+   "to": "src/render/blocks/decisions.tsx"
+  },
+  {
+   "from": "src/render/block-registry.ts",
+   "to": "src/render/blocks/timeline.tsx"
+  },
+  {
+   "from": "src/render/block-registry.ts",
+   "to": "src/render/blocks/risks.tsx"
+  },
+  {
+   "from": "src/render/block-registry.ts",
+   "to": "src/render/blocks/actions.tsx"
+  },
+  {
+   "from": "src/render/block-registry.ts",
+   "to": "src/render/recovery-row.tsx"
+  },
+  {
+   "from": "src/render/block-registry.ts",
+   "to": "src/render/blocks/common.tsx"
+  },
+  {
+   "from": "src/render/blocks/actions.tsx",
+   "to": "src/domain/memory/schema.ts"
+  },
+  {
+   "from": "src/render/blocks/actions.tsx",
+   "to": "src/render/tokens.ts"
+  },
+  {
+   "from": "src/render/blocks/actions.tsx",
+   "to": "src/render/safe-inline.ts"
+  },
+  {
+   "from": "src/render/blocks/actions.tsx",
+   "to": "src/render/blocks/common.tsx"
+  },
+  {
+   "from": "src/render/blocks/common.tsx",
+   "to": "src/domain/memory/schema.ts"
+  },
+  {
+   "from": "src/render/blocks/common.tsx",
+   "to": "src/domain/memory/types.ts"
+  },
+  {
+   "from": "src/render/blocks/common.tsx",
+   "to": "src/understanding/projection-profiles.ts"
+  },
+  {
+   "from": "src/render/blocks/common.tsx",
+   "to": "src/render/themes.ts"
+  },
+  {
+   "from": "src/render/blocks/common.tsx",
+   "to": "src/render/safe-inline.ts"
+  },
+  {
+   "from": "src/render/blocks/decisions.tsx",
+   "to": "src/domain/memory/schema.ts"
+  },
+  {
+   "from": "src/render/blocks/decisions.tsx",
+   "to": "src/render/tokens.ts"
+  },
+  {
+   "from": "src/render/blocks/decisions.tsx",
+   "to": "src/render/safe-inline.ts"
+  },
+  {
+   "from": "src/render/blocks/decisions.tsx",
+   "to": "src/render/blocks/common.tsx"
+  },
+  {
+   "from": "src/render/blocks/risks.tsx",
+   "to": "src/domain/memory/schema.ts"
+  },
+  {
+   "from": "src/render/blocks/risks.tsx",
+   "to": "src/render/tokens.ts"
+  },
+  {
+   "from": "src/render/blocks/risks.tsx",
+   "to": "src/render/safe-inline.ts"
+  },
+  {
+   "from": "src/render/blocks/risks.tsx",
+   "to": "src/render/blocks/common.tsx"
+  },
+  {
+   "from": "src/render/blocks/signals.tsx",
+   "to": "src/domain/memory/schema.ts"
+  },
+  {
+   "from": "src/render/blocks/signals.tsx",
+   "to": "src/render/tokens.ts"
+  },
+  {
+   "from": "src/render/blocks/signals.tsx",
+   "to": "src/render/safe-inline.ts"
+  },
+  {
+   "from": "src/render/blocks/signals.tsx",
+   "to": "src/render/blocks/common.tsx"
+  },
+  {
+   "from": "src/render/blocks/snapshot.tsx",
+   "to": "src/domain/memory/schema.ts"
+  },
+  {
+   "from": "src/render/blocks/snapshot.tsx",
+   "to": "src/render/safe-inline.ts"
+  },
+  {
+   "from": "src/render/blocks/snapshot.tsx",
+   "to": "src/render/blocks/common.tsx"
+  },
+  {
+   "from": "src/render/blocks/timeline.tsx",
+   "to": "src/domain/memory/schema.ts"
+  },
+  {
+   "from": "src/render/blocks/timeline.tsx",
+   "to": "src/render/tokens.ts"
+  },
+  {
+   "from": "src/render/blocks/timeline.tsx",
+   "to": "src/render/safe-inline.ts"
+  },
+  {
+   "from": "src/render/blocks/timeline.tsx",
+   "to": "src/render/blocks/common.tsx"
+  },
+  {
+   "from": "src/render/build-root.tsx",
+   "to": "src/render/insight-composition.tsx"
+  },
+  {
+   "from": "src/render/build-root.tsx",
+   "to": "src/render/market-research.tsx"
+  },
+  {
+   "from": "src/render/build-root.tsx",
+   "to": "src/domain/memory/schema.ts"
+  },
+  {
+   "from": "src/render/build-root.tsx",
+   "to": "src/domain/memory/types.ts"
+  },
+  {
+   "from": "src/render/build-root.tsx",
+   "to": "src/render/themes.ts"
+  },
+  {
+   "from": "src/render/build-root.tsx",
+   "to": "src/render/safe-inline.ts"
+  },
+  {
+   "from": "src/render/build-root.tsx",
+   "to": "src/render/block-registry.ts"
+  },
+  {
+   "from": "src/render/build-root.tsx",
+   "to": "src/render/blocks/common.tsx"
+  },
+  {
+   "from": "src/render/compatibility.ts",
+   "to": "src/reliability/result.ts"
+  },
+  {
+   "from": "src/render/compatibility.ts",
+   "to": "src/reliability/diagnostics.ts"
+  },
+  {
+   "from": "src/render/elements-used.ts",
+   "to": "src/domain/memory/types.ts"
+  },
+  {
+   "from": "src/render/elements-used.ts",
+   "to": "src/render/themes.ts"
+  },
+  {
+   "from": "src/render/export-source.ts",
+   "to": "src/domain/memory/schema.ts"
+  },
+  {
+   "from": "src/render/insight-composition.tsx",
+   "to": "src/domain/memory/canonicalize.ts"
+  },
+  {
+   "from": "src/render/insight-composition.tsx",
+   "to": "src/import/import-source.ts"
+  },
+  {
+   "from": "src/render/insight-composition.tsx",
+   "to": "src/domain/memory/schema.ts"
+  },
+  {
+   "from": "src/render/insight-composition.tsx",
+   "to": "src/domain/memory/types.ts"
+  },
+  {
+   "from": "src/render/insight-composition.tsx",
+   "to": "src/visuals/evidence.ts"
+  },
+  {
+   "from": "src/render/insight-composition.tsx",
+   "to": "src/render/themes.ts"
+  },
+  {
+   "from": "src/render/insight-composition.tsx",
+   "to": "src/render/build-root.tsx"
+  },
+  {
+   "from": "src/render/insight-composition.tsx",
+   "to": "src/render/safe-inline.ts"
+  },
+  {
+   "from": "src/render/market-research.tsx",
+   "to": "src/domain/memory/schema.ts"
+  },
+  {
+   "from": "src/render/market-research.tsx",
+   "to": "src/render/safe-inline.ts"
+  },
+  {
+   "from": "src/render/market-research.tsx",
+   "to": "src/render/themes.ts"
+  },
+  {
+   "from": "src/render/market-research.tsx",
+   "to": "src/understanding/market-research/guidance-pack.ts"
+  },
+  {
+   "from": "src/render/recovery-row.tsx",
+   "to": "src/render/tokens.ts"
+  },
+  {
+   "from": "src/render/render-bundle.ts",
+   "to": "src/domain/memory/schema.ts"
+  },
+  {
+   "from": "src/render/render-bundle.ts",
+   "to": "src/domain/memory/types.ts"
+  },
+  {
+   "from": "src/render/render-bundle.ts",
+   "to": "src/render/build-root.tsx"
+  },
+  {
+   "from": "src/render/render-bundle.ts",
+   "to": "src/render/compatibility.ts"
+  },
+  {
+   "from": "src/render/render-bundle.ts",
+   "to": "src/render/themes.ts"
+  },
+  {
+   "from": "src/render/themes.ts",
+   "to": "src/render/tokens.ts"
+  },
+  {
+   "from": "src/search/bm25f.ts",
+   "to": "src/search/analyze.ts"
+  },
+  {
+   "from": "src/search/embed-client.ts",
+   "to": "src/search/engine.ts"
+  },
+  {
+   "from": "src/search/embed.worker.ts",
+   "to": "src/search/models.ts"
+  },
+  {
+   "from": "src/search/embed.worker.ts",
+   "to": "src/search/engine.ts"
+  },
+  {
+   "from": "src/search/engine.ts",
+   "to": "src/search/analyze.ts"
+  },
+  {
+   "from": "src/search/engine.ts",
+   "to": "src/search/bm25f.ts"
+  },
+  {
+   "from": "src/search/engine.ts",
+   "to": "src/search/fusion.ts"
+  },
+  {
+   "from": "src/search/engine.ts",
+   "to": "src/search/lexicon.ts"
+  },
+  {
+   "from": "src/search/engine.ts",
+   "to": "src/search/signature.ts"
+  },
+  {
+   "from": "src/search/engine.ts",
+   "to": "src/search/vector.ts"
+  },
+  {
+   "from": "src/search/eval.ts",
+   "to": "src/search/engine.ts"
+  },
+  {
+   "from": "src/search/eval.ts",
+   "to": "src/search/metrics.ts"
+  },
+  {
+   "from": "src/search/github.ts",
+   "to": "src/search/engine.ts"
+  },
+  {
+   "from": "src/search/lexicon.ts",
+   "to": "src/search/analyze.ts"
+  },
+  {
+   "from": "src/search/models.ts",
+   "to": "src/search/engine.ts"
+  },
+  {
+   "from": "src/search/store.ts",
+   "to": "src/search/engine.ts"
+  },
+  {
+   "from": "src/search/store.ts",
+   "to": "src/search/github.ts"
+  },
+  {
+   "from": "src/understanding/archetype.ts",
+   "to": "src/ai/v6/schema.ts"
+  },
+  {
+   "from": "src/understanding/concepts.ts",
+   "to": "src/understanding/language.ts"
+  },
+  {
+   "from": "src/understanding/graph.ts",
+   "to": "src/domain/memory/schema.ts"
+  },
+  {
+   "from": "src/understanding/graph.ts",
+   "to": "src/domain/memory/limits.ts"
+  },
+  {
+   "from": "src/understanding/graph.ts",
+   "to": "src/understanding/language.ts"
+  },
+  {
+   "from": "src/understanding/index.ts",
+   "to": "src/domain/memory/schema.ts"
+  },
+  {
+   "from": "src/understanding/index.ts",
+   "to": "src/import/text/patterns.ts"
+  },
+  {
+   "from": "src/understanding/index.ts",
+   "to": "src/import/text/sections.ts"
+  },
+  {
+   "from": "src/understanding/index.ts",
+   "to": "src/understanding/archetype.ts"
+  },
+  {
+   "from": "src/understanding/index.ts",
+   "to": "src/understanding/concepts.ts"
+  },
+  {
+   "from": "src/understanding/index.ts",
+   "to": "src/understanding/intent.ts"
+  },
+  {
+   "from": "src/understanding/index.ts",
+   "to": "src/understanding/insights.ts"
+  },
+  {
+   "from": "src/understanding/index.ts",
+   "to": "src/understanding/inference.ts"
+  },
+  {
+   "from": "src/understanding/index.ts",
+   "to": "src/understanding/infer-events.ts"
+  },
+  {
+   "from": "src/understanding/index.ts",
+   "to": "src/understanding/language.ts"
+  },
+  {
+   "from": "src/understanding/index.ts",
+   "to": "src/understanding/recall.ts"
+  },
+  {
+   "from": "src/understanding/index.ts",
+   "to": "src/understanding/temporal.ts"
+  },
+  {
+   "from": "src/understanding/index.ts",
+   "to": "src/understanding/research.ts"
+  },
+  {
+   "from": "src/understanding/index.ts",
+   "to": "src/understanding/knowledge-graph.ts"
+  },
+  {
+   "from": "src/understanding/index.ts",
+   "to": "src/understanding/projection-profiles.ts"
+  },
+  {
+   "from": "src/understanding/index.ts",
+   "to": "src/understanding/projection.ts"
+  },
+  {
+   "from": "src/understanding/index.ts",
+   "to": "src/understanding/graph.ts"
+  },
+  {
+   "from": "src/understanding/index.ts",
+   "to": "src/understanding/segment.ts"
+  },
+  {
+   "from": "src/understanding/infer-events.ts",
+   "to": "src/import/text/sections.ts"
+  },
+  {
+   "from": "src/understanding/infer-events.ts",
+   "to": "src/import/text/patterns.ts"
+  },
+  {
+   "from": "src/understanding/infer-events.ts",
+   "to": "src/domain/memory/schema.ts"
+  },
+  {
+   "from": "src/understanding/infer-events.ts",
+   "to": "src/understanding/archetype.ts"
+  },
+  {
+   "from": "src/understanding/infer-events.ts",
+   "to": "src/understanding/inference.ts"
+  },
+  {
+   "from": "src/understanding/infer-events.ts",
+   "to": "src/understanding/projection.ts"
+  },
+  {
+   "from": "src/understanding/infer-events.ts",
+   "to": "src/understanding/language.ts"
+  },
+  {
+   "from": "src/understanding/inference.ts",
+   "to": "src/import/text/sections.ts"
+  },
+  {
+   "from": "src/understanding/inference.ts",
+   "to": "src/understanding/concepts.ts"
+  },
+  {
+   "from": "src/understanding/inference.ts",
+   "to": "src/understanding/archetype.ts"
+  },
+  {
+   "from": "src/understanding/inference.ts",
+   "to": "src/understanding/intent.ts"
+  },
+  {
+   "from": "src/understanding/inference.ts",
+   "to": "src/understanding/projection.ts"
+  },
+  {
+   "from": "src/understanding/inference.ts",
+   "to": "src/understanding/language.ts"
+  },
+  {
+   "from": "src/understanding/insights.ts",
+   "to": "src/domain/memory/limits.ts"
+  },
+  {
+   "from": "src/understanding/insights.ts",
+   "to": "src/domain/memory/schema.ts"
+  },
+  {
+   "from": "src/understanding/insights.ts",
+   "to": "src/understanding/archetype.ts"
+  },
+  {
+   "from": "src/understanding/insights.ts",
+   "to": "src/understanding/concepts.ts"
+  },
+  {
+   "from": "src/understanding/insights.ts",
+   "to": "src/understanding/language.ts"
+  },
+  {
+   "from": "src/understanding/insights.ts",
+   "to": "src/understanding/inference.ts"
+  },
+  {
+   "from": "src/understanding/intent.ts",
+   "to": "src/understanding/language.ts"
+  },
+  {
+   "from": "src/understanding/knowledge-graph.ts",
+   "to": "src/utils/sha256.ts"
+  },
+  {
+   "from": "src/understanding/knowledge-graph.ts",
+   "to": "src/import/docgraph/types.ts"
+  },
+  {
+   "from": "src/understanding/knowledge-graph.ts",
+   "to": "src/understanding/research.ts"
+  },
+  {
+   "from": "src/understanding/knowledge-graph.ts",
+   "to": "src/import/text/patterns.ts"
+  },
+  {
+   "from": "src/understanding/knowledge-graph.ts",
+   "to": "src/understanding/language.ts"
+  },
+  {
+   "from": "src/understanding/projection-profiles.ts",
+   "to": "src/domain/memory/schema.ts"
+  },
+  {
+   "from": "src/understanding/projection-profiles.ts",
+   "to": "src/understanding/archetype.ts"
+  },
+  {
+   "from": "src/understanding/projection.ts",
+   "to": "src/domain/memory/schema.ts"
+  },
+  {
+   "from": "src/understanding/projection.ts",
+   "to": "src/import/text/patterns.ts"
+  },
+  {
+   "from": "src/understanding/projection.ts",
+   "to": "src/understanding/archetype.ts"
+  },
+  {
+   "from": "src/understanding/recall.ts",
+   "to": "src/domain/memory/limits.ts"
+  },
+  {
+   "from": "src/understanding/recall.ts",
+   "to": "src/domain/memory/schema.ts"
+  },
+  {
+   "from": "src/understanding/recall.ts",
+   "to": "src/understanding/concepts.ts"
+  },
+  {
+   "from": "src/understanding/recall.ts",
+   "to": "src/understanding/intent.ts"
+  },
+  {
+   "from": "src/understanding/recall.ts",
+   "to": "src/understanding/language.ts"
+  },
+  {
+   "from": "src/understanding/research.ts",
+   "to": "src/domain/memory/normalize.ts"
+  },
+  {
+   "from": "src/understanding/research.ts",
+   "to": "src/domain/memory/limits.ts"
+  },
+  {
+   "from": "src/understanding/research.ts",
+   "to": "src/domain/memory/schema.ts"
+  },
+  {
+   "from": "src/understanding/research.ts",
+   "to": "src/import/text/patterns.ts"
+  },
+  {
+   "from": "src/understanding/research.ts",
+   "to": "src/understanding/language.ts"
+  },
+  {
+   "from": "src/understanding/segment.ts",
+   "to": "src/understanding/language.ts"
+  },
+  {
+   "from": "src/understanding/temporal.ts",
+   "to": "src/domain/memory/schema.ts"
+  },
+  {
+   "from": "src/understanding/temporal.ts",
+   "to": "src/understanding/archetype.ts"
+  },
+  {
+   "from": "src/understanding/temporal.ts",
+   "to": "src/understanding/projection.ts"
+  },
+  {
+   "from": "src/utils/mailto.ts",
+   "to": "src/utils/print-export.ts"
+  },
+  {
+   "from": "src/visuals/evidence.ts",
+   "to": "src/domain/memory/schema.ts"
+  },
+  {
+   "from": "tests/integration/ai-completion-contract.test.ts",
+   "to": "src/ai/openai-extractor.server.ts"
+  },
+  {
+   "from": "tests/integration/ai-completion-contract.test.ts",
+   "to": "src/import/examples/catalog.ts"
+  },
+  {
+   "from": "tests/integration/atlas-pipeline.test.ts",
+   "to": "src/import/text/parse-text.ts"
+  },
+  {
+   "from": "tests/integration/atlas-pipeline.test.ts",
+   "to": "src/import/json/import-json.ts"
+  },
+  {
+   "from": "tests/integration/atlas-pipeline.test.ts",
+   "to": "src/import/import-source.ts"
+  },
+  {
+   "from": "tests/integration/atlas-pipeline.test.ts",
+   "to": "src/import/examples/catalog.ts"
+  },
+  {
+   "from": "tests/integration/atlas-pipeline.test.ts",
+   "to": "src/render/render-bundle.ts"
+  },
+  {
+   "from": "tests/integration/empty-import-announce.test.tsx",
+   "to": "src/components/workbench.tsx"
+  },
+  {
+   "from": "tests/integration/empty-import-announce.test.tsx",
+   "to": "src/import/import-source.ts"
+  },
+  {
+   "from": "tests/integration/empty-import-announce.test.tsx",
+   "to": "src/import/examples/catalog.ts"
+  },
+  {
+   "from": "tests/integration/home-import-ownership.test.tsx",
+   "to": "src/components/home/home-screen.tsx"
+  },
+  {
+   "from": "tests/integration/home-import-ownership.test.tsx",
+   "to": "src/components/import/import-panel.tsx"
+  },
+  {
+   "from": "tests/integration/home-import-ownership.test.tsx",
+   "to": "src/import/examples/catalog.ts"
+  },
+  {
+   "from": "tests/integration/home-pdf-handoff.test.tsx",
+   "to": "src/components/workbench.tsx"
+  },
+  {
+   "from": "tests/integration/home-pdf-handoff.test.tsx",
+   "to": "src/import/import-source.ts"
+  },
+  {
+   "from": "tests/integration/home-pdf-handoff.test.tsx",
+   "to": "src/import/examples/catalog.ts"
+  },
+  {
+   "from": "tests/integration/ocr-provenance-display.test.tsx",
+   "to": "src/components/home/home-screen.tsx"
+  },
+  {
+   "from": "tests/integration/ocr-provenance-display.test.tsx",
+   "to": "src/components/import/import-panel.tsx"
+  },
+  {
+   "from": "tests/integration/ocr-provenance-display.test.tsx",
+   "to": "src/import/examples/catalog.ts"
+  },
+  {
+   "from": "tests/integration/ocr-provenance-display.test.tsx",
+   "to": "src/import/docgraph/progressive-pdf.ts"
+  },
+  {
+   "from": "tests/integration/render-modes.test.tsx",
+   "to": "src/import/import-source.ts"
+  },
+  {
+   "from": "tests/integration/render-modes.test.tsx",
+   "to": "src/import/examples/catalog.ts"
+  },
+  {
+   "from": "tests/integration/render-modes.test.tsx",
+   "to": "src/render/build-root.tsx"
+  },
+  {
+   "from": "tests/integration/render-modes.test.tsx",
+   "to": "src/render/render-bundle.ts"
+  },
+  {
+   "from": "tests/integration/render-modes.test.tsx",
+   "to": "src/render/compatibility.ts"
+  },
+  {
+   "from": "tests/integration/render-modes.test.tsx",
+   "to": "src/render/block-registry.ts"
+  },
+  {
+   "from": "tests/integration/render-modes.test.tsx",
+   "to": "src/domain/memory/schema.ts"
+  },
+  {
+   "from": "tests/integration/render-modes.test.tsx",
+   "to": "src/render/safe-inline.ts"
+  },
+  {
+   "from": "tests/integration/render-modes.test.tsx",
+   "to": "src/render/themes.ts"
+  },
+  {
+   "from": "tests/integration/stale-ai-result.test.tsx",
+   "to": "src/import/import-source.ts"
+  },
+  {
+   "from": "tests/integration/stale-ai-result.test.tsx",
+   "to": "src/import/examples/catalog.ts"
+  },
+  {
+   "from": "tests/integration/stale-ai-result.test.tsx",
+   "to": "src/components/workbench.tsx"
+  },
+  {
+   "from": "tests/integration/stale-pdf-refinement.test.tsx",
+   "to": "src/components/import/import-panel.tsx"
+  },
+  {
+   "from": "tests/integration/stale-pdf-refinement.test.tsx",
+   "to": "src/import/examples/catalog.ts"
+  },
+  {
+   "from": "tests/unit/archetype-blockers.test.ts",
+   "to": "src/import/import-source.ts"
+  },
+  {
+   "from": "tests/unit/archetype-blockers.test.ts",
+   "to": "src/domain/memory/schema.ts"
+  },
+  {
+   "from": "tests/unit/async-operation.test.ts",
+   "to": "src/components/async-operation.ts"
+  },
+  {
+   "from": "tests/unit/brief-receipt.test.ts",
+   "to": "src/import/text/parse-text.ts"
+  },
+  {
+   "from": "tests/unit/brief-receipt.test.ts",
+   "to": "src/components/blocks/brief-receipt.tsx"
+  },
+  {
+   "from": "tests/unit/canonicalize.test.ts",
+   "to": "src/domain/memory/canonicalize.ts"
+  },
+  {
+   "from": "tests/unit/canonicalize.test.ts",
+   "to": "src/domain/memory/normalize.ts"
+  },
+  {
+   "from": "tests/unit/canonicalize.test.ts",
+   "to": "src/domain/memory/schema.ts"
+  },
+  {
+   "from": "tests/unit/canonicalize.test.ts",
+   "to": "src/import/json/import-json.ts"
+  },
+  {
+   "from": "tests/unit/canonicalize.test.ts",
+   "to": "src/import/examples/catalog.ts"
+  },
+  {
+   "from": "tests/unit/capabilities.test.ts",
+   "to": "src/reliability/capabilities.ts"
+  },
+  {
+   "from": "tests/unit/checkbox-is-todo.test.ts",
+   "to": "src/import/import-source.ts"
+  },
+  {
+   "from": "tests/unit/checklist-section-routing.test.ts",
+   "to": "src/import/import-source.ts"
+  },
+  {
+   "from": "tests/unit/compatibility.test.ts",
+   "to": "src/render/compatibility.ts"
+  },
+  {
+   "from": "tests/unit/components.test.tsx",
+   "to": "src/components/blocks/blocks-panel.tsx"
+  },
+  {
+   "from": "tests/unit/components.test.tsx",
+   "to": "src/components/blocks/inspector.tsx"
+  },
+  {
+   "from": "tests/unit/components.test.tsx",
+   "to": "src/components/import/import-panel.tsx"
+  },
+  {
+   "from": "tests/unit/components.test.tsx",
+   "to": "src/import/import-source.ts"
+  },
+  {
+   "from": "tests/unit/components.test.tsx",
+   "to": "src/import/examples/catalog.ts"
+  },
+  {
+   "from": "tests/unit/components.test.tsx",
+   "to": "src/domain/memory/schema.ts"
+  },
+  {
+   "from": "tests/unit/daily-bench.test.ts",
+   "to": "src/daily/bench.ts"
+  },
+  {
+   "from": "tests/unit/daily-engine.test.ts",
+   "to": "src/daily/engine.ts"
+  },
+  {
+   "from": "tests/unit/daily-engine.test.ts",
+   "to": "src/daily/lexical.ts"
+  },
+  {
+   "from": "tests/unit/daily-engine.test.ts",
+   "to": "src/daily/projection.ts"
+  },
+  {
+   "from": "tests/unit/daily-engine.test.ts",
+   "to": "src/daily/store.ts"
+  },
+  {
+   "from": "tests/unit/daily-reconfirm.test.ts",
+   "to": "src/daily/engine.ts"
+  },
+  {
+   "from": "tests/unit/daily-reconfirm.test.ts",
+   "to": "src/daily/fsrs.ts"
+  },
+  {
+   "from": "tests/unit/daily-reconfirm.test.ts",
+   "to": "src/daily/projection.ts"
+  },
+  {
+   "from": "tests/unit/daily-reconfirm.test.ts",
+   "to": "src/daily/store.ts"
+  },
+  {
+   "from": "tests/unit/day10-dedupe-scale.test.ts",
+   "to": "src/understanding/language.ts"
+  },
+  {
+   "from": "tests/unit/day10-dedupe-scale.test.ts",
+   "to": "src/import/import-source.ts"
+  },
+  {
+   "from": "tests/unit/day7-number-dedupe.test.ts",
+   "to": "src/import/import-source.ts"
+  },
+  {
+   "from": "tests/unit/day7-number-dedupe.test.ts",
+   "to": "src/understanding/language.ts"
+  },
+  {
+   "from": "tests/unit/day7-number-dedupe.test.ts",
+   "to": "src/import/text/patterns.ts"
+  },
+  {
+   "from": "tests/unit/day9-artifact-word-boundary.test.ts",
+   "to": "src/understanding/inference.ts"
+  },
+  {
+   "from": "tests/unit/day9-compact-labels.test.ts",
+   "to": "src/understanding/inference.ts"
+  },
+  {
+   "from": "tests/unit/decision-compress.test.ts",
+   "to": "src/import/import-source.ts"
+  },
+  {
+   "from": "tests/unit/decision-compress.test.ts",
+   "to": "src/understanding/language.ts"
+  },
+  {
+   "from": "tests/unit/decision-compress.test.ts",
+   "to": "src/domain/memory/schema.ts"
+  },
+  {
+   "from": "tests/unit/doc-library-differential.test.ts",
+   "to": "src/stats/doc-library.ts"
+  },
+  {
+   "from": "tests/unit/doc-library.test.ts",
+   "to": "src/stats/doc-library.ts"
+  },
+  {
+   "from": "tests/unit/doc-sweep-oct17.test.ts",
+   "to": "src/import/import-source.ts"
+  },
+  {
+   "from": "tests/unit/doc-sweep-oct17.test.ts",
+   "to": "src/understanding/infer-events.ts"
+  },
+  {
+   "from": "tests/unit/doc-sweep-oct17.test.ts",
+   "to": "src/understanding/inference.ts"
+  },
+  {
+   "from": "tests/unit/docgraph-client-cache.test.ts",
+   "to": "src/import/docgraph/client.ts"
+  },
+  {
+   "from": "tests/unit/docgraph-payload.test.ts",
+   "to": "src/import/docgraph/client.ts"
+  },
+  {
+   "from": "tests/unit/docgraph-select.test.ts",
+   "to": "src/import/docgraph/select.ts"
+  },
+  {
+   "from": "tests/unit/docgraph-timeout.test.ts",
+   "to": "src/import/docgraph/client.ts"
+  },
+  {
+   "from": "tests/unit/download.test.ts",
+   "to": "src/utils/download.ts"
+  },
+  {
+   "from": "tests/unit/entity-evidence-fidelity.test.ts",
+   "to": "src/import/text/entity-groups.ts"
+  },
+  {
+   "from": "tests/unit/entity-evidence-fidelity.test.ts",
+   "to": "src/import/import-source.ts"
+  },
+  {
+   "from": "tests/unit/entity-evidence-fidelity.test.ts",
+   "to": "src/domain/memory/schema.ts"
+  },
+  {
+   "from": "tests/unit/entity-evidence-fidelity.test.ts",
+   "to": "src/import/text/patterns.ts"
+  },
+  {
+   "from": "tests/unit/entity-evidence-fidelity.test.ts",
+   "to": "src/understanding/inference.ts"
+  },
+  {
+   "from": "tests/unit/entity-grouping.test.ts",
+   "to": "src/import/import-source.ts"
+  },
+  {
+   "from": "tests/unit/entity-grouping.test.ts",
+   "to": "src/domain/memory/schema.ts"
+  },
+  {
+   "from": "tests/unit/evidence-core.test.ts",
+   "to": "src/import/text/parse-text.ts"
+  },
+  {
+   "from": "tests/unit/evidence-core.test.ts",
+   "to": "src/utils/sha256.ts"
+  },
+  {
+   "from": "tests/unit/evidence-core.test.ts",
+   "to": "src/evidence-core/contracts.ts"
+  },
+  {
+   "from": "tests/unit/evidence-core.test.ts",
+   "to": "src/evidence-core/memorable-adapter.ts"
+  },
+  {
+   "from": "tests/unit/examples.test.ts",
+   "to": "src/import/examples/catalog.ts"
+  },
+  {
+   "from": "tests/unit/examples.test.ts",
+   "to": "src/domain/memory/schema.ts"
+  },
+  {
+   "from": "tests/unit/examples.test.ts",
+   "to": "src/import/import-source.ts"
+  },
+  {
+   "from": "tests/unit/facet-semantics-consumers.test.ts",
+   "to": "src/import/import-source.ts"
+  },
+  {
+   "from": "tests/unit/facet-semantics-consumers.test.ts",
+   "to": "src/understanding/graph.ts"
+  },
+  {
+   "from": "tests/unit/facet-semantics-consumers.test.ts",
+   "to": "src/understanding/index.ts"
+  },
+  {
+   "from": "tests/unit/facet-semantics-consumers.test.ts",
+   "to": "src/domain/memory/schema.ts"
+  },
+  {
+   "from": "tests/unit/fraction-guard-followups.test.ts",
+   "to": "src/import/text/patterns.ts"
+  },
+  {
+   "from": "tests/unit/fraction-not-date.test.ts",
+   "to": "src/import/import-source.ts"
+  },
+  {
+   "from": "tests/unit/gauntlet-source-fidelity.test.ts",
+   "to": "src/import/pdf/layout.ts"
+  },
+  {
+   "from": "tests/unit/import-json.test.ts",
+   "to": "src/import/json/import-json.ts"
+  },
+  {
+   "from": "tests/unit/import-json.test.ts",
+   "to": "src/import/import-source.ts"
+  },
+  {
+   "from": "tests/unit/import-json.test.ts",
+   "to": "src/import/examples/catalog.ts"
+  },
+  {
+   "from": "tests/unit/indent-po-grn-regression.test.ts",
+   "to": "src/import/read-pdf.ts"
+  },
+  {
+   "from": "tests/unit/indent-po-grn-regression.test.ts",
+   "to": "src/import/import-source.ts"
+  },
+  {
+   "from": "tests/unit/indent-po-grn-regression.test.ts",
+   "to": "src/domain/memory/schema.ts"
+  },
+  {
+   "from": "tests/unit/insight-composition.test.tsx",
+   "to": "src/import/import-source.ts"
+  },
+  {
+   "from": "tests/unit/insight-composition.test.tsx",
+   "to": "src/domain/memory/schema.ts"
+  },
+  {
+   "from": "tests/unit/insight-composition.test.tsx",
+   "to": "src/render/export-source.ts"
+  },
+  {
+   "from": "tests/unit/insight-composition.test.tsx",
+   "to": "src/render/render-bundle.ts"
+  },
+  {
+   "from": "tests/unit/journey-replay.test.tsx",
+   "to": "src/components/journey-strip.tsx"
+  },
+  {
+   "from": "tests/unit/journey-replay.test.tsx",
+   "to": "src/components/workbench-state.ts"
+  },
+  {
+   "from": "tests/unit/journey-replay.test.tsx",
+   "to": "src/components/replay/use-replay.ts"
+  },
+  {
+   "from": "tests/unit/journey-replay.test.tsx",
+   "to": "src/import/import-source.ts"
+  },
+  {
+   "from": "tests/unit/journey-replay.test.tsx",
+   "to": "src/render/render-bundle.ts"
+  },
+  {
+   "from": "tests/unit/journey-replay.test.tsx",
+   "to": "src/import/examples/catalog.ts"
+  },
+  {
+   "from": "tests/unit/journey-replay.test.tsx",
+   "to": "src/reliability/diagnostics.ts"
+  },
+  {
+   "from": "tests/unit/knowledge-graph.test.ts",
+   "to": "src/import/import-source.ts"
+  },
+  {
+   "from": "tests/unit/knowledge-graph.test.ts",
+   "to": "src/understanding/knowledge-graph.ts"
+  },
+  {
+   "from": "tests/unit/lesson-label-readable.test.ts",
+   "to": "src/import/import-source.ts"
+  },
+  {
+   "from": "tests/unit/live-guidance-panel.test.tsx",
+   "to": "src/components/preview/live-guidance-panel.tsx"
+  },
+  {
+   "from": "tests/unit/local-stats.test.ts",
+   "to": "src/stats/local-stats.ts"
+  },
+  {
+   "from": "tests/unit/mailto.test.ts",
+   "to": "src/utils/mailto.ts"
+  },
+  {
+   "from": "tests/unit/market-research-mode.test.ts",
+   "to": "src/import/import-source.ts"
+  },
+  {
+   "from": "tests/unit/market-research-mode.test.ts",
+   "to": "src/render/render-bundle.ts"
+  },
+  {
+   "from": "tests/unit/market-research-mode.test.ts",
+   "to": "src/understanding/market-research/guidance-pack.ts"
+  },
+  {
+   "from": "tests/unit/market-research-pack.test.ts",
+   "to": "src/understanding/market-research/guidance-pack.ts"
+  },
+  {
+   "from": "tests/unit/meaning-number-index.test.ts",
+   "to": "src/understanding/language.ts"
+  },
+  {
+   "from": "tests/unit/meaning-number-index.test.ts",
+   "to": "src/import/import-source.ts"
+  },
+  {
+   "from": "tests/unit/memory-layer-benchmark.test.ts",
+   "to": "src/import/import-source.ts"
+  },
+  {
+   "from": "tests/unit/memory-layer-benchmark.test.ts",
+   "to": "src/ai/v6/index.ts"
+  },
+  {
+   "from": "tests/unit/memory-layer-benchmark.test.ts",
+   "to": "src/understanding/index.ts"
+  },
+  {
+   "from": "tests/unit/memory-layer-benchmark.test.ts",
+   "to": "src/domain/memory/schema.ts"
+  },
+  {
+   "from": "tests/unit/motion-curves.test.ts",
+   "to": "src/motion/curves.ts"
+  },
+  {
+   "from": "tests/unit/ocr-provenance-note.test.ts",
+   "to": "src/import/docgraph/progressive-pdf.ts"
+  },
+  {
+   "from": "tests/unit/ocr-recognize-timeout.test.ts",
+   "to": "src/import/pdf/ocr.ts"
+  },
+  {
+   "from": "tests/unit/ocr-startup-failure.test.ts",
+   "to": "src/import/pdf/ocr.ts"
+  },
+  {
+   "from": "tests/unit/ocr-startup-failure.test.ts",
+   "to": "src/import/pdf/read-structured.ts"
+  },
+  {
+   "from": "tests/unit/ocr-worker-ownership.test.ts",
+   "to": "src/import/pdf/ocr.ts"
+  },
+  {
+   "from": "tests/unit/ocr-worker-recovery.test.ts",
+   "to": "src/import/pdf/ocr.ts"
+  },
+  {
+   "from": "tests/unit/open-question-not-decision.test.ts",
+   "to": "src/import/import-source.ts"
+  },
+  {
+   "from": "tests/unit/ordinal-phantom-week.test.ts",
+   "to": "src/import/import-source.ts"
+  },
+  {
+   "from": "tests/unit/ordinal-phantom-week.test.ts",
+   "to": "src/understanding/infer-events.ts"
+  },
+  {
+   "from": "tests/unit/parse-spec-document.test.ts",
+   "to": "src/import/text/parse-text.ts"
+  },
+  {
+   "from": "tests/unit/parse-spec-document.test.ts",
+   "to": "src/domain/memory/schema.ts"
+  },
+  {
+   "from": "tests/unit/parse-text.test.ts",
+   "to": "src/import/text/parse-text.ts"
+  },
+  {
+   "from": "tests/unit/parse-text.test.ts",
+   "to": "src/import/import-source.ts"
+  },
+  {
+   "from": "tests/unit/parse-text.test.ts",
+   "to": "src/import/examples/catalog.ts"
+  },
+  {
+   "from": "tests/unit/parse-text.test.ts",
+   "to": "src/domain/memory/schema.ts"
+  },
+  {
+   "from": "tests/unit/pdf-byte-count-native.test.ts",
+   "to": "src/import/pdf/read-structured.ts"
+  },
+  {
+   "from": "tests/unit/pdf-byte-count.test.ts",
+   "to": "src/import/pdf/read-structured.ts"
+  },
+  {
+   "from": "tests/unit/pdf-cleanup.test.ts",
+   "to": "src/import/pdf/read-structured.ts"
+  },
+  {
+   "from": "tests/unit/pdf-inline-images.test.ts",
+   "to": "src/import/pdf/images.ts"
+  },
+  {
+   "from": "tests/unit/pdf-layout.test.ts",
+   "to": "src/import/pdf/layout.ts"
+  },
+  {
+   "from": "tests/unit/pdf-layout.test.ts",
+   "to": "src/import/pdf/ocr.ts"
+  },
+  {
+   "from": "tests/unit/pdf-layout.test.ts",
+   "to": "src/understanding/segment.ts"
+  },
+  {
+   "from": "tests/unit/pdf-png-checksum.test.ts",
+   "to": "src/import/pdf/images.ts"
+  },
+  {
+   "from": "tests/unit/prd-projection-order.test.ts",
+   "to": "src/import/import-source.ts"
+  },
+  {
+   "from": "tests/unit/prd-projection-order.test.ts",
+   "to": "src/import/text/sections.ts"
+  },
+  {
+   "from": "tests/unit/prd-projection-order.test.ts",
+   "to": "src/import/text/patterns.ts"
+  },
+  {
+   "from": "tests/unit/prd-projection-order.test.ts",
+   "to": "src/domain/memory/schema.ts"
+  },
+  {
+   "from": "tests/unit/preflight.test.ts",
+   "to": "src/import/preflight.ts"
+  },
+  {
+   "from": "tests/unit/preflight.test.ts",
+   "to": "src/domain/memory/limits.ts"
+  },
+  {
+   "from": "tests/unit/print-export.test.ts",
+   "to": "src/utils/print-export.ts"
+  },
+  {
+   "from": "tests/unit/projection-profiles.test.ts",
+   "to": "src/import/import-source.ts"
+  },
+  {
+   "from": "tests/unit/projection-profiles.test.ts",
+   "to": "src/understanding/projection-profiles.ts"
+  },
+  {
+   "from": "tests/unit/projection-profiles.test.ts",
+   "to": "src/import/text/sections.ts"
+  },
+  {
+   "from": "tests/unit/projection-profiles.test.ts",
+   "to": "src/understanding/archetype.ts"
+  },
+  {
+   "from": "tests/unit/projection-rules.test.ts",
+   "to": "src/understanding/projection.ts"
+  },
+  {
+   "from": "tests/unit/projection-rules.test.ts",
+   "to": "src/domain/memory/schema.ts"
+  },
+  {
+   "from": "tests/unit/publish-themes.test.ts",
+   "to": "src/import/import-source.ts"
+  },
+  {
+   "from": "tests/unit/publish-themes.test.ts",
+   "to": "src/import/examples/catalog.ts"
+  },
+  {
+   "from": "tests/unit/publish-themes.test.ts",
+   "to": "src/render/render-bundle.ts"
+  },
+  {
+   "from": "tests/unit/publish-themes.test.ts",
+   "to": "src/render/themes.ts"
+  },
+  {
+   "from": "tests/unit/read-file.test.ts",
+   "to": "src/components/import/read-file.ts"
+  },
+  {
+   "from": "tests/unit/readiness.test.ts",
+   "to": "src/understanding/inference.ts"
+  },
+  {
+   "from": "tests/unit/readiness.test.ts",
+   "to": "src/import/text/patterns.ts"
+  },
+  {
+   "from": "tests/unit/relation-link-equivalence.test.ts",
+   "to": "src/import/json/import-json.ts"
+  },
+  {
+   "from": "tests/unit/relation-link-equivalence.test.ts",
+   "to": "src/import/examples/catalog.ts"
+  },
+  {
+   "from": "tests/unit/render-conversation-signals.test.ts",
+   "to": "src/import/import-source.ts"
+  },
+  {
+   "from": "tests/unit/render-conversation-signals.test.ts",
+   "to": "src/render/render-bundle.ts"
+  },
+  {
+   "from": "tests/unit/render-conversation-signals.test.ts",
+   "to": "src/domain/memory/schema.ts"
+  },
+  {
+   "from": "tests/unit/research-pdf-quality.test.ts",
+   "to": "src/import/pdf/layout.ts"
+  },
+  {
+   "from": "tests/unit/research-pdf-quality.test.ts",
+   "to": "src/import/import-source.ts"
+  },
+  {
+   "from": "tests/unit/research-pdf-quality.test.ts",
+   "to": "src/domain/memory/schema.ts"
+  },
+  {
+   "from": "tests/unit/research-world-model.test.ts",
+   "to": "src/import/import-source.ts"
+  },
+  {
+   "from": "tests/unit/research-world-model.test.ts",
+   "to": "src/understanding/research.ts"
+  },
+  {
+   "from": "tests/unit/research-world-model.test.ts",
+   "to": "src/domain/memory/schema.ts"
+  },
+  {
+   "from": "tests/unit/results-table-signals-r2.test.ts",
+   "to": "src/import/import-source.ts"
+  },
+  {
+   "from": "tests/unit/results-table-signals.test.ts",
+   "to": "src/import/import-source.ts"
+  },
+  {
+   "from": "tests/unit/resume-facets.test.ts",
+   "to": "src/import/import-source.ts"
+  },
+  {
+   "from": "tests/unit/resume-facets.test.ts",
+   "to": "src/domain/memory/schema.ts"
+  },
+  {
+   "from": "tests/unit/resume-facets.test.ts",
+   "to": "src/import/text/patterns.ts"
+  },
+  {
+   "from": "tests/unit/review98-boundaries.test.tsx",
+   "to": "src/import/import-source.ts"
+  },
+  {
+   "from": "tests/unit/review98-boundaries.test.tsx",
+   "to": "src/render/render-bundle.ts"
+  },
+  {
+   "from": "tests/unit/review98-boundaries.test.tsx",
+   "to": "src/visuals/evidence.ts"
+  },
+  {
+   "from": "tests/unit/review98-currency-print.test.tsx",
+   "to": "src/import/import-source.ts"
+  },
+  {
+   "from": "tests/unit/review98-currency-print.test.tsx",
+   "to": "src/render/render-bundle.ts"
+  },
+  {
+   "from": "tests/unit/review98-currency-print.test.tsx",
+   "to": "src/visuals/evidence.ts"
+  },
+  {
+   "from": "tests/unit/review98-currency-print.test.tsx",
+   "to": "src/utils/print-export.ts"
+  },
+  {
+   "from": "tests/unit/review98.test.tsx",
+   "to": "src/components/home/home-screen.tsx"
+  },
+  {
+   "from": "tests/unit/review98.test.tsx",
+   "to": "src/import/import-source.ts"
+  },
+  {
+   "from": "tests/unit/review98.test.tsx",
+   "to": "src/visuals/evidence.ts"
+  },
+  {
+   "from": "tests/unit/review98.test.tsx",
+   "to": "src/render/render-bundle.ts"
+  },
+  {
+   "from": "tests/unit/review98.test.tsx",
+   "to": "src/ai/contract.ts"
+  },
+  {
+   "from": "tests/unit/review98.test.tsx",
+   "to": "src/render/export-source.ts"
+  },
+  {
+   "from": "tests/unit/risk-topical-scope.test.ts",
+   "to": "src/understanding/inference.ts"
+  },
+  {
+   "from": "tests/unit/risk-topical-scope.test.ts",
+   "to": "src/import/import-source.ts"
+  },
+  {
+   "from": "tests/unit/schema.test.ts",
+   "to": "src/domain/memory/schema.ts"
+  },
+  {
+   "from": "tests/unit/score-not-date.test.ts",
+   "to": "src/import/import-source.ts"
+  },
+  {
+   "from": "tests/unit/search-bench.test.ts",
+   "to": "src/search/engine.ts"
+  },
+  {
+   "from": "tests/unit/search-bench.test.ts",
+   "to": "src/search/eval.ts"
+  },
+  {
+   "from": "tests/unit/search-core.test.ts",
+   "to": "src/search/analyze.ts"
+  },
+  {
+   "from": "tests/unit/search-core.test.ts",
+   "to": "src/search/bm25f.ts"
+  },
+  {
+   "from": "tests/unit/search-core.test.ts",
+   "to": "src/search/engine.ts"
+  },
+  {
+   "from": "tests/unit/search-core.test.ts",
+   "to": "src/search/fusion.ts"
+  },
+  {
+   "from": "tests/unit/search-core.test.ts",
+   "to": "src/search/lexicon.ts"
+  },
+  {
+   "from": "tests/unit/search-core.test.ts",
+   "to": "src/search/metrics.ts"
+  },
+  {
+   "from": "tests/unit/search-core.test.ts",
+   "to": "src/search/signature.ts"
+  },
+  {
+   "from": "tests/unit/search-core.test.ts",
+   "to": "src/search/vector.ts"
+  },
+  {
+   "from": "tests/unit/search-dense.test.ts",
+   "to": "src/search/engine.ts"
+  },
+  {
+   "from": "tests/unit/search-dense.test.ts",
+   "to": "src/search/eval.ts"
+  },
+  {
+   "from": "tests/unit/search-dense.test.ts",
+   "to": "src/search/models.ts"
+  },
+  {
+   "from": "tests/unit/search-disable-midflight.test.ts",
+   "to": "src/components/today/use-repo-search.ts"
+  },
+  {
+   "from": "tests/unit/search-disable-midflight.test.ts",
+   "to": "src/search/engine.ts"
+  },
+  {
+   "from": "tests/unit/search-embed-recovery.test.ts",
+   "to": "src/search/embed-client.ts"
+  },
+  {
+   "from": "tests/unit/search-embed-recovery.test.ts",
+   "to": "src/components/today/use-repo-search.ts"
+  },
+  {
+   "from": "tests/unit/search-github.test.ts",
+   "to": "src/search/github.ts"
+  },
+  {
+   "from": "tests/unit/search-github.test.ts",
+   "to": "src/search/store.ts"
+  },
+  {
+   "from": "tests/unit/search-index-continuation.test.ts",
+   "to": "src/components/today/use-repo-search.ts"
+  },
+  {
+   "from": "tests/unit/search-unmount-cleanup.test.ts",
+   "to": "src/components/today/use-repo-search.ts"
+  },
+  {
+   "from": "tests/unit/search-unmount-real-client.test.ts",
+   "to": "src/components/today/use-repo-search.ts"
+  },
+  {
+   "from": "tests/unit/semantic-primary.test.ts",
+   "to": "src/import/import-source.ts"
+  },
+  {
+   "from": "tests/unit/semantic-primary.test.ts",
+   "to": "src/understanding/index.ts"
+  },
+  {
+   "from": "tests/unit/semantic-primary.test.ts",
+   "to": "src/domain/memory/schema.ts"
+  },
+  {
+   "from": "tests/unit/semantic-version.test.ts",
+   "to": "src/import/import-source.ts"
+  },
+  {
+   "from": "tests/unit/semantic-version.test.ts",
+   "to": "src/render/export-source.ts"
+  },
+  {
+   "from": "tests/unit/semantic-version.test.ts",
+   "to": "src/import/examples/catalog.ts"
+  },
+  {
+   "from": "tests/unit/sha256.test.ts",
+   "to": "src/utils/sha256.ts"
+  },
+  {
+   "from": "tests/unit/storage.test.ts",
+   "to": "src/reliability/storage.ts"
+  },
+  {
+   "from": "tests/unit/table-rows-not-todos.test.ts",
+   "to": "src/import/import-source.ts"
+  },
+  {
+   "from": "tests/unit/table-rows-not-todos.test.ts",
+   "to": "src/understanding/index.ts"
+  },
+  {
+   "from": "tests/unit/temporal-anchor.test.ts",
+   "to": "src/understanding/temporal.ts"
+  },
+  {
+   "from": "tests/unit/time-tokens.test.ts",
+   "to": "src/import/text/patterns.ts"
+  },
+  {
+   "from": "tests/unit/time-tokens.test.ts",
+   "to": "src/import/text/parse-text.ts"
+  },
+  {
+   "from": "tests/unit/time-tokens.test.ts",
+   "to": "src/domain/memory/schema.ts"
+  },
+  {
+   "from": "tests/unit/timeline-year-span-dash-state.test.ts",
+   "to": "src/import/text/patterns.ts"
+  },
+  {
+   "from": "tests/unit/timeline-year-span.test.ts",
+   "to": "src/import/import-source.ts"
+  },
+  {
+   "from": "tests/unit/timeline-year-span.test.ts",
+   "to": "src/import/text/patterns.ts"
+  },
+  {
+   "from": "tests/unit/today-compose.test.ts",
+   "to": "src/components/today/compose.ts"
+  },
+  {
+   "from": "tests/unit/today-compose.test.ts",
+   "to": "src/daily/projection.ts"
+  },
+  {
+   "from": "tests/unit/topic-bucket-equivalence.test.ts",
+   "to": "src/understanding/segment.ts"
+  },
+  {
+   "from": "tests/unit/topic-import-equivalence.test.ts",
+   "to": "src/import/import-source.ts"
+  },
+  {
+   "from": "tests/unit/topic-shifts-equivalence.test.ts",
+   "to": "src/understanding/segment.ts"
+  },
+  {
+   "from": "tests/unit/umbrex-guidance-route.test.ts",
+   "to": "src/app/api/umbrex-guidance/route.ts"
+  },
+  {
+   "from": "tests/unit/umbrex-guidance-route.test.ts",
+   "to": "src/app/api/umbrex-guidance/core.ts"
+  },
+  {
+   "from": "tests/unit/umbrex-guidance-route.test.ts",
+   "to": "src/understanding/market-research/guidance-pack.ts"
+  },
+  {
+   "from": "tests/unit/umbrex-section-excerpt.test.ts",
+   "to": "src/app/api/umbrex-guidance/core.ts"
+  },
+  {
+   "from": "tests/unit/v6-cognitive.test.ts",
+   "to": "src/ai/v6/index.ts"
+  },
+  {
+   "from": "tests/unit/v6-cognitive.test.ts",
+   "to": "src/domain/memory/schema.ts"
+  },
+  {
+   "from": "tests/unit/verdict-not-todo.test.ts",
+   "to": "src/import/import-source.ts"
+  },
+  {
+   "from": "tests/unit/visual-reading.test.tsx",
+   "to": "src/import/import-source.ts"
+  },
+  {
+   "from": "tests/unit/visual-reading.test.tsx",
+   "to": "src/visuals/evidence.ts"
+  },
+  {
+   "from": "tests/unit/visual-reading.test.tsx",
+   "to": "src/components/preview/visual-reading.tsx"
+  },
+  {
+   "from": "tests/unit/visual-semantics.test.tsx",
+   "to": "src/render/export-source.ts"
+  },
+  {
+   "from": "tests/unit/visual-semantics.test.tsx",
+   "to": "src/understanding/graph.ts"
+  },
+  {
+   "from": "tests/unit/workbench-state.test.ts",
+   "to": "src/domain/memory/types.ts"
+  },
+  {
+   "from": "tests/unit/workbench-state.test.ts",
+   "to": "src/components/workbench-state.ts"
+  },
+  {
+   "from": "tests/unit/workbench-state.test.ts",
+   "to": "src/import/import-source.ts"
+  },
+  {
+   "from": "tests/unit/workbench-state.test.ts",
+   "to": "src/render/render-bundle.ts"
+  },
+  {
+   "from": "tests/unit/workbench-state.test.ts",
+   "to": "src/import/examples/catalog.ts"
+  },
+  {
+   "from": "tests/unit/workbench-state.test.ts",
+   "to": "src/domain/memory/schema.ts"
+  },
+  {
+   "from": "tests/unit/workbench-state.test.ts",
+   "to": "src/reliability/diagnostics.ts"
+  }
+ ],
+ "cycles": [
+  [
+   "src/import/text/patterns.ts",
+   "src/import/text/sections.ts",
+   "src/understanding/inference.ts",
+   "src/understanding/projection.ts"
+  ],
+  [
+   "src/render/build-root.tsx",
+   "src/render/insight-composition.tsx"
+  ]
+ ]
+}

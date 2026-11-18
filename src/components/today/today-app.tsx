@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { LetterPrompt } from "./letter-prompt";
 import type { Entry } from "@/daily/types";
 import { CaptureLoop } from "./capture-loop";
 import { Composer } from "./composer";
@@ -122,6 +123,7 @@ export function TodayApp({ embedded = false }: { embedded?: boolean } = {}) {
           </div>
           {engine ? (
             <>
+              <LetterPrompt engine={engine} run={run} onAnnounce={say} onHandle={openHandle} />
               <Composer engine={engine} rev={rev} run={run} inputRef={composerRef} prefill={prefill} onSaved={(m, id) => { say(m); flash(id); }} />
               {entries.length === 0 ? <CaptureLoop /> : (
                 <EntryStream engine={engine} entries={entries} run={run} flashId={flashId} onReplace={replace} onAnnounce={say} onHandle={openHandle} />

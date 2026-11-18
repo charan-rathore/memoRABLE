@@ -7,6 +7,7 @@ import type { DailyEngine } from "@/daily/engine";
 import type { EntryKind } from "@/daily/types";
 import { dayLabel, formatMs, highlight, KIND_LABEL } from "./compose";
 import { Glyph } from "./glyph";
+import { LetterExport } from "./letter-export";
 
 type Run = <T>(fn: (e: DailyEngine) => Promise<T> | T) => Promise<T | undefined>;
 
@@ -270,6 +271,8 @@ export function ReviewPanel({ engine, rev }: { engine: DailyEngine; rev: number 
         <div><dt>Tasks done</dt><dd>{r.tasks.done}</dd></div>
         <div><dt>Tasks open</dt><dd>{r.tasks.open + r.tasks.accepted}</dd></div>
       </dl>
+
+      <LetterExport engine={engine} />
 
       <h3 className="td-sub-h">How the system performed</h3>
       <p className="td-sub-note">Measured on this device since this tab opened, from {r.system.receipts} receipts.</p>

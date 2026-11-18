@@ -27,6 +27,10 @@ concurrency:
   group: search-lab-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  # onnxruntime-node (via @huggingface/transformers) otherwise downloads a CUDA build that 404s; see .npmrc.
+  ONNXRUNTIME_NODE_INSTALL_CUDA: skip
+
 jobs:
   lockfile:
     if: github.event.inputs.task == 'lockfile' || contains(github.event.head_commit.message, '[lab:lockfile]')

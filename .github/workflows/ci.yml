@@ -10,6 +10,10 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  # onnxruntime-node (via @huggingface/transformers) otherwise downloads a CUDA build that 404s; see .npmrc.
+  ONNXRUNTIME_NODE_INSTALL_CUDA: skip
+
 jobs:
   verify:
     name: Lint, typecheck, unit tests, build

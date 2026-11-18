@@ -8,6 +8,7 @@ import { Composer } from "./composer";
 import { dayKey, formatMs } from "./compose";
 import { EntryStream } from "./entry-stream";
 import { NextPanel, RecallPanel, ReviewPanel } from "./panels";
+import { LookBackPanel, StillTruePanel } from "./recheck-panel";
 import { useDaily } from "./use-daily";
 import { useRepoSearch } from "./use-repo-search";
 
@@ -133,8 +134,10 @@ export function TodayApp({ embedded = false }: { embedded?: boolean } = {}) {
           {engine && (
             <>
               <div data-pane="next"><NextPanel engine={engine} rev={rev} run={run} onAnnounce={say} onHandle={openHandle} /></div>
+              <div data-pane="next"><StillTruePanel engine={engine} rev={rev} run={run} onAnnounce={say} onReplace={replace} onHandle={openHandle} /></div>
               <div data-pane="recall"><RecallPanel engine={engine} rev={rev} query={query} setQuery={setQuery} inputRef={searchRef} onHandle={openHandle} repo={repo} /></div>
               <div data-pane="review"><ReviewPanel engine={engine} rev={rev} /></div>
+              <div data-pane="review"><LookBackPanel engine={engine} rev={rev} onHandle={openHandle} /></div>
             </>
           )}
         </aside>

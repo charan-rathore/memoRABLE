@@ -244,19 +244,45 @@ html:has(.td), html:has(.td) body { background: #000; color-scheme: dark; }
 .td-empty-note { color: var(--faint); font-size: 13.5px; margin: 0; line-height: 1.55; }
 .td-search + .td-empty-note { margin-top: 12px; }
 
-.td-next-card { animation: td-swap 380ms var(--spring) both; }
+.td-next-card, .td-recheck-card { animation: td-swap 380ms var(--spring) both; }
 @keyframes td-swap { from { opacity: 0; transform: translateX(12px); } }
-.td-next-title { display: grid; grid-template-columns: 14px 1fr; gap: 10px; align-items: baseline; }
-.td-next-title p { margin: 0; font-size: 17px; line-height: 1.4; font-weight: 550; letter-spacing: -0.01em; }
-.td-reasons { list-style: none; margin: 10px 0 14px 24px; padding: 0; display: grid; gap: 3px; }
-.td-reasons li { font-size: 13px; color: var(--muted); position: relative; padding-left: 12px; }
-.td-reasons li::before { content: ""; position: absolute; left: 0; top: 0.62em; width: 5px; height: 1px; background: var(--faint); }
-.td-next-actions, .td-revise { display: flex; flex-wrap: wrap; gap: 6px; margin-left: 24px; }
+.td-next-title, .td-recheck-title { display: grid; grid-template-columns: 14px 1fr; gap: 10px; align-items: baseline; }
+.td-next-title p, .td-recheck-title p { margin: 0; font-size: 17px; line-height: 1.4; font-weight: 550; letter-spacing: -0.01em; }
+.td-reasons, .td-recheck-reasons { list-style: none; margin: 10px 0 14px 24px; padding: 0; display: grid; gap: 3px; }
+.td-reasons li, .td-recheck-reasons li { font-size: 13px; color: var(--muted); position: relative; padding-left: 12px; }
+.td-reasons li::before, .td-recheck-reasons li::before { content: ""; position: absolute; left: 0; top: 0.62em; width: 5px; height: 1px; background: var(--faint); }
+.td-next-actions, .td-recheck-actions, .td-revise { display: flex; flex-wrap: wrap; gap: 6px; margin-left: 24px; }
 .td-revise input { flex: 1 1 100%; background: var(--bg); color: var(--text); border: 1px solid var(--line-2); border-radius: 9px; padding: 9px 11px; font: 14px -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, sans-serif; outline: 0; }
 .td-revise input:focus { border-color: #fff; }
 .td-later { list-style: none; margin: 14px 0 0; padding: 12px 0 0; border-top: 1px solid var(--line); display: grid; gap: 4px; }
 .td-later li { display: grid; grid-template-columns: 12px 1fr auto; gap: 10px; align-items: baseline; font-size: 13.5px; color: var(--muted); }
 .td-later li span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ---------- still true? (FSRS re-confirmation) ---------- */
+.td-panel-row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.td-count { font: 600 11px/1 ui-monospace, "SF Mono", Menlo, monospace; color: var(--muted); border: 1px solid var(--line-2); border-radius: 999px; padding: 3px 7px; font-variant-numeric: tabular-nums; }
+.td-recall-meter { display: grid; gap: 6px; margin: 12px 0 0 24px; }
+.td-recheck-reasons { margin-top: 10px; }
+.td-recall-track { position: relative; height: 4px; border-radius: 999px; background: var(--raise-2); overflow: visible; }
+.td-recall-fill { position: absolute; inset: 0 auto 0 0; border-radius: inherit; background: currentColor; transition: width 520ms var(--out); }
+.td-recheck .td-k-decided .td-recall-fill { color: var(--decided); }
+.td-recheck .td-k-learned .td-recall-fill { color: var(--learned); }
+.td-recall-target { position: absolute; top: -3px; width: 1px; height: 10px; background: var(--line-2); }
+.td-recall-label { font-size: 12px; color: var(--faint); font-variant-numeric: tabular-nums; }
+.td-ghost-warn:hover { color: var(--danger); }
+.td-recheck-reopened { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0 0 12px; padding: 10px 12px; border: 1px solid var(--line-2); border-radius: 12px; background: var(--raise-2); animation: td-swap 320ms var(--spring) both; }
+.td-recheck-reopened p { margin: 0 auto 0 0; font-size: 13.5px; }
+
+/* ---------- look back (as-of view) ---------- */
+.td-date-field { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 13px; color: var(--muted); margin: 0 0 12px; }
+.td-date-field input { background: var(--bg); color: var(--text); border: 1px solid var(--line-2); border-radius: 9px; padding: 7px 9px; font: 13px -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, sans-serif; color-scheme: dark; }
+.td-date-field input:focus { border-color: #fff; outline: 0; }
+.td-asof { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.td-asof li { display: grid; grid-template-columns: 12px 1fr; gap: 10px; align-items: baseline; padding: 8px 6px; border-radius: 8px; animation: td-in 240ms var(--out) both; }
+.td-asof p { margin: 0; font-size: 14px; line-height: 1.45; }
+.td-asof small { display: block; margin-top: 2px; font-size: 12px; color: var(--faint); }
+.td-asof li.is-replaced p { color: var(--muted); text-decoration: line-through; text-decoration-color: var(--line-2); }
+@media (prefers-reduced-motion: reduce) { .td-recall-fill { transition: none; } .td-asof li, .td-recheck-reopened { animation: none; } }
 
 .td-search {
   display: flex; align-items: center; gap: 10px; padding: 0 10px; border-radius: 10px;

@@ -1,0 +1,170 @@
+/*
+ * The story's look. Its own palette, not the letter's and not the reference's:
+ * a field notebook — moss, oat, night, butter, clay — with one accent per field.
+ * Type: Instrument Serif for what the page says, Geist for what it means,
+ * Geist Mono for where it came from. See src/story/DESIGN.md.
+ */
+.sd {
+  --moss: #1f3d2f;
+  --oat: #efe7d6;
+  --night: #121513;
+  --butter: #f2cf63;
+  --clay: #b4471f;
+  --ink: #1b1a17;
+  --paper: #f7f2e7;
+  --serif: var(--font-display, "Instrument Serif"), "Iowan Old Style", Georgia, serif;
+  --sans: var(--font-geist, "Geist"), ui-sans-serif, system-ui, sans-serif;
+  --mono: var(--font-geist-mono, "Geist Mono"), ui-monospace, "SF Mono", Menlo, monospace;
+  font-family: var(--sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+.sd-moss   { --bg: var(--moss);   --fg: var(--oat);  --soft: #b9c4b3; --accent: var(--butter); --rule: rgba(239, 231, 214, 0.18); }
+.sd-oat    { --bg: var(--oat);    --fg: var(--ink);  --soft: #5f5a50; --accent: var(--clay);   --rule: rgba(27, 26, 23, 0.14); }
+.sd-night  { --bg: var(--night);  --fg: #e9e4d8;     --soft: #9a988f; --accent: var(--butter); --rule: rgba(233, 228, 216, 0.16); }
+.sd-butter { --bg: var(--butter); --fg: var(--ink);  --soft: #5b4a1a; --accent: #8f3315;       --rule: rgba(27, 26, 23, 0.16); }
+.sd-clay   { --bg: var(--clay);   --fg: #fff6ec;     --soft: #f6d7c4; --accent: var(--butter); --rule: rgba(255, 246, 236, 0.22); }
+
+.sd-ch { position: relative; }
+.sd-ch + .sd-ch { margin-top: -100vh; }
+.sd-stage {
+  position: sticky; top: 0; height: 100vh; overflow: hidden;
+  background: var(--bg); color: var(--fg);
+  display: grid; align-content: center; gap: 28px;
+  padding: 88px clamp(20px, 6vw, 96px) 72px;
+  will-change: clip-path;
+}
+
+.sd-eyebrow { position: absolute; top: 76px; left: clamp(20px, 6vw, 96px); margin: 0; font: 14px/1.4 var(--mono); color: var(--soft); text-transform: lowercase; }
+.sd-folio { position: absolute; bottom: 28px; right: clamp(20px, 6vw, 96px); margin: 0; font: 13px var(--mono); color: var(--soft); }
+.sd-w { display: inline-block; transform-origin: 0 100%; will-change: transform; }
+
+.sd-big { margin: 0; font: 400 clamp(56px, 9.4vw, 152px)/0.92 var(--serif); letter-spacing: -0.02em; text-wrap: balance; }
+.sd-k-open .sd-big { font-size: clamp(64px, 11vw, 188px); }
+.sd-mask { display: inline-block; overflow: hidden; padding-bottom: 0.12em; margin-bottom: -0.12em; vertical-align: top; }
+.sd-l { display: inline-block; will-change: transform; }
+.sd-dot { color: var(--accent); transform-origin: 50% 80%; }
+
+.sd-line { margin: 0; max-width: 34ch; font: 400 clamp(20px, 2vw, 28px)/1.3 var(--sans); letter-spacing: -0.01em; text-wrap: pretty; }
+.sd-hook { margin: 8px 0 0; max-width: 30ch; font: italic 400 clamp(26px, 3vw, 44px)/1.15 var(--serif); }
+.sd-note { margin: 0; font: 13px/1.45 var(--mono); color: var(--soft); text-transform: lowercase; }
+
+.sd-grid { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: clamp(24px, 5vw, 80px); align-items: center; }
+.sd-stack { display: grid; gap: clamp(28px, 5vh, 56px); }
+.sd-copy { display: grid; gap: 22px; align-content: start; }
+
+/* numbers: one column per measure, each on its own scale from zero */
+.sd-measures { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 20px; align-items: end; }
+.sd-measure { display: grid; gap: 6px; min-width: 0; }
+.sd-cloche { position: relative; height: min(34vh, 280px); border-bottom: 1.5px solid var(--fg); }
+.sd-bars { position: absolute; inset: 0; display: flex; align-items: end; gap: 6px; padding: 0 12%; }
+.sd-bar { flex: 1; height: 100%; transform-origin: 50% 100%; transform: scaleY(0); border-radius: 3px 3px 0 0; }
+.sd-bar.is-before { background: transparent; box-shadow: inset 0 0 0 1.5px var(--soft); }
+.sd-bar.is-now { background: var(--fg); }
+.sd-measure:first-child .sd-bar.is-now { background: var(--accent); }
+.sd-lid { position: absolute; inset: 0; z-index: 2; background: color-mix(in srgb, var(--fg) 7%, var(--bg)); border-radius: 50% 50% 0 0 / 22% 22% 0 0; box-shadow: inset 0 0 0 1.5px var(--rule); transform-origin: 20% 100%; }
+.sd-lid::after { content: ""; position: absolute; left: 50%; top: -9px; width: 14px; height: 9px; margin-left: -7px; border-radius: 7px 7px 0 0; background: inherit; box-shadow: inherit; }
+.sd-value { margin: 8px 0 0; font: 400 clamp(32px, 3.6vw, 56px)/1 var(--serif); font-variant-numeric: tabular-nums; }
+.sd-label { margin: 0; font: 500 15px/1.3 var(--sans); }
+.sd-delta { margin: 0; font: 13px var(--mono); }
+.sd-delta.is-up { color: var(--fg); }
+.sd-impl { margin: 4px 0 0; font: 14px/1.4 var(--sans); color: var(--soft); }
+.sd-words { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; }
+.sd-words li { position: relative; font: 400 32px/1.1 var(--serif); }
+
+/* path: drawn left to right; arcs say which step needed which */
+.sd-path { position: relative; }
+.sd-track-svg { width: 100%; height: 120px; overflow: visible; }
+.sd-track-ghost { stroke: var(--rule); stroke-width: 1.5; fill: none; stroke-dasharray: 2 6; }
+.sd-track { stroke: var(--fg); stroke-width: 2; fill: none; vector-effect: non-scaling-stroke; }
+.sd-need { stroke: var(--accent); stroke-width: 1.5; fill: none; vector-effect: non-scaling-stroke; }
+.sd-phases { list-style: none; margin: -58px 0 0; padding: 0; display: grid; gap: 16px; }
+.sd-phases li { display: grid; gap: 8px; justify-items: center; text-align: center; padding: 0 6px; }
+.sd-node { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--fg); background: var(--bg); transform: scale(0); margin-bottom: 18px; }
+.sd-phases .is-shipped .sd-node, .sd-phases .is-done .sd-node { background: var(--fg); }
+.sd-phases .is-on-track .sd-node { background: var(--accent); border-color: var(--accent); }
+.sd-phase-title { margin: 0; font: 400 clamp(20px, 1.9vw, 28px)/1.15 var(--serif); max-width: 18ch; }
+
+/* choices: each decision, its reason, and the work it set moving */
+.sd-choices { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; }
+.sd-choice { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 20px; align-items: center; padding: 18px 0; border-top: 1px solid var(--rule); }
+.sd-choice-main { display: grid; gap: 8px; justify-items: start; }
+.sd-choice-text { margin: 0; font: 400 clamp(22px, 2vw, 30px)/1.15 var(--serif); }
+.sd-stamp { font: 12px var(--mono); text-transform: lowercase; padding: 3px 9px; border: 1.5px solid currentColor; border-radius: 999px; }
+.sd-stamp.is-done { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+.sd-work { position: relative; display: flex; align-items: center; gap: 12px; }
+.sd-wire { flex: 0 0 40px; height: 1.5px; background: var(--fg); transform-origin: 0 50%; transform: scaleX(0); }
+.sd-work ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.sd-work li { display: grid; gap: 2px; }
+.sd-work-task { font: 500 15px/1.3 var(--sans); }
+
+/* pressure: because → risk → left alone, and the plan pinned across it */
+.sd-chain { position: relative; display: flex; align-items: stretch; gap: 0; }
+.sd-link { flex: 1; display: grid; align-content: start; gap: 8px; padding: 18px 20px; border: 1.5px solid var(--fg); border-radius: 14px; min-width: 0; }
+.sd-link p { margin: 0; font: 400 clamp(19px, 1.7vw, 26px)/1.2 var(--serif); }
+.sd-link.is-risk { background: var(--fg); color: var(--bg); }
+.sd-link.is-risk .sd-note { color: var(--bg); opacity: 0.75; }
+.sd-arrow { flex: 0 0 48px; align-self: center; height: 1.5px; background: var(--fg); transform-origin: 0 50%; transform: scaleX(0); position: relative; }
+.sd-arrow::after { content: ""; position: absolute; right: -1px; top: -5px; border: 5.5px solid transparent; border-left: 8px solid var(--fg); border-right: 0; }
+.sd-patch { position: absolute; right: 6%; bottom: -26px; margin: 0; padding: 10px 14px; background: var(--butter); color: var(--ink); border-radius: 4px; font: 500 15px/1.3 var(--sans); }
+.sd-patch .sd-note { color: #5b4a1a; margin-right: 6px; }
+.sd-others { list-style: none; margin: 16px 0 0; padding: 0; display: grid; gap: 10px; }
+.sd-others li { display: grid; grid-template-columns: 56px minmax(0, 1fr) auto; gap: 14px; align-items: baseline; padding-top: 10px; border-top: 1px solid var(--rule); font: 16px/1.35 var(--sans); }
+.sd-sev { font: 12px var(--mono); letter-spacing: 2px; }
+
+/* next */
+.sd-tasks { list-style: none; margin: 0; padding: 0; display: grid; gap: 16px; }
+.sd-tasks li { display: grid; grid-template-columns: 28px minmax(0, 1fr); column-gap: 14px; row-gap: 2px; align-items: center; }
+.sd-tasks .sd-note { grid-column: 2; }
+.sd-box { width: 26px; height: 26px; fill: none; stroke: var(--fg); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.sd-box path { stroke: var(--accent); stroke-width: 2.4; }
+.sd-task { font: 400 clamp(22px, 2vw, 30px)/1.15 var(--serif); }
+
+/* close */
+.sd-close { display: grid; gap: 28px; }
+.sd-closing { margin: 0; max-width: 22ch; font: italic 400 clamp(40px, 5.6vw, 92px)/1.02 var(--serif); }
+
+/* toolbar */
+.sd-bar-top { position: fixed; z-index: 100; top: 16px; left: 50%; transform: translateX(-50%); display: flex; gap: 6px; align-items: center; padding: 6px 6px 6px 16px; border-radius: 999px; background: #121513; color: #efe7d6; box-shadow: 0 0 0 1px rgba(239, 231, 214, 0.14); font: 13px var(--mono); }
+.sd-bar-top b { font-weight: 500; margin-right: 8px; }
+.sd-bar-top a, .sd-bar-top button { font: inherit; color: inherit; background: transparent; border: 0; padding: 7px 12px; border-radius: 999px; cursor: pointer; text-decoration: none; }
+.sd-bar-top a:hover, .sd-bar-top button:hover { background: rgba(239, 231, 214, 0.12); }
+.sd-bar-top .is-primary { background: #efe7d6; color: #121513; }
+.sd-bar-top .is-primary:hover { background: #fff; }
+
+@media (max-width: 760px) {
+  .sd-grid { grid-template-columns: 1fr; gap: 28px; }
+  .sd-stage { align-content: start; padding-top: 112px; gap: 20px; }
+  .sd-measures { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .sd-cloche { height: 16vh; }
+  .sd-impl { display: none; }
+  .sd-choice { grid-template-columns: 1fr; gap: 10px; padding: 12px 0; }
+  .sd-chain { flex-direction: column; }
+  .sd-arrow { flex-basis: 22px; width: 1.5px; height: 22px; align-self: center; transform-origin: 50% 0; }
+  .sd-arrow::after { display: none; }
+  .sd-patch { position: static; margin-top: 12px; }
+  .sd-phases { grid-template-columns: 1fr 1fr !important; margin-top: 0; }
+  .sd-track-svg { display: none; }
+  .sd-node { margin-bottom: 4px; }
+  .sd-others li { grid-template-columns: 48px 1fr; }
+  .sd-others .sd-note { grid-column: 2; }
+  .sd-bar-top { top: auto; bottom: 14px; white-space: nowrap; }
+  .sd-bar-top .sd-wide { display: none; }
+  .sd-eyebrow { top: 28px; }
+  .sd-stage { padding-top: 72px; }
+  .sd-folio { bottom: auto; top: 28px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sd-stage { clip-path: none !important; }
+}
+
+/* Print: every chapter finished, one landscape page each. The story still reads in order. */
+@media print {
+  @page { size: A4 landscape; margin: 0; }
+  .sd-bar-top { display: none; }
+  .sd-ch { height: auto !important; margin: 0 !important; break-after: page; overflow: hidden; }
+  .sd-ch:last-child { break-after: auto; }
+  .sd-stage { position: relative; box-sizing: border-box; height: 100vh; break-inside: avoid; clip-path: none !important; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  .sd-lid { display: none; }
+}

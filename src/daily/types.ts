@@ -6,6 +6,8 @@
  * any view can be rebuilt, audited, or invalidated precisely.
  */
 
+import type { MemoryState } from "./fsrs";
+
 export const DAILY_SCHEMA = "daily/1" as const;
 
 export type EntryKind = "worked" | "learned" | "decided" | "task";
@@ -32,7 +34,9 @@ export type DailyEventBody =
   | { type: "entry.deleted"; entryId: string }
   | { type: "source.attached"; sourceId: string; name: string; mime: string; bytes: number; contentHash: string; excerpt: string }
   | { type: "task.state"; entryId: string; state: TaskState }
-  | { type: "plan.decided"; candidateId: string | null; decision: "accepted" | "revised" | "skipped"; revisedEntryId?: string };
+  | { type: "plan.decided"; candidateId: string | null; decision: "accepted" | "revised" | "skipped"; revisedEntryId?: string }
+  /** A re-confirmation answer: 3 still holds, 2 unsure, 1 no longer holds. Drives the FSRS schedule. */
+  | { type: "entry.reviewed"; entryId: string; grade: 1 | 2 | 3 | 4 };
 
 export type DailyEvent = EventBase & DailyEventBody & { redacted?: boolean };
 
@@ -62,7 +66,11 @@ export interface Entry {
   /** Why the status holds: a rule that fired on the text, or "set by you". */
   statusBasis?: string;
   supersededBy?: string;
+  /** When the supersession was recorded: the end of this entry's validity window. */
+  supersededAt?: string;
   supersedes: string[];
+  /** FSRS memory state for decisions and lessons; drives re-confirmation. */
+  memory?: MemoryState;
   task?: TaskState;
   history: Array<{ version: number; at: string; text: string }>;
 }
@@ -79,7 +87,7 @@ export interface WorkspaceState {
 
 /** Every operation reports what it actually cost. Never estimated. */
 export interface Receipt {
-  op: "record" | "revise" | "status" | "supersede" | "delete" | "attach" | "recall" | "plan" | "load";
+  op: "record" | "revise" | "status" | "supersede" | "delete" | "attach" | "recall" | "plan" | "load" | "reconfirm" | "asof";
   ms: number;
   scanned: number;
   cache: "hit" | "miss" | "n/a";

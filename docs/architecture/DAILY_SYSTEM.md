@@ -33,6 +33,22 @@ There are two distinct notions of graph in the repository:
 
 Only add typed multi-hop edges or Personalized PageRank after an evaluation shows better recall or accepted task completion at a measured ingestion/update/query cost. A simple baseline may win.
 
+## Keeping decisions true over time
+
+Two problems recur in how engineers talk about decision records: the *why* fades while the *what* survives, and a record of a decision you have since reversed is worse than no record, because it still reads as authoritative. The engine answers both from the event log, with no model and no new storage.
+
+**Re-confirmation (`src/daily/fsrs.ts`).** Every decision and lesson carries an FSRS-5 memory state: difficulty, stability and last review (Ye et al., KDD 2022; FSRS-5 default weights). Retrievability follows the power forgetting curve `R(t) = (1 + 19/81 · t/S)^-0.5`, so `R = 90%` exactly one stability after a review. `dueForReconfirm()` returns entries whose predicted recall is below 90%, weakest first. The "Still true?" panel offers three answers, each stored as an `entry.reviewed` event:
+
+| Answer | FSRS grade | Effect |
+|---|---|---|
+| Still holds | 3 (Good) | stability grows, next check moves out (shown before you click) |
+| Not sure | 2 (Hard) | smaller growth, higher difficulty, comes back sooner |
+| Changed / Forgot | 1 (Again) | stability falls; a decision is also reopened as *unresolved*, so it moves into Next until you write what replaces it |
+
+Superseded entries, tasks, and decisions that are still proposed or unresolved never come up for re-confirmation, because the planner already handles those. The default weights were fitted on flashcard reviews, not on decisions. They give a principled, explainable schedule (days, then weeks, then months), not a validated model of how fast a decision's rationale decays.
+
+**Look back (`projectAsOf`).** The log already records when every fact was written and when a supersession was recorded, which is the validity window that temporal memory graphs such as Zep/Graphiti keep on their edges. `engine.asOf(date)` replays only the events up to that date and returns the workspace as it stood: which decisions were in force, and which have since been replaced, revised or reopened. Deletion still wins in every past view, so time travel cannot resurrect deleted text. This is transaction time (when it was recorded). Valid time stated in the text ("from Q3 onward") is not modelled.
+
 ## Search isolation and costs
 
 [SearchIndex](../../src/search/engine.ts) keeps named retrieval arms, including BM25F, optional quantized embeddings and fusion. The selected local semantic model uses a worker and self-hosted assets. Query embedding cost and initial model load must be reported separately from index scan latency.

@@ -46,7 +46,7 @@ export function review(state: WorkspaceState, receipts: Receipt[], lastDays = 7,
   for (const r of receipts) (groups.get(r.op) ?? groups.set(r.op, []).get(r.op)!).push(r.ms);
   const ops = [...groups].map(([op, ms]) => ({ op, count: ms.length, p50: round(percentile(ms, 50)), p95: round(percentile(ms, 95)) }));
   const recalls = receipts.filter((r) => r.op === "recall");
-  const updates = receipts.filter((r) => r.op === "record" || r.op === "revise" || r.op === "status" || r.op === "supersede" || r.op === "delete");
+  const updates = receipts.filter((r) => r.op === "record" || r.op === "revise" || r.op === "status" || r.op === "supersede" || r.op === "delete" || r.op === "reconfirm");
   return {
     days, decisions, tasks,
     system: {

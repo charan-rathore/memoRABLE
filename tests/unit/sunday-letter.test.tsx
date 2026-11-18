@@ -1,3 +1,4 @@
+import { createElement } from "react";
 import { describe, expect, it } from "vitest";
 import { render } from "@hyper-elements/react";
 import { check } from "@hyper-elements/react/template";
@@ -87,7 +88,7 @@ describe("the templates", () => {
     ["record", DecisionRecord],
     ["card", WeekCard],
   ] as const)("%s passes every rule on the example", (_, Tpl) => {
-    const res = check(<Tpl {...(sampleWeek as never)} />);
+    const res = check(createElement(Tpl as never, sampleWeek as never));
     expect(res.diagnostics.filter((d) => d.severity === "error")).toEqual([]);
     expect(res.valid).toBe(true);
     for (const r of res.rules) expect(r.status).toBe("passed");

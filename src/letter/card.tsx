@@ -77,6 +77,7 @@ export default template({
     square: { width: 1080, height: 1080, scale: 2 },
   },
   fields: letterFields,
-  example: sampleWeek,
+  // The example is typed as the values the components take; the template checks it against its fields.
+  example: sampleWeek as never,
   render: (v, { format }) => <WeekCard {...(v as unknown as LetterValues)} format={(format as Format) ?? "landscape"} />,
 });

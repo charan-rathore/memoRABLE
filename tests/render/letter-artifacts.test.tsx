@@ -28,7 +28,9 @@ describe("the Sunday letter, written out", () => {
       font("Archivo Black", "ArchivoBlack-Regular.ttf"),
       font("Crimson Text", "CrimsonText-Italic.ttf", "italic"),
       font("Crimson Text", "CrimsonText-Regular.ttf"),
-      font("DM Sans", "DMSans-Variable.ttf"),
+      // Static instances of DM Sans' variable font: Satori's font parser reads no variation axes.
+      font("DM Sans", "DMSans-Regular.ttf"),
+      font("DM Sans", "DMSans-Bold.ttf", "normal", 700),
       font("Anonymous Pro", "AnonymousPro-Regular.ttf"),
       font("Anonymous Pro", "AnonymousPro-Bold.ttf", "normal", 700),
     ]);

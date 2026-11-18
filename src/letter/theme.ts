@@ -44,7 +44,8 @@ export const fontFaces = [
   { family: "Archivo Black", src: `${FONT_URL}/ArchivoBlack-Regular.ttf`, format: "truetype", weight: 400, style: "normal" },
   { family: "Crimson Text", src: `${FONT_URL}/CrimsonText-Italic.ttf`, format: "truetype", weight: 400, style: "italic" },
   { family: "Crimson Text", src: `${FONT_URL}/CrimsonText-Regular.ttf`, format: "truetype", weight: 400, style: "normal" },
-  { family: "DM Sans", src: `${FONT_URL}/DMSans-Variable.ttf`, format: "truetype", weight: 400, style: "normal" },
+  { family: "DM Sans", src: `${FONT_URL}/DMSans-Regular.ttf`, format: "truetype", weight: 400, style: "normal" },
+  { family: "DM Sans", src: `${FONT_URL}/DMSans-Bold.ttf`, format: "truetype", weight: 700, style: "normal" },
   { family: "Anonymous Pro", src: `${FONT_URL}/AnonymousPro-Regular.ttf`, format: "truetype", weight: 400, style: "normal" },
 ] as const;
 

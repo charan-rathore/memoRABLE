@@ -104,6 +104,7 @@ export default template({
   root: "Document",
   fields: letterFields,
   rules: { require: { core: ["layout/overflow"] }, root: { lang: true } },
-  example: sampleWeek,
+  // The example is typed as the values the components take; the template checks it against its fields.
+  example: sampleWeek as never,
   render: (v) => <DecisionRecord {...(v as unknown as LetterValues)} />,
 });

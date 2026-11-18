@@ -171,6 +171,7 @@ export default template({
     links: { domains: ["memo-rable.vercel.app"] },
     root: { lang: true },
   },
-  example: sampleWeek,
+  // The example is typed as the values the components take; the template checks it against its fields.
+  example: sampleWeek as never,
   render: (v) => <LetterPage {...(v as unknown as LetterValues)} />,
 });

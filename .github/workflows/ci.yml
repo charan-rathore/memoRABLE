@@ -36,6 +36,27 @@ jobs:
 
       - run: npm run build
 
+  letter:
+    name: Sunday letter (email, page, PDF, PNG)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run letter
+
+      - uses: actions/upload-artifact@v5
+        with:
+          name: sunday-letter
+          path: out/letter/
+          retention-days: 30
+
   e2e:
     name: Playwright end-to-end
     runs-on: ubuntu-latest

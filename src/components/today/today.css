@@ -464,3 +464,10 @@ html:has(.td), html:has(.td) body { background: #000; color-scheme: dark; }
 .td-repos strong { font-size: 13.5px; font-weight: 550; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .td-repos span { font-size: 12px; color: var(--faint); }
 .td-repo-warn { color: var(--learned) !important; }
+
+/* Arrived from the Sunday letter: the question, and the one button that answers it. */
+.td-letter-prompt { display: grid; gap: 10px; padding: 14px 16px; border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 10px; }
+.td-letter-prompt p { margin: 0; line-height: 1.45; }
+.td-letter-prompt q { font-style: italic; }
+.td-letter-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.td-letter-export { display: grid; gap: 6px; justify-items: start; margin: 4px 0 8px; }

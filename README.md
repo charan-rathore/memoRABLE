@@ -82,6 +82,28 @@ Import a PDF, Markdown, plain-text or memoRABLE JSON source. A conservative loca
 
 [Try a brief](https://memo-rable.vercel.app/#briefs).
 
+## The Sunday letter
+
+Once a week, the log reads itself back to you: what you decided, what didn't last the week, and the one decision whose reasons you are most likely to have forgotten (FSRS-5 predicted recall below 90%). It is one design written with [Hyper Elements](https://hyperelements.dev) templates and rendered four ways from the same values:
+
+![The Sunday letter as an email on desktop and phone, a share card, and a decision record PDF](docs/images/sunday-letter.png)
+
+| Template | Root | Output |
+|---|---|---|
+| `memorable.WeekLetter` | `Email` | table-based HTML for Gmail and Outlook, plus plain text |
+| `memorable.WeekPage` | `Page` | a responsive web page with SVG charts |
+| `memorable.DecisionRecord` | `Document` | an A4 PDF, one page per decision |
+| `memorable.WeekCard` | `Canvas` | a PNG to share (1200×630 and 1080×1080) |
+
+How Hyper Elements is used:
+
+- **One theme, four roots.** `defineTheme()` in [`src/letter/theme.ts`](src/letter/theme.ts) sets the colours, fonts and named styles once, and all four templates take it.
+- **Templates with guardrails.** Each template declares typed fields (`prop.text`, `prop.list`, `prop.choice`…) and rules. The email must pass lint's `unsubscribe`, `link-text`, `lang` and `contrast` checks and `layout/overflow`, and may only link to this app. `check()` holds every example to its rules in CI.
+- **Real data in, not a mock.** [`weekLetter()`](src/letter/week.ts) builds the values from the event-sourced log on your device: deleted entries are left out, replaced decisions are struck through, and the recheck comes from the FSRS schedule.
+- **Links that can't act on their own.** Link scanners open every link in an email, so "Still holds" only carries the question. The app asks before it records anything.
+
+In the app, open **Review → Write this week's letter**. To write every output from the example week to `out/letter/`, run `npm run letter`. The design rules are in [`src/letter/DESIGN.md`](src/letter/DESIGN.md).
+
 ## Develop and verify
 
 Requires Node 20.9–24 ([.nvmrc](.nvmrc) pins 22).

@@ -2,7 +2,7 @@
   "name": "memorable",
   "version": "0.1.0",
   "private": true,
-  "description": "memoRABLE \u2014 turn information into memory. Deterministic JSON/Text import becomes six source-linked Memory Blocks rendered with Unlayer Elements as Web, Email and Document.",
+  "description": "memoRABLE — turn information into memory. Deterministic JSON/Text import becomes six source-linked Memory Blocks rendered with Unlayer Elements as Web, Email and Document.",
   "license": "MIT",
   "scripts": {
     "dev": "next dev",
@@ -21,10 +21,13 @@
     "test:all": "npm run lint && npm run typecheck && npm run test && npm run build",
     "verify": "npm run lint && npm run typecheck && npm run test && npm run build",
     "docgraph": "cd services/docgraph && (test -d .venv || python3.12 -m venv .venv) && .venv/bin/pip install -q -r requirements.txt && .venv/bin/uvicorn server:app --host 127.0.0.1 --port 8765",
-    "eval:docgraph": "node scripts/eval-docgraph-gate.mjs"
+    "eval:docgraph": "node scripts/eval-docgraph-gate.mjs",
+    "letter": "vitest run --config vitest.render.config.ts"
   },
   "dependencies": {
     "@huggingface/transformers": "3.8.1",
+    "@hyper-elements/lint": "^0.1.0",
+    "@hyper-elements/react": "^0.5.0",
     "@unlayer/react-elements": "0.1.20",
     "next": "15.5.22",
     "pdfjs-dist": "^4.10.38",
@@ -38,6 +41,8 @@
     "@axe-core/playwright": "4.12.1",
     "@eslint/eslintrc": "3.3.1",
     "@playwright/test": "1.62.0",
+    "@react-pdf/renderer": "^4.9.0",
+    "@resvg/resvg-js": "^2.6.2",
     "@testing-library/dom": "10.4.1",
     "@testing-library/jest-dom": "6.9.1",
     "@testing-library/react": "16.3.2",
@@ -48,6 +53,7 @@
     "eslint": "9.39.5",
     "eslint-config-next": "15.5.22",
     "jsdom": "26.1.0",
+    "satori": "^0.33.5",
     "typescript": "5.9.3",
     "vitest": "3.2.7"
   },

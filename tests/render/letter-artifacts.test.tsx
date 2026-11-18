@@ -49,7 +49,7 @@ describe("the Sunday letter, written out", () => {
     for (const format of ["landscape", "square"] as const) {
       const card = await renderImage(<WeekCard {...sampleWeek} format={format} />, { fonts, scale: 2 });
       await writeFile(join(OUT, `card-${format}.png`), card.image);
-      expect(card.width).toBe(format === "square" ? 1080 : 1200);
+      expect(card.width).toBe((format === "square" ? 1080 : 1200) * 2); // drawn at scale 2
     }
   }, 120_000);
 });

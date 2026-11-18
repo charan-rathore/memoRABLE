@@ -16,9 +16,13 @@ test("tells the sample brief as seven beats, ending on the document's own number
   for (const label of ["four numbers moved.", "two of four done.", "two decided, one open.", "one thing could stop it."]) {
     await expect(page.getByRole("heading", { name: label })).toHaveCount(1);
   }
-  // Scroll to the end: every counted-up value lands on exactly what the source wrote.
-  await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
-  await page.waitForTimeout(400);
+  // Scroll to where the numbers chapter has finished building: every counted-up
+  // value lands on exactly what the source wrote.
+  await page.evaluate(() => {
+    const ch = document.querySelector<HTMLElement>(".sd-k-numbers")!;
+    window.scrollTo(0, ch.offsetTop + ch.offsetHeight - 2 * window.innerHeight + 4);
+  });
+  await page.waitForTimeout(800);
   await expect(page.locator("[data-value]")).toHaveText(["$4.2M", "121%", "19 mo", "34"]);
   expect(errors).toEqual([]);
 });

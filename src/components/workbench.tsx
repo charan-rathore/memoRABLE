@@ -37,6 +37,7 @@ import {
 } from "./import/import-stages";
 import { createAsyncOperation } from "./async-operation";
 import { highlightRange } from "./preview/source-modal";
+import { saveForStory } from "@/story/handoff";
 
 export interface WorkbenchInitial {
   sourceText: string;
@@ -563,6 +564,17 @@ export function Workbench({ initial }: { initial: WorkbenchInitial }) {
           aria-label="Output preview"
         >
           {visualSourceReady && !replay.active && state.errors.length === 0 && state.document && state.sourceText ? <VisualReadingPanel key={state.document.contentHash} document={state.document} source={state.sourceText} /> : null}
+          {state.document && state.errors.length === 0 && !replay.active ? (
+            <p className="story-entry">
+              <a
+                href="/story"
+                onClick={() => { if (state.document) saveForStory(state.document); }}
+              >
+                Play as a story
+              </a>
+              <span>the same memories, told one screen at a time, with charts from the document&apos;s own numbers</span>
+            </p>
+          ) : null}
           {html || !error ? (
             <PreviewPane
               mode={state.mode}

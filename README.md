@@ -82,6 +82,23 @@ Import a PDF, Markdown, plain-text or memoRABLE JSON source. A conservative loca
 
 [Try a brief](https://memo-rable.vercel.app/#briefs).
 
+## A document, as a story
+
+Import any brief, report or set of notes, then choose **Play as a story**. The six memories the importer found become a page you scroll through, one idea per screen. Each beat gets the chart its data supports: what moved, how it got here, what was decided and what it set moving, what could stop it, and what happens next. **Save as PDF** gives one finished page per beat ([example](docs/media/atlas-story.pdf)).
+
+![Scrolling through the Atlas brief as a story](docs/images/story.gif)
+
+![Five beats of the story: the opening, four numbers each on its own scale, the path with what each step needed, decisions linked to their work, and the one risk that could stop it](docs/images/story-beats.png)
+
+The taste is written down as rules and tested, so every document gets the same care:
+
+- **One idea per screen.**
+- **Only the document's own words and numbers.** A value it can't read as a number is shown as words.
+- **Never two units on one axis.** Each measure is drawn on its own scale from zero.
+- **A chart only when it says more than a sentence.**
+
+The rules live in [`src/story/plan.ts`](src/story/plan.ts), the motion in [`src/story/motion.ts`](src/story/motion.ts), and the reasoning in [`src/story/DESIGN.md`](src/story/DESIGN.md). [Open it](https://memo-rable.vercel.app/story), or watch [the recording](docs/media/story.mp4).
+
 ## The Sunday letter
 
 Once a week, the log reads itself back to you: what you decided, what didn't last the week, and the one decision whose reasons you are most likely to have forgotten (FSRS-5 predicted recall below 90%). It is one design written with [Hyper Elements](https://hyperelements.dev) templates and rendered four ways from the same values:

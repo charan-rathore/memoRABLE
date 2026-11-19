@@ -86,7 +86,7 @@ function actionRow(
             html={inlineText(actionStanceLabel(entry)!)}
             fontFamily={f.mono}
             fontSize={scaledPx(10.5, scale)}
-            color={themedStatusColor(entry.status, c.accent)}
+            color={entry.status ? themedStatusColor(entry.status, c.accent) : c.accent}
             letterSpacing="0.1em"
             textAlign="right"
             lineHeight="150%"
@@ -109,5 +109,5 @@ function actionStanceLabel(entry: ActionEntry): string | null {
   if (/^persona\s*:/i.test(entry.task)) return "Source: Persona";
   if (/^user story\s*:/i.test(entry.task)) return "Source: User Story";
   if (entry.facet) return facetLabel(entry.facet).toUpperCase();
-  return statusLabel(entry.status).toUpperCase() || null;
+  return entry.status ? statusLabel(entry.status).toUpperCase() : null;
 }

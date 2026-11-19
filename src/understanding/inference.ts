@@ -2,6 +2,7 @@ import { kindClaimedByHeading, resumeFacetForHeading } from "@/import/text/secti
 import type { Concept } from "./concepts";
 import { labelFor } from "./concepts";
 import type { DocumentArchetype } from "./archetype";
+import { parseResumeRoleHeader } from "./role-headers";
 import type { Intent } from "./intent";
 import {
   allowSlideDecision,
@@ -41,11 +42,27 @@ export interface Statement {
   listItem: boolean;
   /** Checkbox state when the line was a task marker ("- [ ]" / "- [x]"). */
   task?: "open" | "done";
+  /**
+   * Timeline-local segmentation only: real character offsets of this
+   * statement's segment inside the original statement text. Present only
+   * when one admitted fused statement was split into self-qualified
+   * segments; lineNo still points at the real source line, never a fake.
+   */
+  segmentStart?: number;
+  segmentEnd?: number;
+  /** The full original statement when this evidence is one segment of it. */
+  statementText?: string;
 }
 
 export interface Inferred<T> {
   value: T;
   evidence: Statement;
+  /**
+   * Timeline-local segmentation only: the single fused admission the
+   * segment group replaces. The merge admits the whole group or this
+   * fallback — never a partial group.
+   */
+  fusedFallback?: T;
 }
 
 export interface InferredSignal {
@@ -111,6 +128,7 @@ const DOWN = /\b(low|lower|down|falling|fell|drop(?:ped|ping)?|decline[ds]?|weak
 export function inferSignals(
   statements: readonly Statement[],
   concepts: readonly Concept[],
+  archetype?: DocumentArchetype,
 ): Array<Inferred<InferredSignal>> {
   const collected: Array<Inferred<InferredSignal>> = [];
   const out = {
@@ -130,6 +148,11 @@ export function inferSignals(
   for (const statement of statements) {
     const text = unpunctuated(statement.text);
     if (wordCount(text) < 4) continue;
+
+    // A resume role header is a tenure line, not a lesson or a cause.
+    if (archetype === "resume" && !statement.listItem && parseResumeRoleHeader(statement.text)) {
+      continue;
+    }
 
     const conditional = firstMatch(text, CONDITIONAL);
     if (conditional) {
@@ -246,7 +269,7 @@ const CONSIDERED =
   /\b(?:could|might|may want to|consider|perhaps|maybe|one option|another option|optionally|if you (?:like|prefer|want)|worth (?:trying|considering)|possibly|it (?:can|may) help|you can also|feel free to|ideally)\b/i;
 
 /** An instruction in a document whose whole job is to instruct. */
-const IMPERATIVE =
+export const IMPERATIVE =
   /^(use|build|create|write|run|start|open|clean|check|add|remove|keep|make|set|pick|choose|avoid|prefer|ensure|define|split|group|send|ship|test|map|draft|treat|store|apply|focus|begin|repeat|validate|verify|export|document|measure|track|break|combine|separate|standardi[sz]e|expand|reduce|extend|move|migrate|adopt|retire|replace|enforce|restrict|allow|require|drop|cache|batch|isolate|centrali[sz]e|deprecate)\b/i;
 
 /** "so that X" / "to avoid Y" — the reason a decision was taken. */

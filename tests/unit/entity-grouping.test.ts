@@ -59,11 +59,37 @@ describe("entity grouping: heading owns its bullets", () => {
     expect(nirmaan.details).toHaveLength(1);
   });
 
-  it("marks completed past-dated projects done, never falsely pending", () => {
+  it("carries no manufactured status on resume project cards", () => {
+    // A closed tenure range does not prove a project finished, and shipped/
+    // built bullets are accomplishments, not completion claims - so the card
+    // omits status entirely (absent key in the serialized output, not a
+    // hidden default). Dates stay verbatim in the title.
     const doc = importFixture();
     const { entries } = blockEntries<ActionEntry>(doc, "actions");
+    expect(entries).toHaveLength(3);
     for (const entry of entries) {
-      expect(entry.status).toBe("done");
+      expect(entry.status).toBeUndefined();
+      expect("status" in entry).toBe(false);
+      expect(entry.task).toMatch(/\w+ \d{4} – (\w+ \d{4}|Present)/);
+    }
+    // Omission must survive serialization: no status key reaches the output JSON.
+    const serialized = JSON.parse(JSON.stringify(doc));
+    const actions = serialized.blocks.find((b: { kind: string }) => b.kind === "actions");
+    for (const e of actions.payload.entries) {
+      expect("status" in e).toBe(false);
+    }
+  });
+
+  it("keeps explicit statuses on genuine non-resume actions", () => {
+    // Positive control: status optionality is only for source-unsupported
+    // cards. Real action lines in a generic doc keep their inferred status.
+    const raw = `## Next Steps\n\n- Ship the onboarding revamp by Friday\n- Draft the pricing FAQ\n`;
+    const result = importSource({ raw, label: "team-notes.md" });
+    if (!result.ok) throw new Error(`import failed: ${JSON.stringify(result.errors)}`);
+    const { entries } = blockEntries<ActionEntry>(result.value, "actions");
+    expect(entries.length).toBeGreaterThan(0);
+    for (const entry of entries) {
+      expect(entry.status).toBeDefined();
     }
   });
 
@@ -92,13 +118,17 @@ describe("entity grouping: heading owns its bullets", () => {
     expect(ta!.details).toHaveLength(1);
   });
 
-  it("marks fully past roles done instead of planned", () => {
+  it("carries dates and titles on resume roles without a workflow state", () => {
+    // A tenure range is a date fact; "done"/"on-track" are delivery judgments
+    // the source never makes, so resume timeline entries omit state entirely.
     const doc = importFixture();
     const { entries } = blockEntries<TimelineEntry>(doc, "timeline");
     const analyst = entries.find((e) => /Product Analyst/.test(e.title));
     const ta = entries.find((e) => /Teaching Assistant/.test(e.title));
-    expect(analyst!.state).toBe("done");
-    expect(ta!.state).toBe("done");
+    expect(analyst!.state).toBeUndefined();
+    expect(ta!.state).toBeUndefined();
+    expect("state" in analyst!).toBe(false);
+    expect(analyst!.date).toMatch(/\w+ \d{4}/);
   });
 });
 
@@ -119,7 +149,7 @@ describe("entity grouping through markdown sub-headings", () => {
     const { entries } = blockEntries<ActionEntry & { details?: string[] }>(doc, "actions");
     const projects = entries.filter((e) => e.details && e.details.length > 0);
     expect(projects).toHaveLength(3);
-    expect(projects.every((p) => p.status === "done")).toBe(true);
+    expect(projects.every((p) => p.status === undefined)).toBe(true);
     expect(entries.some((e) => /Preserved source traceability/.test(e.task))).toBe(false);
   });
 
@@ -133,23 +163,33 @@ describe("entity grouping through markdown sub-headings", () => {
     expect(entries.every((e) => !e.owner || !/^\w+ \d{4}$/.test(e.owner))).toBe(true);
   });
 
-  it("role sub-headings group under Experience with done state", () => {
+  it("role sub-headings group under Experience without a workflow state", () => {
     const doc = importSub();
     const { entries } = blockEntries<TimelineEntry & { details?: string[] }>(doc, "timeline");
     const analyst = entries.find((e) => /Product Analyst/.test(e.title));
     expect(analyst).toBeDefined();
-    expect(analyst!.state).toBe("done");
+    expect(analyst!.state).toBeUndefined();
     expect(analyst!.details!.length).toBeGreaterThan(0);
   });
 });
 
 describe("entity grouping: open-ended date ranges", () => {
   it("does not mark an ongoing role done or leave the open end in the title", () => {
-    const raw = `## Experience
+    const raw = `# Asha Rao
+
+## Experience
 
 **Platform Engineer, Acme** January 2024 – Present
 - Own the ingestion pipeline serving 40M daily events
 - Cut p95 ingest latency by 38% through batch compaction
+
+## Education
+
+BE Computer Science, Some Institute, CGPA 9.1
+
+## Skills
+
+TypeScript, Distributed Systems
 `;
     const result = importSource({ raw, label: "resume-present.md" });
     if (!result.ok) throw new Error(`import failed: ${JSON.stringify(result.errors)}`);
@@ -157,8 +197,8 @@ describe("entity grouping: open-ended date ranges", () => {
 
     const role = entries.find((e) => /Platform Engineer/.test(e.title));
     expect(role).toBeDefined();
-    // An ongoing role is not finished work...
-    expect(role!.state).not.toBe("done");
+    // An ongoing role is not finished work - and no stance at all is claimed.
+    expect(role!.state).toBeUndefined();
     // ...and its title does not carry the open-ended marker.
     expect(role!.title).not.toContain("Present");
     expect(role!.title).not.toContain("January 2024");
@@ -166,10 +206,20 @@ describe("entity grouping: open-ended date ranges", () => {
   });
 
   it("treats Current and Ongoing the same way", () => {
-    const raw = `## Experience
+    const raw = `# Asha Rao
+
+## Experience
 
 **Staff Engineer, Beta** March 2022 – Current
 - Run the storage guild across four teams
+
+## Education
+
+BE Computer Science, Some Institute, CGPA 9.1
+
+## Skills
+
+TypeScript, Distributed Systems
 `;
     const result = importSource({ raw, label: "resume-current.md" });
     if (!result.ok) throw new Error(`import failed: ${JSON.stringify(result.errors)}`);
@@ -177,7 +227,7 @@ describe("entity grouping: open-ended date ranges", () => {
 
     const role = entries.find((e) => /Staff Engineer/.test(e.title));
     expect(role).toBeDefined();
-    expect(role!.state).not.toBe("done");
+    expect(role!.state).toBeUndefined();
     expect(role!.title).not.toContain("Current");
   });
 });
@@ -217,10 +267,20 @@ Platform Migration January 2024 – Present
   });
 
   it("removes wrappers and terminal punctuation around a range", () => {
-    const raw = `## Experience
+    const raw = `# Asha Rao
+
+## Experience
 
 **Engineer, Acme** (January 2024 – Present)
 - Own the ingestion pipeline
+
+## Education
+
+BE Computer Science, Some Institute, CGPA 9.1
+
+## Skills
+
+TypeScript, Distributed Systems
 `;
     const result = importSource({ raw, label: "wrapped-range.md" });
     if (!result.ok) throw new Error(`import failed: ${JSON.stringify(result.errors)}`);
@@ -231,6 +291,6 @@ Platform Migration January 2024 – Present
     expect(row!.title).not.toContain("(");
     expect(row!.title).not.toContain(")");
     expect(row!.title).not.toContain("Present");
-    expect(row!.state).not.toBe("done");
+    expect(row!.state).toBeUndefined();
   });
 });

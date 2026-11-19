@@ -79,15 +79,17 @@ function decisionRow(
           : null}
       </Column>
       <Column padding="13px 0px 13px 12px" border={cellBorder}>
+        {formatDecisionStance(entry) ? (
         <Paragraph
           html={inlineText(formatDecisionStance(entry))}
           fontFamily={f.mono}
           fontSize={scaledPx(10.5, scale)}
-          color={themedStatusColor(entry.status, c.accent)}
+          color={themedStatusColor(entry.status ?? "", c.accent)}
           letterSpacing="0.04em"
           textAlign="right"
           lineHeight="140%"
         />
+        ) : null}
       </Column>
     </Row>
   );

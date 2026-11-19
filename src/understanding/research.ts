@@ -65,9 +65,9 @@ interface SectionSummary {
 
 const ROLE_PATTERNS: Array<{ role: ResearchSectionRole; pattern: RegExp }> = [
   { role: "abstract", pattern: /\babstract\b/i },
-  { role: "introduction", pattern: /\b(introduction|background|related\s+work)\b/i },
+  { role: "introduction", pattern: /\b(introduction|background|related\s+work|motivation|overview)\b/i },
   { role: "hypothesis", pattern: /\b(hypothesis|research\s+questions?|problem\s+statement)\b/i },
-  { role: "method", pattern: /\b(method(?:ology)?|methods|experimental\s+setup|experiments?)\b/i },
+  { role: "method", pattern: /\b(method(?:ology)?|methods|experimental\s+setup|experiments?|approach|intuition|implementation|algorithm|model|architecture)\b/i },
   { role: "results", pattern: /\b(results?|findings?|evaluation)\b/i },
   { role: "discussion", pattern: /\bdiscussion\b/i },
   { role: "conclusion", pattern: /\bconclusions?\b/i },
@@ -134,6 +134,10 @@ function looksLikeWordStump(token: string): boolean {
 function isGarbledProse(text: string): boolean {
   const s = text.trim();
   if (!s) return true;
+  // Extracted math: "(_tu , c^∗(_tu ))", "∂ L = w^′_i + …" is notation, not prose.
+  const letters = (s.match(/\p{L}/gu) ?? []).length;
+  const notation = /[_^][\w(∗′]|[∂∑∫∇∗]/u.test(s);
+  if ((notation && letters / s.length < 0.75) || letters / s.length < 0.4) return true;
   const first = (s.split(/\s+/)[0] ?? "").replace(/[^A-Za-z']/g, "");
   // Starts mid-word: "Nificant", "tion and", "rmance on"
   if (/^[a-z]/.test(s) && first.length <= 8 && !STOP_OPENERS.test(first)) return true;
@@ -169,6 +173,68 @@ function cleanResearchSentence(text: string): string {
 }
 
 /** Prefer complete, claim-like sentences over related-work chrome. */
+/** A sentence reporting what this work found or achieved, in the authors' voice. */
+const HEADLINE_RE =
+  /\b(?:we|our (?:results?|experiments?|approach|method|model|scheme|analysis))\b[^.]{0,140}?\b(?:show|shows|showed|shown|prove|proves|proved|demonstrat\w*|find|found|achiev\w*|obtain\w*|outperform\w*|improv\w*|reduc\w*|resolv\w*|is\s+(?:≈|~)?\d)|\b(?:headline result|results show|evaluators? prefer|users prefer)\b/i;
+
+/**
+ * The one result a reader should leave with: an authors'-voice result claim,
+ * preferring ones that carry a number or a comparison. Null when the paper
+ * doesn't state one plainly.
+ */
+export function headlineClaim(sentences: readonly string[]): string | null {
+  let best: { s: string; score: number } | null = null;
+  for (const raw of sentences) {
+    const s = raw.trim();
+    if (!HEADLINE_RE.test(s) || /\?$/.test(s) || isGarbledProse(s) || isTableDump(s)) continue;
+    const wc = wordCount(s);
+    if (wc < 8 || wc > 55) continue;
+    let score = 2;
+    if (/\d/.test(s)) score += 2;
+    if (/\b(?:faster|slower|better|lower|higher|fewer|smaller|larger|first|outperform\w*|improv\w*|resolv\w*|state[- ]of[- ]the[- ]art)\b/i.test(s)) score += 2;
+    if (/\b(?:in this (?:work|paper)|we (?:have )?(?:show|prove)n?)\b/i.test(s)) score += 1;
+    if (!best || score > best.score) best = { s, score };
+  }
+  return best ? best.s : null;
+}
+
+/** ALL-CAPS paper titles read as shouting in a story; keep acronyms and short words sane. */
+function titleCase(t: string): string {
+  if (t !== t.toUpperCase()) return t;
+  const small = new Set(["a", "an", "and", "as", "at", "by", "for", "from", "in", "of", "on", "or", "the", "to", "via", "with"]);
+  const parts = t.toLowerCase().split(/(\s+|-)/);
+  return parts.map((w, i) => {
+    if (/^\s+$|^-$/.test(w)) return w;
+    // "on-device" keeps its capital; "speech-to-speech" keeps "to" small.
+    if (i > 0 && small.has(w) && (parts[i - 1] === "-" || parts[i + 1] !== "-")) return w;
+    return w.charAt(0).toUpperCase() + w.slice(1);
+  }).join("");
+}
+
+/**
+ * A paper PDF often has no title metadata, so the file name stands in. The
+ * real title is the first line(s) before the authors: short, no full stop,
+ * not an e-mail or affiliation line.
+ */
+export function paperTitleFrom(lines: readonly string[]): string | null {
+  const meaningful = lines.map((l) => l.trim().replace(/^#{1,6}\s+/, "")).filter((l) => /\p{L}{2}/u.test(l) && !/^<!--/.test(l)).slice(0, 4);
+  const first = meaningful[0];
+  if (!first) return null;
+  const clean = (l: string) => l.replace(/[∗*†‡§¶]+$/u, "").trim();
+  const ok = (l: string) => {
+    const w = wordCount(l);
+    return w >= 2 && w <= 24 && !/[.:;]$/.test(l) && !/@|\buniversity\b|\bresearch\b,|\binstitute\b/i.test(l) && !/^(abstract|introduction)$/i.test(l);
+  };
+  if (!ok(clean(first))) return null;
+  let title = clean(first);
+  // A title wrapped onto a second line continues in the same case and doesn't look like a name list.
+  const second = meaningful[1] ? clean(meaningful[1]) : "";
+  if (second && ok(second) && wordCount(title) + wordCount(second) <= 24 && (second === second.toUpperCase()) === (first === first.toUpperCase()) && !/,/.test(second) && /^[a-z]|^(?:for|of|and|with|in|on|via)\b/i.test(second) && !/^[A-Z][a-z]+ [A-Z][a-z]+$/.test(second)) {
+    title = `${title} ${second}`;
+  }
+  return titleCase(title);
+}
+
 function claimScore(sentence: string): number {
   let score = 0;
   const s = sentence.toLowerCase();
@@ -197,6 +263,9 @@ function claimScore(sentence: string): number {
   if (/\b(we\s+(?:evaluate|compare|use|conduct|employ|present|propose))\b/.test(s)) {
     score -= 1;
   }
+  // What the authors found outranks what motivated them.
+  if (HEADLINE_RE.test(sentence)) score += 2;
+  if (/^(?:with the (?:increase|rise|growth)|in recent years|recently|nowadays|unlike\b|deploying\b|traditionally)/i.test(sentence.trim())) score -= 2;
   if (isMetricHeavy(sentence)) score -= 1;
   if (isGarbledProse(sentence)) score -= 10;
   return score;
@@ -331,7 +400,10 @@ function metricLabelFromBefore(before: string): string {
 function extractMetrics(sentence: string): SignalEntry[] {
   const entries: SignalEntry[] = [];
   const seen = new Set<string>();
-  const push = (label: string, value: string) => {
+  const push = (rawLabel: string, value: string) => {
+    // "We have observed consistent benefits (>" → "Consistent benefits".
+    let label = rawLabel.replace(/[\s(\[<>≈~=:,;–—-]+$/u, "").replace(/^(?:we|our|they)\s+(?:have\s+|also\s+)?\w+\s+/i, "").trim();
+    label = label ? label.charAt(0).toUpperCase() + label.slice(1) : "Measured result";
     const key = `${label.toLowerCase()}|${value}`;
     if (seen.has(key)) return;
     if (isGarbledLabel(label)) return;
@@ -372,8 +444,15 @@ function extractMetrics(sentence: string): SignalEntry[] {
     push("Gap vs baseline", `${m[1]} points`);
   }
   if (entries.length === 0 && METRIC_RE.test(sentence)) {
-    const raw = (sentence.match(/\d+(?:\.\d+)?%?/) ?? ["see source"])[0]!;
-    push("Measured result", raw);
+    // Only a number that measures something: a unit, a percent or a multiple.
+    // "int4", "CB_R_5", "the 1980s" and section numbers are not results.
+    const m = sentence.match(/(?:≈|~)?(?<![\w.])\d+(?:\.\d+)?\s?(?:%|×|x\b|ms\b|dB\b|points?\b|pp\b|bits?(?: per pixel)?\b|[KMG]B\b)/);
+    if (m) {
+      const label = metricLabelFromBefore(sentence.slice(0, m.index ?? 0))
+        .replace(/^(?:(?:show|shows|showed|that|our|the|we|is|are)\s+)+/i, "")
+        .replace(/\s+(?:is|are|was|were|of|by)$/i, "");
+      push(label ? label.charAt(0).toUpperCase() + label.slice(1) : "Measured result", m[0].replace(/\s+/g, " ").trim());
+    }
   }
   return entries;
 }
@@ -460,9 +539,11 @@ function isTableDump(sentence: string): boolean {
   if (!s) return true;
   if (s.includes("|")) return true;
   if (/^\s*\|?\s*:?-{3,}/.test(s)) return true;
-  // Dense numeric scoreboard rows: "Gemma-3-12b-it 86.52 85.38 80.7 …"
+  // Dense numeric scoreboard rows: "Gemma-3-12b-it 86.52 85.38 80.7 …", or a
+  // flattened table: "90% weight 85.16% 90% first_order_gradient 85.21%".
   const nums = s.match(/\d+(?:\.\d+)?/g) || [];
   if (nums.length >= 4 && wordCount(s) <= nums.length + 6) return true;
+  if (nums.length >= 4 && nums.length / Math.max(1, wordCount(s)) >= 0.3 && !/[.!?]$/.test(s)) return true;
   return false;
 }
 
@@ -502,7 +583,7 @@ function inferKeyFindings(summaries: readonly SectionSummary[]): TimelineEntry[]
     ) {
       continue;
     }
-    findings.push({ date: "Finding", title: finding, observationKind: "research-finding" });
+    findings.push({ date: "Finding", title: finding.replace(/^[^\p{L}\p{N}"“(]+/u, ""), observationKind: "research-finding" });
     if (findings.length >= Math.min(8, LIMITS.maxEntriesPerBlock)) break;
   }
   return findings;
@@ -777,8 +858,23 @@ export function buildResearchWorldModel(input: {
     .map(summarizeSection)
     .filter((s) => s.role !== "references");
 
+  // A short note or a PDF whose headings didn't survive extraction has no
+  // recognised sections: read all of it as the paper's abstract rather than
+  // say nothing.
+  if (!summaries.some((s) => s.role !== "other")) for (const s of summaries) s.role = "abstract";
+  // Subsections ("Cifar10" under "Results", "First Order Gradient Pruning"
+  // under "Intuition") belong to the section they sit under.
+  let parent: ResearchSectionRole | null = null;
+  for (const s of summaries) {
+    if (s.role !== "other") parent = s.role;
+    else if (parent) s.role = parent;
+  }
   const question = inferResearchQuestion(summaries, input.title);
   const findings = inferKeyFindings(summaries);
+  // The hook is what the paper found, said plainly, when it says it: a
+  // reader remembers the result, not the question.
+  const headline = headlineClaim(textsOf(summaries, ["abstract", "results", "conclusion", "discussion"]));
+  if (headline) question.hook = clamp(cleanResearchSentence(headline).replace(/^[^\p{L}\p{N}"“(]+/u, ""), 240);
   const evidence = inferEvidence(summaries);
   const insights = inferInsights(summaries, findings);
   const limitations = inferLimitations(summaries);

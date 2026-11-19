@@ -79,7 +79,8 @@ export async function readPdfBytes(
   }
 
   } finally {
-    await doc.destroy();
+    // pdfjs 4 has destroy(); later majors dropped it in favour of the loading task.
+    await (doc as { destroy?: () => Promise<void> }).destroy?.();
   }
 
   const layout = buildLayoutDocument(pageItems);

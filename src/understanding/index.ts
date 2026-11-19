@@ -156,7 +156,9 @@ export function understand(
 
   const intent = understandIntent({ title: input.title, headings, lines: flatLines });
   const concepts = extractConcepts({ headings, sections: sectionLines });
-  const archetype = classifyArchetype({ title: input.title, headings, bodySample });
+  // A paper's References and Conclusion sit at the end, past the first 80 lines.
+  const tail = flatLines.length > 80 ? `\n${flatLines.slice(-60).join("\n")}` : "";
+  const archetype = classifyArchetype({ title: input.title, headings, bodySample: bodySample + tail });
   const anchor = findAnchorDate(`${input.title}\n${bodySample}`, input.sourceLabel);
 
   const { statements, redundant } = distill(input.sections);

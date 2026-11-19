@@ -136,6 +136,11 @@ const SPECIALIZED: readonly SpecializedSpec[] = [
         pattern: /\b(dataset|data\s+set|experiment(?:s|al)?)\b/i,
       },
       { label: "Hypothesis", weight: 2, pattern: /\bhypothes[ie]s\b/i },
+      {
+        label: "Citations",
+        weight: 2,
+        pattern: /\[\d{1,3}(?:\s*[,–-]\s*\d{1,3})*\]|\bet al\.|\barXiv:\s?\d{4}\.\d{4,5}/,
+      },
     ],
   },
   {
@@ -217,7 +222,10 @@ export function classifyArchetype(input: {
   bodySample: string;
 }): ArchetypeResult {
   // Prefer headings for section cues; body still catches email/phone/invoice #.
-  const haystack = `${input.title}\n${input.headings.join("\n")}\n${input.bodySample.slice(0, 4000)}`;
+  // The opening carries Abstract/Method cues; the end carries Conclusion and
+  // References, which a long paper's opening never reaches.
+  const body = input.bodySample;
+  const haystack = `${input.title}\n${input.headings.join("\n")}\n${body.slice(0, 4000)}\n${body.length > 4000 ? body.slice(-3000) : ""}`;
 
   const breakdowns = SPECIALIZED.map((spec) => scoreSpec(haystack, spec));
   const scores: ArchetypeScores = {

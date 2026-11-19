@@ -55,6 +55,8 @@ export interface Choice {
   ref?: string;
   text: string;
   status?: "approved" | "requested" | "proposed" | "rejected";
+  /** The stamp's word when it isn't a decision's status: "found" for a paper's findings. */
+  stamp?: string;
   because?: string;
   /** Actions that carry this decision out. */
   work: Array<{ task: string; owner?: string; due?: string; status?: string }>;
@@ -154,7 +156,25 @@ export function planStory(doc: MemoryDocument): Story {
     ...(snap?.byline ? { byline: snap.byline } : {}),
   });
 
-  const signals = (block("signals")?.payload.entries ?? []).filter((s) => !s.facet);
+  // A paper's story is what it found, what it measured and where it stops,
+  // not what moved and what was decided.
+  const findings = (block("timeline")?.payload.entries ?? []).filter((t) => t.observationKind === "research-finding");
+  const paper = findings.length > 0;
+  if (findings.length) {
+    const shown = findings.filter((f) => f.title !== snap?.hook).slice(0, 5);
+    if (shown.length) {
+      beats.push({
+        kind: "choices",
+        field: FIELD.choices,
+        eyebrow: "what it found",
+        big: `${count(shown.length, "finding")}.`,
+        line: "In the paper's own words, strongest first.",
+        choices: shown.map((f) => ({ text: f.title, stamp: "found", work: [] })),
+      });
+    }
+  }
+
+  const signals = (block("signals")?.payload.entries ?? []).filter((s) => !s.facet && (!paper || s.value !== undefined));
   if (signals.length) {
     const measures: Measure[] = signals.slice(0, 6).map((s) => ({
       label: s.label,
@@ -170,8 +190,8 @@ export function planStory(doc: MemoryDocument): Story {
     beats.push({
       kind: "numbers",
       field: FIELD.numbers,
-      eyebrow: "what moved",
-      big: moved ? `${count(moved, "number")} moved.` : `${count(measures.length, "signal")}.`,
+      eyebrow: paper ? "what it measured" : "what moved",
+      big: paper ? `${count(measures.length, "result")}.` : moved ? `${count(moved, "number")} moved.` : `${count(measures.length, "signal")}.`,
       line: measures.find((m) => m.implication)?.implication ?? "What the document measured, as it wrote it.",
       measures,
       chart: readable.length >= 2 ? "bars" : "words",
@@ -229,8 +249,8 @@ export function planStory(doc: MemoryDocument): Story {
     beats.push({
       kind: "pressure",
       field: FIELD.pressure,
-      eyebrow: "what could stop it",
-      big: top.severity === "high" ? "one thing could stop it." : `${count(risks.length, "risk")} to watch.`,
+      eyebrow: paper ? "where it stops" : "what could stop it",
+      big: paper ? `${count(risks.length, "limit")}.` : top.severity === "high" ? "one thing could stop it." : `${count(risks.length, "risk")} to watch.`,
       line: top.consequence ? `${sentence(top.risk)} Left alone, ${lower(top.consequence)}.` : sentence(top.risk),
       risks: sorted.slice(0, 5).map((r) => ({ risk: r.risk, ...(r.severity ? { severity: r.severity } : {}), ...(r.because ? { because: r.because } : {}), ...(r.consequence ? { consequence: r.consequence } : {}), ...(r.mitigation ? { mitigation: r.mitigation } : {}) })),
     });

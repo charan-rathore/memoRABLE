@@ -97,6 +97,21 @@ The taste is written down as rules and tested, so every document gets the same c
 - **Never two units on one axis.** Each measure is drawn on its own scale from zero.
 - **A chart only when it says more than a sentence.**
 
+**Research papers read as papers.** I tested four real Google Research papers (PDFs from [google-research/google-research](https://github.com/google-research/google-research)): Streaming Parrotron, Jpegli, Near-Quadratic Sample Compression, and Gradient Based Pruning.
+
+Before this change:
+- Two of them opened with their file name.
+- One opened with its author list as the summary.
+- Streaming Parrotron wasn't recognised as a paper at all, because its References sit past the first 80 lines.
+- "int4" and "the 1980s" were shown as measured results, and a paper's findings never reached the story.
+
+Now:
+- A paper is told as *what it found*, then *what it measured*, then *where it stops*.
+- The title is read from the page.
+- The opening line is the authors' own headline result. For Streaming Parrotron that's "≈2x faster than real time on the Pixel4 CPU".
+- Subsections inherit their section, so "Cifar10" under Results counts as results.
+- Extracted math notation is never quoted as a finding.
+
 The rules live in [`src/story/plan.ts`](src/story/plan.ts), the motion in [`src/story/motion.ts`](src/story/motion.ts), and the reasoning in [`src/story/DESIGN.md`](src/story/DESIGN.md). [Open it](https://memo-rable.vercel.app/story), or watch [the recording](docs/media/story.mp4).
 
 ## The Sunday letter

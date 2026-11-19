@@ -35,7 +35,7 @@ import {
   type Recall,
   type Understanding,
 } from "@/understanding";
-import { buildResearchWorldModel } from "@/understanding/research";
+import { buildResearchWorldModel, paperTitleFrom } from "@/understanding/research";
 import {
   buildResearchKnowledgeGraph,
   mergeKnowledgeGraphs,
@@ -427,6 +427,11 @@ export function parseText(input: TextImportInput): Result<MemoryDocument> {
 
   let researchGraph: KnowledgeGraph | undefined;
   if (isResearch) {
+    // A paper PDF without title metadata arrives named after its file.
+    if (title === label.replace(/\.(md|markdown|txt)$/i, "") || /\.pdf$/i.test(title)) {
+      const found = paperTitleFrom(rawLines);
+      if (found) title = found;
+    }
     const researchSections = sections.map((s) => ({
       headingText: s.headingText,
       lines: s.lines,

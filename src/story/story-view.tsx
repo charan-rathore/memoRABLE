@@ -258,7 +258,7 @@ function BeatBody({ beat }: { beat: Beat }) {
             {beat.choices.map((c, i) => (
               <li key={i} className="sd-choice" data-choice>
                 <div className="sd-choice-main">
-                  <span className={`sd-stamp ${c.status === "approved" ? "is-done" : ""}`} data-stamp>{c.status === "approved" ? "decided" : c.status ?? "noted"}</span>
+                  <span className={`sd-stamp ${c.status === "approved" || c.stamp ? "is-done" : ""}`} data-stamp>{c.stamp ?? (c.status === "approved" ? "decided" : c.status ?? "noted")}</span>
                   <p className="sd-choice-text">{c.text}</p>
                   {c.because && <p className="sd-note">because {c.because.replace(/^[A-Z]/, (x) => x.toLowerCase())}</p>}
                 </div>

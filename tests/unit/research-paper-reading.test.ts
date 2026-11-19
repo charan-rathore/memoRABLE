@@ -72,12 +72,15 @@ describe("a paper as a story", () => {
   const r = importSource({ raw: paper, label: "2210.99999.pdf" });
   if (!r.ok) throw new Error("parse");
   const story = planStory(r.value);
-  it("tells what it found, in the paper's words, after the opening", () => {
+  it("draws the paper on one page: its question wired to what it found, after the opening", () => {
     expect(story.beats[0]!.kind).toBe("open");
-    const found = story.beats.find((b) => b.kind === "choices" && b.eyebrow === "what it found");
-    expect(found).toBeDefined();
-    if (found?.kind !== "choices") throw new Error();
-    expect(found.choices.every((c) => c.stamp === "found")).toBe(true);
+    const map = story.beats.find((b) => b.kind === "map");
+    if (map?.kind !== "map") throw new Error("no map beat");
+    expect(map.findings.length).toBeGreaterThan(0);
+    expect(map.question.length).toBeGreaterThan(10);
+    // Numbers attach to the finding that talks about the same thing, or hang off the question.
+    const placed = [...map.findings.flatMap((f) => f.measured), ...map.loose];
+    expect(placed.every((m) => /\d/.test(m))).toBe(true);
     expect(story.beats.some((b) => b.eyebrow === "what moved")).toBe(false);
   });
 });

@@ -327,3 +327,38 @@ a.hx-result-title:hover { text-decoration: underline; text-decoration-color: rgb
   .mv-caret { display: none; }
   .hx-strip { animation: none !important; }
 }
+
+/* ── Stories teaser: the story view, previewed as a fanned reel of beats ── */
+.st-teaser { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr); gap: clamp(28px, 4vw, 64px); align-items: center; }
+.st-teaser-kicker { display: inline-block; margin-bottom: 14px; padding: 4px 10px; border-radius: 999px; background: #f2cf63; color: #1b1a17; font: 500 12px/1.4 var(--mono, ui-monospace, monospace); }
+.st-teaser-cta { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 24px; }
+.st-teaser-note { margin-top: 10px; font-size: 13px; color: var(--ink-3, #6b6b63); }
+.st-teaser-reel { position: relative; display: block; height: clamp(360px, 38vw, 470px); perspective: 1400px; }
+.st-beat {
+  position: absolute; left: calc(var(--i) * 7%); top: calc(var(--i) * 9%); width: 66%; aspect-ratio: 16 / 10;
+  display: flex; flex-direction: column; justify-content: center; gap: 10px; padding: 6% 7%;
+  border-radius: 18px; box-shadow: 0 24px 48px -28px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(0, 0, 0, 0.06);
+  transform: rotate(calc(-4deg + var(--i) * 2deg)); transform-origin: 30% 80%;
+  transition: transform 520ms cubic-bezier(.2, .8, .2, 1), box-shadow 520ms;
+}
+.st-teaser-reel:hover .st-beat { transform: rotate(calc(-9deg + var(--i) * 4.5deg)) translate3d(calc(var(--i) * 8px), calc(var(--i) * -6px), 0); }
+.st-teaser-reel:hover .st-beat:last-child { box-shadow: 0 32px 64px -28px rgba(0, 0, 0, 0.6); }
+.st-beat-eye { font: 11px/1.2 var(--mono, ui-monospace, monospace); opacity: 0.7; }
+.st-beat-big { font: 400 clamp(24px, 2.8vw, 40px)/0.98 "Instrument Serif", var(--font-display, Georgia), serif; letter-spacing: -0.02em; max-width: 14ch; }
+.st-beat-bars { display: flex; align-items: flex-end; gap: 8px; height: 30%; }
+.st-beat-bars i { width: 14%; border-radius: 4px 4px 0 0; background: currentColor; opacity: 0.85; }
+.st-beat-bars i:nth-child(odd) { background: #b4471f; }
+.st-beat-map { width: 70%; height: auto; }
+.st-beat-map rect { fill: none; stroke: currentColor; stroke-width: 1.2; }
+.st-beat-map path { fill: none; stroke: #f2cf63; stroke-width: 1.4; }
+.st-moss { background: #1f3d2f; color: #efe7d6; }
+.st-oat { background: #efe7d6; color: #1b1a17; }
+.st-night { background: #121513; color: #efe7d6; }
+.st-butter { background: #f2cf63; color: #1b1a17; }
+.st-clay { background: #b4471f; color: #f7f2e7; }
+@media (max-width: 860px) {
+  .st-teaser { grid-template-columns: 1fr; }
+  .st-teaser-reel { height: 340px; }
+  .st-beat { width: 78%; }
+}
+@media (prefers-reduced-motion: reduce) { .st-beat { transition: none; } }

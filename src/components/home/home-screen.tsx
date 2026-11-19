@@ -10,6 +10,7 @@ import { BrandMark } from "../ui/brand-mark";
 import { TodayApp } from "../today/today-app";
 import { HeroRecall } from "./hero-recall";
 import { SearchProof } from "./story";
+import { StoriesTeaser } from "./stories-teaser";
 import { FindChapter, HeroChapter, NextChapter, NumberChapter, WriteChapter } from "./chapters";
 import "./chapters.css";
 import "../today/today.css";
@@ -231,6 +232,7 @@ export function HomeScreen({
           <a href="#write">How it works</a>
           <a href="#find">Search</a>
           <a href="#briefs">Briefs</a>
+          <a href="#stories">Stories</a>
         </div>
         <button type="button" className="lp-cta" onClick={openWorkspace}>Open your workspace</button>
       </nav>
@@ -242,6 +244,8 @@ export function HomeScreen({
       <NumberChapter />
       <div id="proof" className="lp-section"><SearchProof /></div>
       <div id="try"><HeroRecall onOpenWorkspace={openWorkspace} /></div>
+
+      <StoriesTeaser />
 
       <section id="briefs" className="lp-section lp-briefs" aria-labelledby="briefs-h">
         <div className="home-entry-grid">

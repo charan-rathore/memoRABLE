@@ -417,10 +417,23 @@ export function readRisk(text: string): InferredRisk | null {
   let observation = flat;
   let consequence: string | undefined;
   let because: string | undefined;
+  let preservedModal = false;
 
   if (consequenceMatch) {
     observation = unpunctuated(flat.slice(0, consequenceMatch.index));
-    consequence = sentenceCase(clampWords(unpunctuated(consequenceMatch[1]!), 18));
+    // A split that lands mid-verb-phrase strands an auxiliary on the
+    // observation ("Failure to comply will", "Access may not"). Every
+    // stranded modal (including recognized intervening adjuncts) carries
+    // source meaning - futurity, obligation,
+    // uncertainty, negation - that a "causing" rendering cannot keep, so
+    // the split is always declined and the sentence stays whole.
+    const stranded = /\s+(?:(?:will|would|shall|should|can|could|may|might|must)(?:n['’]t)?(?:\s+(?:not|still|also|never|always|only|even|already|yet|possibly|necessarily|probably|certainly|definitely|potentially|actually|eventually|ultimately|directly|indirectly|very|well))*|(?:wo|ca|sha)n['’]t|cannot)$/i.exec(observation);
+    if (stranded) {
+      observation = flat;
+      preservedModal = true;
+    } else {
+      consequence = sentenceCase(clampWords(unpunctuated(consequenceMatch[1]!), 18));
+    }
   }
   if (whyMatch && whyMatch.index > 0) {
     const reason = sentenceCase(clampWords(unpunctuated(whyMatch[1]!), 18));
@@ -428,7 +441,8 @@ export function readRisk(text: string): InferredRisk | null {
     if (!consequence || reason !== consequence) because = reason;
     if (!consequenceMatch) observation = unpunctuated(flat.slice(0, whyMatch.index));
   }
-  if (!because && diagnostic && TROUBLE.test(diagnostic[2]!)) {
+  // A declined modal split must not be reintroduced by the diagnostic path.
+  if (!preservedModal && !because && diagnostic && TROUBLE.test(diagnostic[2]!)) {
     // "High impressions but low conversion": the second half is the tell.
     observation = sentenceCase(clampWords(unpunctuated(diagnostic[1]!), 14));
     because = sentenceCase(clampWords(unpunctuated(diagnostic[2]!), 16));

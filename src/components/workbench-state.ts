@@ -165,7 +165,14 @@ export function workbenchReducer(state: WorkbenchState, action: WorkbenchAction)
     case "blockSelected":
       return { ...state, selectedBlockId: action.blockId };
     case "sourceEdited":
-      return { ...state, sourceText: action.sourceText };
+      // Hand-edited or pasted text is no longer the file or example the
+      // label names: provenance must follow the actual source. The file
+      // flows re-label on their own "imported" dispatch right after this.
+      return {
+        ...state,
+        sourceText: action.sourceText,
+        sourceLabel: /\S/.test(action.sourceText) ? "Pasted notes" : "",
+      };
     case "published":
       return { ...state, publishedAt: action.at };
     case "publishClosed":
@@ -188,7 +195,13 @@ export function workbenchReducer(state: WorkbenchState, action: WorkbenchAction)
         ...state,
         outputs: { ...state.outputs, ...action.outputs },
         lastGood: { ...state.lastGood, ...pickGood(action.outputs) },
-        cache: action.cache,
+        // Deferred completion must not discard the active mode rendered earlier.
+        cache: [
+          ...action.cache,
+          ...state.cache.filter((entry) =>
+            entry.output.error === null && entry.output.html !== null && entry.output.designJsonError === null &&
+            !action.cache.some((incoming) => incoming.key === entry.key)),
+        ].slice(0, RENDER_CACHE_SIZE),
       };
     default:
       return state;

@@ -143,6 +143,13 @@ export function spanState(start: string, end: string, year = new Date().getFullY
   if (y(start) > year) return "planned";
   return "on-track";
 }
+/** Global scanner to count the date tokens inside one table cell. */
+const DATE_SCAN = new RegExp(`\\b(?:${DATE_ATOM})\\b`, "gi");
+/** A trailing status cell whose wording a negation-blind state parse would
+ * misread ("Not done" -> done) or whose condition it cannot honor ("If
+ * approved"): the row keeps its prior behavior instead. */
+const NEGATED_OR_CONDITIONAL_STATUS =
+  /\bnot\b|n't|\bnever\b|\bif\b|\bunless\b|\bwhen\b|\bprovided\b|\bproviding\b|\bassuming\b|\bin\s+case\b/i;
 /** Mid-line dates omit bare month names ("May need…") to avoid false hits. */
 const DATE_EMBEDDED = [
   "(?:today|tomorrow|yesterday|tonight)",
@@ -614,9 +621,8 @@ const OBLIGATION_DATE_LABEL =
 const LEG_LABEL = /^(departure|arrival|depart(?:s|ing)?|arriv(?:e|es|al|ing)?)\s*[:—–-]?\s*(.+)$/i;
 
 /**
- * Title remainder once a mid-sentence date is lifted out. The date's lead-in
- * preposition ("on", "by", "in"…) goes with it, and no doubled commas or
- * stranded punctuation are left behind.
+ * Remove the date's lead-in word only when it cannot govern surviving text.
+ * Connectors inside surviving phrases ("rent or utilities") stay untouched.
  */
 export function titleAroundRemovedDate(text: string, index: number, length: number): string {
   const after = text.slice(index + length);
@@ -633,11 +639,15 @@ export function titleAroundRemovedDate(text: string, index: number, length: numb
   const before = strippable
     ? text
         .slice(0, index)
-        .replace(/\s+(?:on|by|from|at|in|before|after|until|to)\s*$/i, "")
+        .replace(
+          /\s+(?:on|by|from|at|in|before|after|until|to|or|and|nor|for)\s*$/i,
+          "",
+        )
     : text.slice(0, index);
   return `${before} ${after}`
     .replace(/\s+/g, " ")
     .replace(/\s+([,;:])/g, "$1")
+    .replace(/\s+\.(?=\s|$)/g, ".")
     .replace(/,\s*,+/g, ",")
     .replace(/^\s*[:—–-]\s*|\s*[:—–-]\s*$/g, "")
     .trim();
@@ -655,6 +665,68 @@ export function parseTimelineLine(raw: string): TimelineEntry | null {
     if (/^ticket$/i.test(cells[0]!)) return null;
     const state = /priorit/i.test(cells[2] ?? "") ? "planned" : stateFromText(cells[2] ?? "") ?? "planned";
     return { date: cells[0]!, title: cells[1]!, state };
+  }
+  // Dated table rows with the date in a later cell: the cells are
+  // structure: a single pure date cell becomes the date and the
+  // remaining cells join as the title, never the raw pipe markup. Rows
+  // with several date cells keep the existing date-first behavior above
+  // (multi-date precedence is a deferred lane). Conservative declines:
+  // markup naive splitting cannot read (escaped pipes, code spans), ANY
+  // date token anywhere else in the row (the whole row must hold exactly
+  // one), and a negated or conditional trailing status cell all keep the
+  // prior behavior unchanged. State is inherited from the existing trailing
+  // suffix rules: a closing pipe blocks a trailing status, an open row does
+  // not. Do not promote status words from arbitrary interior cells.
+  if (
+    cells &&
+    cells.length >= 2 &&
+    !(cells[0] && looksLikeDate(cells[0])) &&
+    !/[\\`]/.test(raw)
+  ) {
+    const tokenCount = (cell: string) => cell.match(DATE_SCAN)?.length ?? 0;
+    const totalDateTokens = cells.reduce((n, cell) => n + tokenCount(cell), 0);
+    const dateCells = cells
+      .map((cell, index) => ({ cell: cell.trim(), index }))
+      .filter(
+        ({ cell }) =>
+          cell !== "" &&
+          isEntirelyDate(cell) &&
+          tokenCount(cell) === 1 &&
+          !startsWithQuantityFraction(cell),
+      );
+    const statusCell = (cells[cells.length - 1] ?? "").trim();
+    if (
+      totalDateTokens === 1 &&
+      dateCells.length === 1 &&
+      !NEGATED_OR_CONDITIONAL_STATUS.test(statusCell)
+    ) {
+      const parenthesized = extractParenSuffix(raw.trim());
+      const trailing = splitTrailingKeyword(raw.trim(), TRAILING_STATE);
+      const parentState = parenthesized.suffix ? stateFromText(parenthesized.suffix) : undefined;
+      const trailingState = trailing && trailing.keyword.length <= 24
+        ? stateFromText(trailing.keyword)
+        : undefined;
+      const priorState = parentState ?? trailingState ?? "planned";
+      // Apply the same recognized suffix removal as the prose path before
+      // joining cells, so the state is not repeated in the visible title.
+      const parentIsLabel = parenthesized.suffix != null && STANDALONE_STATE.test(parenthesized.suffix);
+      const dashLabel = /\s+[—–-]\s+([^|]{1,40}?)\.?\s*$/.exec(raw);
+      const dashIsLabel = dashLabel != null && STANDALONE_STATE.test(dashLabel[1]!.trim().replace(/\.$/, ""));
+      const titleRaw = parentState && parentIsLabel
+        ? parenthesized.body
+        : !parentState && trailingState && dashIsLabel ? trailing!.body : raw;
+      const titleCells = splitTableRow(titleRaw) ?? cells;
+      const rest = titleCells.map((c) => c.trim()).filter((c, i) => c !== "" && i !== dateCells[0]!.index);
+      const title = rest.join(" - ");
+      if (title.length >= 2) {
+        return {
+          date: dateCells[0]!.cell,
+          title,
+          state: priorState,
+          ...inferArtifact(rest.join(". ")),
+        };
+      }
+    }
   }
   const text = (item ? item.text : raw).trim();
 

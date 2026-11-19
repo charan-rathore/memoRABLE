@@ -1,6 +1,6 @@
 /**
  * System prompt for the memoRABLE Cognitive Extraction Engine (v6).
- * Source of truth: final-mem-layer.md §5.
+ * Source of truth: docs/notes/final-mem-layer.md §5.
  *
  * The model observes and projects. Persistence verbs stay in backend code.
  */

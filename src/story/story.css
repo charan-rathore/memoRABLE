@@ -168,3 +168,25 @@
   .sd-stage { position: relative; box-sizing: border-box; height: 100vh; break-inside: avoid; clip-path: none !important; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
   .sd-lid { display: none; }
 }
+
+/* The paper on one page: question → findings, wired as you scroll. */
+.sd-map { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(48px, 120px) minmax(0, 1.4fr); align-items: stretch; gap: 0; margin-top: 28px; }
+.sd-map-q { align-self: center; padding: 22px 24px; border: 1.5px solid currentColor; border-radius: 22px; }
+.sd-map-q p { margin-top: 8px; font: 500 clamp(17px, 1.6vw, 22px)/1.35 var(--font-display, inherit); }
+.sd-map-wires { width: 100%; height: 100%; overflow: visible; }
+.sd-map-wires path { fill: none; stroke: currentColor; stroke-width: 1.5; vector-effect: non-scaling-stroke; opacity: 0.75; }
+.sd-map-f { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; align-content: center; }
+.sd-map-f li { padding: 12px 16px; border-radius: 16px; background: color-mix(in srgb, currentColor 7%, transparent); }
+.sd-map-f li p { font-size: clamp(14px, 1.1vw, 16px); line-height: 1.45; }
+.sd-map-m, .sd-map-loose { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.sd-chip { display: inline-block; padding: 3px 9px; border-radius: 999px; font: 500 12px/1.4 var(--font-mono, ui-monospace, monospace); background: var(--accent, #e9c46a); color: #111; }
+@media (max-width: 760px) {
+  .sd-map { grid-template-columns: 1fr; gap: 14px; }
+  .sd-map-wires { display: none; }
+}
+@media print { .sd-map-wires path { stroke-dashoffset: 0 !important; } }
+
+/* Your own file: reading, drop target and errors sit over the story. */
+.sd-drop { position: fixed; inset: auto 16px 20px; z-index: 100; display: flex; align-items: center; justify-content: center; gap: 12px; margin: 0 auto; max-width: 520px; padding: 14px 18px; border-radius: 16px; background: #111; color: #f4f1e8; font-size: 14px; box-shadow: 0 18px 40px -18px rgba(0,0,0,.6); }
+.sd-drop button { padding: 6px 12px; border-radius: 999px; background: #f4f1e8; color: #111; font-size: 13px; }
+@media print { .sd-drop { display: none; } }

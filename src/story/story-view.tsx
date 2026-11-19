@@ -63,7 +63,7 @@ const q = <E extends Element = HTMLElement>(root: Element, sel: string) => root.
 
 /* ---------------------------------- chapter ---------------------------------- */
 
-const SCREENS: Record<Beat["kind"], number> = { open: 2.6, numbers: 3.2, path: 3, choices: 3, pressure: 3, next: 2.2, close: 1.6 };
+const SCREENS: Record<Beat["kind"], number> = { open: 2.6, numbers: 3.2, path: 3, choices: 3, pressure: 3, next: 2.2, close: 1.6, map: 3.2 };
 
 function Chapter({ beat, index, total }: { beat: Beat; index: number; total: number }) {
   const cache = useRef<Map<string, NodeListOf<HTMLElement>>>(new Map());
@@ -200,6 +200,17 @@ const DRAW: Record<Beat["kind"], (root: HTMLElement, c: Clock, p: number, all: A
       if (tick) tick.style.strokeDashoffset = (24 * (1 - OUT(span(p, b - 0.04, b + 0.06)))).toFixed(2);
     });
   },
+  map: (_r, _c, p, all) => {
+    fade(all("[data-mapq]"), p, 0.3, 0.42);
+    const wires = all("[data-wire-path]");
+    const items = all("[data-mapf]");
+    for (let i = 0; i < wires.length; i++) {
+      const a = 0.4 + i * 0.07;
+      (wires[i] as HTMLElement).style.strokeDashoffset = (1 - OUT(span(p, a, a + 0.12))).toFixed(3);
+    }
+    for (let i = 0; i < items.length; i++) fade([items[i]!], p, 0.46 + i * 0.07, 0.58 + i * 0.07);
+    fade(all("[data-maploose]"), p, 0.82, 0.92);
+  },
   close: (_r, _c, p, all) => {
     fade(all("[data-receipt]"), p, 0.4, 0.6);
   },
@@ -280,6 +291,38 @@ function BeatBody({ beat }: { beat: Beat }) {
           </ol>
         </div>
       );
+    case "map": {
+      const n = beat.findings.length;
+      return (
+        <div className="sd-stack">
+          <div className="sd-copy">
+            <Big text={beat.big} />
+            <p className="sd-line" data-line><Words text={beat.line} /></p>
+          </div>
+          <div className="sd-map">
+            <div className="sd-map-q" data-mapq>
+              <span className="sd-note">the question</span>
+              <p>{beat.question}</p>
+              {beat.loose.length > 0 && <p className="sd-map-loose" data-maploose>{beat.loose.map((m, i) => <span key={i} className="sd-chip">{m}</span>)}</p>}
+            </div>
+            <svg className="sd-map-wires" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+              {beat.findings.map((_, i) => {
+                const y = n === 1 ? 50 : 8 + (84 * i) / (n - 1);
+                return <path key={i} data-wire-path pathLength={1} d={`M0 50 C 55 50, 45 ${y}, 100 ${y}`} style={{ strokeDasharray: 1, strokeDashoffset: 1 }} />;
+              })}
+            </svg>
+            <ol className="sd-map-f">
+              {beat.findings.map((f, i) => (
+                <li key={i} data-mapf>
+                  <p>{f.text}</p>
+                  {f.measured.length > 0 && <p className="sd-map-m">{f.measured.map((m, j) => <span key={j} className="sd-chip">{m}</span>)}</p>}
+                </li>
+              ))}
+            </ol>
+          </div>
+        </div>
+      );
+    }
     case "pressure": {
       const [top, ...others] = beat.risks;
       return (

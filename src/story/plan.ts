@@ -77,7 +77,9 @@ export type Beat =
   | { kind: "choices"; field: Field; eyebrow: string; big: string; line: string; choices: Choice[] }
   | { kind: "pressure"; field: Field; eyebrow: string; big: string; line: string; risks: Pressure[] }
   | { kind: "next"; field: Field; eyebrow: string; big: string; line: string; tasks: Array<{ task: string; owner?: string; due?: string; status?: string }> }
-  | { kind: "close"; field: Field; eyebrow: string; line: string; source: string; blocks: number };
+  | { kind: "close"; field: Field; eyebrow: string; line: string; source: string; blocks: number }
+  /** A paper on one page: its question, wired to what it found, with the numbers that back each finding. */
+  | { kind: "map"; field: Field; eyebrow: string; big: string; line: string; question: string; findings: Array<{ text: string; measured: string[] }>; loose: string[] };
 
 export interface Story {
   title: string;
@@ -135,7 +137,7 @@ export function beforeOf(value: string | number | undefined, delta: string | num
 }
 
 /** Each kind of beat has its own field, so the same kind of page always looks the same. */
-const FIELD: Record<Beat["kind"], Field> = { open: "moss", numbers: "oat", path: "night", choices: "butter", pressure: "clay", next: "oat", close: "moss" };
+const FIELD: Record<Beat["kind"], Field> = { open: "moss", numbers: "oat", path: "night", choices: "butter", pressure: "clay", next: "oat", close: "moss", map: "night" };
 
 export function planStory(doc: MemoryDocument): Story {
   // A block's payload matches its kind (the schema checks it on import).
@@ -163,13 +165,37 @@ export function planStory(doc: MemoryDocument): Story {
   if (findings.length) {
     const shown = findings.filter((f) => f.title !== snap?.hook).slice(0, 5);
     if (shown.length) {
+      // Attach each measured number to the finding that talks about the same
+      // thing (shared content words); the rest hang off the question. The
+      // paper has no figure like this; it's drawn from its own sentences.
+      const nums = (block("signals")?.payload.entries ?? []).filter((x) => !x.facet && x.value !== undefined).slice(0, 8);
+      // A chip is the number plus at most three words of what it measures;
+      // a label that is only filler ("Measured result", "Table 2.") is dropped.
+      const chip = (n: (typeof nums)[number]) => {
+        const label = String(n.label).split(/[,;:(]/)[0]!.replace(/[.]+$/, "").trim().split(/\s+/).slice(0, 3).join(" ");
+        const bad = /^(measured result|table \d+|figure \d+|hence|the|two|our)\b/i.test(label) || label.length < 3;
+        return bad ? String(n.value) : `${n.value} · ${label.toLowerCase()}`;
+      };
+      const placed = new Set<number>();
+      const mapped = shown.map((f) => {
+        // A number belongs to the finding whose sentence states it.
+        const measured: string[] = [];
+        nums.forEach((n, i) => {
+          if (placed.has(i)) return;
+          const v = String(n.value).replace(/^[≈~]/, "");
+          if (v && f.title.includes(v)) { measured.push(chip(n)); placed.add(i); }
+        });
+        return { text: f.title, measured: measured.slice(0, 3) };
+      });
       beats.push({
-        kind: "choices",
-        field: FIELD.choices,
-        eyebrow: "what it found",
-        big: `${count(shown.length, "finding")}.`,
-        line: "In the paper's own words, strongest first.",
-        choices: shown.map((f) => ({ text: f.title, stamp: "found", work: [] })),
+        kind: "map",
+        field: FIELD.path,
+        eyebrow: "the paper on one page",
+        big: `one question, ${count(mapped.length, "answer")}.`,
+        line: "Drawn from the paper's own sentences. The paper has no figure like this.",
+        question: firstSentence(snap?.summary ?? doc.title, 220),
+        findings: mapped,
+        loose: nums.filter((_, i) => !placed.has(i)).slice(0, 3).map(chip),
       });
     }
   }

@@ -168,16 +168,22 @@ export function planStory(doc: MemoryDocument): Story {
       // Attach each measured number to the finding that talks about the same
       // thing (shared content words); the rest hang off the question. The
       // paper has no figure like this; it's drawn from its own sentences.
-      const words = (t: string) => new Set(t.toLowerCase().match(/[a-z][a-z-]{3,}/g) ?? []);
       const nums = (block("signals")?.payload.entries ?? []).filter((x) => !x.facet && x.value !== undefined).slice(0, 8);
+      // A chip is the number plus at most three words of what it measures;
+      // a label that is only filler ("Measured result", "Table 2.") is dropped.
+      const chip = (n: (typeof nums)[number]) => {
+        const label = String(n.label).split(/[,;:(]/)[0]!.replace(/[.]+$/, "").trim().split(/\s+/).slice(0, 3).join(" ");
+        const bad = /^(measured result|table \d+|figure \d+|hence|the|two|our)\b/i.test(label) || label.length < 3;
+        return bad ? String(n.value) : `${n.value} · ${label.toLowerCase()}`;
+      };
       const placed = new Set<number>();
       const mapped = shown.map((f) => {
-        const fw = words(f.title);
+        // A number belongs to the finding whose sentence states it.
         const measured: string[] = [];
         nums.forEach((n, i) => {
           if (placed.has(i)) return;
-          const nw = words(`${n.label} ${n.implication ?? ""}`);
-          if ([...nw].some((w) => fw.has(w)) || f.title.includes(String(n.value))) { measured.push(`${n.value} ${n.label}`.trim()); placed.add(i); }
+          const v = String(n.value).replace(/^[≈~]/, "");
+          if (v && f.title.includes(v)) { measured.push(chip(n)); placed.add(i); }
         });
         return { text: f.title, measured: measured.slice(0, 3) };
       });
@@ -189,7 +195,7 @@ export function planStory(doc: MemoryDocument): Story {
         line: "Drawn from the paper's own sentences. The paper has no figure like this.",
         question: firstSentence(snap?.summary ?? doc.title, 220),
         findings: mapped,
-        loose: nums.filter((_, i) => !placed.has(i)).slice(0, 3).map((n) => `${n.value} ${n.label}`.trim()),
+        loose: nums.filter((_, i) => !placed.has(i)).slice(0, 3).map(chip),
       });
     }
   }

@@ -84,3 +84,14 @@ describe("a paper as a story", () => {
     expect(story.beats.some((b) => b.eyebrow === "what moved")).toBe(false);
   });
 });
+
+describe("the bundled paper sample", () => {
+  it("is a real paper and plays with its question wired to what it found", async () => {
+    const { JPEGLI_PAPER_LABEL, JPEGLI_PAPER_SOURCE } = await import("@/import/examples/jpegli-paper");
+    const r = importSource({ raw: JPEGLI_PAPER_SOURCE, label: JPEGLI_PAPER_LABEL });
+    if (!r.ok) throw new Error("paper sample failed to import");
+    const story = planStory(r.value);
+    expect(story.beats.map((b) => b.kind)).toContain("map");
+    expect(story.title).toMatch(/Jpegli/);
+  });
+});

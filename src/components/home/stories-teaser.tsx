@@ -28,6 +28,7 @@ export function StoriesTeaser() {
         </p>
         <div className="st-teaser-cta">
           <Link className="btn pri" href="/story">Play the sample story</Link>
+          <Link className="btn ghost" href="/story?sample=paper">Play a research paper</Link>
           <Link className="btn ghost" href="/story?pick=1">Play your own file</Link>
         </div>
         <p className="st-teaser-note">PDF, Markdown, text or JSON. Nothing is uploaded.</p>

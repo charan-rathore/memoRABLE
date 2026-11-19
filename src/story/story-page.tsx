@@ -16,14 +16,18 @@ import "./story.css";
  * plays here at once, read on this device, before anything is saved or
  * downloaded.
  */
-export function StoryPage({ example }: { example: MemoryDocument }) {
+export function StoryPage({ example, samples }: { example: MemoryDocument; samples?: { brief: MemoryDocument; paper: MemoryDocument } }) {
   const [doc, setDoc] = useState<MemoryDocument>(example);
   const [reading, setReading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
   const input = useRef<HTMLInputElement>(null);
   useEffect(() => { const d = loadForStory(); if (d) setDoc(d); }, []);
-  useEffect(() => { if (new URLSearchParams(window.location.search).has("pick")) input.current?.click(); }, []);
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("sample") === "paper" && samples) setDoc(samples.paper);
+    if (params.has("pick")) input.current?.click();
+  }, [samples]);
   const story = useMemo(() => planStory(doc), [doc]);
   useEffect(() => { document.title = `${story.title} · memoRABLE`; }, [story.title]);
 
@@ -56,6 +60,11 @@ export function StoryPage({ example }: { example: MemoryDocument }) {
           <nav className="sd-bar-top" aria-label="Story">
             <b>memoRABLE</b>
             <Link href="/">Home</Link>
+            {samples && (
+              <button type="button" onClick={() => { const next = doc.contentHash === samples.paper.contentHash ? samples.brief : samples.paper; setDoc(next); window.scrollTo({ top: 0 }); }}>
+                {doc.contentHash === samples.paper.contentHash ? "Sample brief" : "Sample paper"}
+              </button>
+            )}
             <button type="button" onClick={() => input.current?.click()}>
               Play your file
             </button>

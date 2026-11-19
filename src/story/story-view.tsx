@@ -45,7 +45,7 @@ function Big({ text, level = 2 }: { text: string; level?: 1 | 2 }) {
   const words = body.split(" ");
   const H = level === 1 ? "h1" : "h2";
   return (
-    <H className="sd-big" aria-label={text}>
+    <H className={`sd-big${level === 1 && text.length > 42 ? " is-long" : ""}`} aria-label={text}>
       {words.map((w, wi) => (
         <Fragment key={wi}>
           <span className="sd-mask" aria-hidden="true">

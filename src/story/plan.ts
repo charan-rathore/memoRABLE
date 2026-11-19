@@ -163,7 +163,9 @@ export function planStory(doc: MemoryDocument): Story {
   const findings = (block("timeline")?.payload.entries ?? []).filter((t) => t.observationKind === "research-finding");
   const paper = findings.length > 0;
   if (findings.length) {
-    const shown = findings.filter((f) => f.title !== snap?.hook).slice(0, 5);
+    const question = firstSentence(snap?.summary ?? doc.title, 220);
+    // A finding that only restates the question isn't an answer to it.
+    const shown = findings.filter((f) => f.title !== snap?.hook && firstSentence(f.title, 220) !== question).slice(0, 5);
     if (shown.length) {
       // Attach each measured number to the finding that talks about the same
       // thing (shared content words); the rest hang off the question. The
@@ -193,7 +195,7 @@ export function planStory(doc: MemoryDocument): Story {
         eyebrow: "the paper on one page",
         big: `one question, ${count(mapped.length, "answer")}.`,
         line: "Drawn from the paper's own sentences. The paper has no figure like this.",
-        question: firstSentence(snap?.summary ?? doc.title, 220),
+        question,
         findings: mapped,
         loose: nums.filter((_, i) => !placed.has(i)).slice(0, 3).map(chip),
       });

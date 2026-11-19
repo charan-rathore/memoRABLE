@@ -17,6 +17,8 @@ import {
 } from "@/import/text/patterns";
 import type { ActionEntry, BlockKind, TimelineEntry } from "@/domain/memory/schema";
 import type { DocumentArchetype } from "./archetype";
+import { parseResumeRoleHeader } from "./role-headers";
+import { parseResumeProjectRow } from "@/import/text/entity-groups";
 import { inferReadiness, VERDICT_HEADING, type Inferred, type Statement } from "./inference";
 import { strongestCategory } from "./projection";
 import { clampWords, sentenceCase, unpunctuated, wordCount } from "./language";
@@ -66,8 +68,111 @@ const BYLINE = /\b(prepared|reviewed|authored|written)\s+by\b/i;
  * Only promotes when a date token is present (or a strict phase/ticket parse
  * succeeds) so narrative months in ordinary prose do not flood Timeline.
  */
+/**
+ * Completed explicit calendar-date terminals (month name + day(+year),
+ * month name + year, or day + month name(+year)) ending a sentence.
+ * Timeline-local segmentation splits an admitted fused statement at these
+ * boundaries only; versions, ordinals and decimals carry no month name and
+ * never open a boundary.
+ */
+const SEGMENT_MONTH =
+  "(?:january|february|march|april|june|july|august|september|october|november|december|may|jan|feb|mar|apr|jun|jul|aug|sept|sep|oct|nov|dec)";
+const SEGMENT_TERMINAL = new RegExp(
+  "(?:\\b" +
+    SEGMENT_MONTH +
+    "\\.?\\s+\\d{1,2}(?:,\\s*\\d{4})?|\\b" +
+    SEGMENT_MONTH +
+    "\\.?\\s+\\d{4}|\\b\\d{1,2}\\s+" +
+    SEGMENT_MONTH +
+    "\\.?(?:,?\\s+\\d{4})?)\\.$",
+  "i",
+);
+
+interface StatementSegment {
+  text: string;
+  start: number;
+  end: number;
+}
+
+/**
+ * Split a statement at completed calendar-date terminals only. Every
+ * original word survives: the segments reassemble the statement verbatim,
+ * and each segment carries its real offsets into the statement text.
+ */
+function segmentAtDateTerminals(text: string): StatementSegment[] {
+  // Segments are exact slices of the original statement, so offsets are
+  // true source offsets — never positions in a whitespace-normalized copy.
+  const segments: StatementSegment[] = [];
+  let start = 0;
+  for (const m of text.matchAll(/\.\s+/g)) {
+    const end = m.index! + 1; // include the period in the left segment
+    const candidate = text.slice(start, end);
+    if (!SEGMENT_TERMINAL.test(candidate)) continue;
+    segments.push({ text: candidate, start, end });
+    start = m.index! + m[0].length; // skip the whitespace run
+  }
+  const tail = text.slice(start);
+  if (tail.trim() !== "") segments.push({ text: tail, start, end: text.length });
+  if (segments.length < 2) return [];
+  // Terminal "!" / "?" carries force or uncertainty a word-sequence check
+  // cannot verify; only plain-period statements may segment.
+  if (segments.some((s) => /[!?]\s*$/.test(s.text))) return [];
+  return segments;
+}
+
+/**
+ * Conditional markers that can scope beyond their own segment. Checked on
+ * the whole segment, not just its leading word: "only if" and "in case"
+ * carry the same scoping risk as a bare leading "if". Any match on a
+ * non-final segment vetoes segmentation (byte-identical fused fallback).
+ */
+const CONDITION_SCOPING =
+  /\b(?:if|unless|when|whenever|should|provided|providing|assuming)\b|\bin\s+case\b|\bas\s+long\s+as\b|\bso\s+long\s+as\b/i;
+
+/**
+ * Retain-all contract against the ORIGINAL statement, not the fused
+ * output: for each segment, removing exactly the recognized date that
+ * moved into the date field must leave the segment's title literally
+ * equal to the remaining original content, allowing only the explicit
+ * admission transforms (case, whitespace, one terminal period). A lost
+ * qualifier, condition, negation, clamped word, reordering, or any
+ * punctuation/symbol/combining-mark difference fails the check and the
+ * whole fused entry stays byte-identical.
+ */
+/**
+ * Literal comparison for the retain-all contract: NFC, case-folded, all
+ * whitespace runs collapsed, at most one terminal period removed - the
+ * exact transforms admission itself applies (sentenceCase, unpunctuated,
+ * title cleanup). ANY other difference (dropped or added punctuation,
+ * symbols, or combining marks, reordering, clamping) fails the check.
+ */
+function normalizeForRetain(text: string): string {
+  return text
+    .normalize("NFC")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/\.$/, "")
+    .trimEnd();
+}
+
+function retainsOriginal(
+  segments: readonly StatementSegment[],
+  admitted: readonly InferredTimeline[],
+): boolean {
+  return segments.every((segment, i) => {
+    const entry = admitted[i]!;
+    const first = segment.text.indexOf(entry.date);
+    // The date field must come from exactly one place in this segment.
+    if (first < 0 || segment.text.indexOf(entry.date, first + 1) >= 0) return false;
+    const remainder = segment.text.slice(0, first) + segment.text.slice(first + entry.date.length);
+    return normalizeForRetain(remainder) === normalizeForRetain(entry.title);
+  });
+}
+
 export function inferTimeline(
   statements: readonly Statement[],
+  archetype?: DocumentArchetype,
 ): Array<Inferred<InferredTimeline>> {
   const out: Array<Inferred<InferredTimeline>> = [];
 
@@ -83,39 +188,94 @@ export function inferTimeline(
     const ordinal = statement.sectionTitle ? matchOrdinalHeading(statement.sectionTitle) : null;
     if (ordinal && SCHEDULE_ORDINAL_MARKER.test(ordinal.marker)) continue;
 
+    // Resume role headers carry a tenure range, not a delivery date; read
+    // them as timeline entries so a resume keeps its own work history.
+    if (archetype === "resume" && !statement.listItem) {
+      const role = parseResumeRoleHeader(statement.text);
+      if (role) {
+        out.push({
+          // Dates and title only - a tenure range is not a workflow state.
+          // A description flattened after the tenure survives as a detail.
+          value: {
+            // Keep the tenure end as data: "Present" vs a closed month is a
+            // fact about the role, not a workflow state.
+            date: role.end ? `${role.date} – ${role.end}` : role.date,
+            title: role.title,
+            ...(role.trailing ? { details: [role.trailing] } : {}),
+          },
+          evidence: statement,
+        });
+        continue;
+      }
+    }
+
     const text = unpunctuated(statement.text);
     if (wordCount(text) < 3) continue;
 
     const underTimeline = claimed === "timeline" || statement.listItem;
     if (!underTimeline && BYLINE.test(text)) continue;
 
-    // Strict first (phases, tickets, leading dates, dues, legs).
-    const strict =
-      parseTimelineLine(statement.text) ?? parseTimelineLine(`- ${statement.text}`);
-    if (strict && strict.title.trim().length >= 2) {
-      // Outside a real timeline list, require delivery language so bylines
-      // and narrative quarters do not become schedule items.
-      if (!underTimeline && !DELIVERY.test(text)) continue;
-      out.push({ value: strict, evidence: statement });
-      continue;
-    }
-
-    // Mid-sentence date with a clear event title remainder (unheaded prose).
-    const found = findDateToken(text);
-    if (!found) continue;
-    if (!underTimeline && !DELIVERY.test(text)) continue;
-    // Removing the date must not leave its lead-in preposition dangling
-    // ("launch ... by", "arrive on ,", "check in on after 14:00").
-    const title = titleAroundRemovedDate(text, found.index, found.length);
-    if (title.length < 3 || wordCount(title) < 2) continue;
-    out.push({
-      value: {
+    // One unchanged admission decision, used for the fused statement and,
+    // when segmentation applies, for each segment independently.
+    // Strict first (phases, tickets, leading dates, dues, legs), then a
+    // mid-sentence date with a clear event title remainder.
+    const admit = (candidateText: string, rawText: string): InferredTimeline | null => {
+      const strict = parseTimelineLine(rawText) ?? parseTimelineLine(`- ${rawText}`);
+      if (strict && strict.title.trim().length >= 2) {
+        // Outside a real timeline list, require delivery language so bylines
+        // and narrative quarters do not become schedule items.
+        if (!underTimeline && !DELIVERY.test(candidateText)) return null;
+        return strict;
+      }
+      const found = findDateToken(candidateText);
+      if (!found) return null;
+      if (!underTimeline && !DELIVERY.test(candidateText)) return null;
+      // Removing the date must not leave its lead-in preposition dangling
+      // ("launch ... by", "arrive on ,", "check in on after 14:00").
+      const title = titleAroundRemovedDate(candidateText, found.index, found.length);
+      if (title.length < 3 || wordCount(title) < 2) return null;
+      return {
         date: found.date,
         title: sentenceCase(clampWords(title, 24)),
         state: "planned",
-      },
-      evidence: statement,
-    });
+      };
+    };
+    const fused = admit(text, statement.text);
+    if (!fused) continue;
+    // Timeline-local segmentation of an admitted fused statement: split at
+    // completed calendar-date terminals and keep per-segment entries ONLY
+    // when every segment independently passes the unchanged gates and the
+    // original fused date survives among them. Any gap keeps the whole
+    // fused entry byte-identical.
+    const segments = segmentAtDateTerminals(statement.text);
+    if (segments.length > 0) {
+      const admitted = segments.map((s) => admit(unpunctuated(s.text), s.text));
+      if (
+        admitted.every((a): a is InferredTimeline => a !== null) &&
+        admitted.some((a) => a.date === fused.date) &&
+        retainsOriginal(segments, admitted) &&
+        // A condition anywhere in a non-final segment may scope the whole
+        // sentence group; splitting would pin it to its own entry only.
+        !admitted.slice(0, -1).some((a) => CONDITION_SCOPING.test(a.title))
+      ) {
+        for (let i = 0; i < segments.length; i++) {
+          const segment = segments[i]!;
+          out.push({
+            value: admitted[i]!,
+            fusedFallback: fused,
+            evidence: {
+              ...statement,
+              text: segment.text,
+              segmentStart: segment.start,
+              segmentEnd: segment.end,
+              statementText: statement.text,
+            },
+          });
+        }
+        continue;
+      }
+    }
+    out.push({ value: fused, evidence: statement });
   }
 
   return out;
@@ -175,6 +335,19 @@ export function inferActions(
     // A table row outside an actions section is data, not a todo: positional
     // task/owner/due mapping would read an expense's amount as its owner.
     if (claimed !== "actions" && splitTableRow(statement.text)) continue;
+
+    // A resume project row ("| Forecaster | Live Demo | ML Product May 2024
+    // – Present |") is a tenure-dated entity, not a todo. Its heading
+    // ("Products & Projects") claims the actions kind, which would otherwise
+    // let positional parsing read "Live Demo" as the owner of pending work.
+    if (archetype === "resume" && parseResumeProjectRow(statement.text)) continue;
+
+    // A resume role header ("Project Leader, Nirmaan – BITS Pilani Student
+    // Chapter January 2023 – May 2023") is a tenure line, not a todo - the
+    // dash-separated owner/due parser reads the org as an owner.
+    if (archetype === "resume" && !statement.listItem && parseResumeRoleHeader(statement.text)) {
+      continue;
+    }
 
     // Do not re-home pure risks or already-settled decisions as todos.
     if (strongestCategory(text) === "risk") continue;

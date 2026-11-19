@@ -130,7 +130,10 @@ export const v6ActionItemSchema = z
     content: z.string().min(1).max(2000),
     owner: z.union([z.string(), z.null()]).optional().nullable(),
     due_date: z.union([z.string(), z.null()]).optional().nullable(),
-    status: z.enum(["ready", "pending", "suggested", "done"]).optional().default("pending"),
+    // No default: an unstated stance must reach the projection as absent, so
+    // archetype-aware mapping can omit it (resume) instead of manufacturing
+    // "pending" at parse time.
+    status: z.enum(["ready", "pending", "suggested", "done"]).optional(),
     carries_out: z.union([z.string(), z.null()]).optional().nullable(),
     provenance: provenanceSchema,
   })

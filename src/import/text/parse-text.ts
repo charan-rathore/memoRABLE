@@ -2,10 +2,14 @@ import {
   buildActionFromGroup,
   buildTimelineFromGroup,
   detectEntityGroups,
+  collectResumeProjectRows,
+  detectResumeEntityGroups,
+  parseResumeEducationRow,
   groupLineNumbers,
   isCompletionLabelLine,
   isReadinessLabelLine,
 } from "./entity-groups";
+import { kindClaimedByHeading } from "./sections";
 import { ok, type Result } from "@/reliability/result";
 import type { Diagnostic } from "@/reliability/diagnostics";
 import { finalizeDocument, type BlockInput } from "@/domain/memory/normalize";
@@ -50,6 +54,8 @@ import {
   isDecisionChrome,
   sameDecision,
   saysTheSame,
+  sentenceCase,
+  shortenWholeSentences,
 } from "@/understanding/language";
 import { LIMITS } from "@/domain/memory/limits";
 import { capExcerpt } from "../json/import-json";
@@ -154,6 +160,8 @@ export function parseText(input: TextImportInput): Result<MemoryDocument> {
   for (let i = 0; i < rawLines.length; i++) {
     const line = rawLines[i]!;
     if (line.trim() === "") continue;
+    // Extraction page markers ("<!-- page:1 -->") are scaffolding, not content.
+    if (/^<!--\s*page:\d+\s*-->$/.test(line.trim())) continue;
     const heading = matchHeading(line, rawLines[i + 1]);
     if (heading && heading.level === 1) {
       title = heading.text;
@@ -340,6 +348,30 @@ export function parseText(input: TextImportInput): Result<MemoryDocument> {
     sections: sections.map((s) => ({ headingText: s.headingText, lines: s.lines })),
   });
 
+  // Resume archetype: content-shape inference misfiles role sections
+  // ("Leadership & Community" → signals). Project sections keep the designed
+  // projects-as-action-cards routing, and Education keeps its designed
+  // decisions-bucket routing (projected as the "Education" section) - see
+  // entity-grouping and projection-profiles tests.
+  // Both hold tenure-dated entities with bullets - they belong in the
+  // timeline. Only reassigns content-inferred kinds, never explicit heading
+  // claims, and only when the archetype evidence already says resume.
+  if (understanding.archetype.archetype === "resume") {
+    const RESUME_TIMELINE_SECTION =
+      /\b(leadership|community|activities|positions?\s+of\s+responsibility|volunteer(?:ing|work)?|involvement|extracurriculars?)\b/i;
+    for (const section of sections) {
+      if (!section.headingText || section.inherited) continue;
+      if (section.kind !== "signals" && section.kind !== "actions") continue;
+      if (!RESUME_TIMELINE_SECTION.test(section.headingText)) continue;
+      // A heading that explicitly claims its kind ("Volunteer Projects" →
+      // projects) keeps it; only content-inferred kinds are reassigned.
+      if (kindClaimedByHeading(section.headingText) === section.kind) continue;
+      section.kind = "timeline";
+      section.assigned = true;
+    }
+  }
+
+
   // Ordinal phases are timeline-worthy only when the archetype has a real
   // timeline mode. Menus/glossaries must not invent a schedule from "Phase 1".
   // A schedule ordinal ("Week 1", "Phase 2") owns its section: the lines under
@@ -439,6 +471,52 @@ export function parseText(input: TextImportInput): Result<MemoryDocument> {
     // Layer 3 lite: temporal honesty gate on the local Timeline bucket.
     applyTemporalHonesty(built, understanding, warnings);
 
+    // Resume: a bullet already kept under its role in the timeline must not
+    // resurface as a Skills signal - the same sentence filed twice, and the
+    // second filing reads as a skill claim. The skills list itself stays.
+    if (understanding.archetype.archetype === "resume") {
+      const timelineBlock = built.get("timeline");
+      const signalsBlock = built.get("signals");
+      if (
+        timelineBlock &&
+        signalsBlock &&
+        "entries" in timelineBlock.payload &&
+        "entries" in signalsBlock.payload
+      ) {
+        const tokenize = (t: string): string[] => t.toLowerCase().match(/[a-z0-9]+/g) ?? [];
+        // Lines owned by an explicit Skills heading are source facts, not
+        // inferred duplicates - shared vocabulary with a role bullet must
+        // never delete them.
+        const explicitSkillsTokens = sections
+          .filter(
+            (sec) =>
+              sec.kind === "signals" &&
+              sec.headingText != null &&
+              kindClaimedByHeading(sec.headingText) === "signals",
+          )
+          .flatMap((sec) => sec.lines.map((l) => new Set(tokenize(l.text))));
+        const detailTokens = (timelineBlock.payload.entries as TimelineEntry[])
+          .flatMap((e) => e.details ?? [])
+          .map((d) => new Set(tokenize(d)));
+        if (detailTokens.length > 0) {
+          const kept = (signalsBlock.payload.entries as SignalEntry[]).filter((sig) => {
+            const tokens = tokenize(`${sig.label} ${sig.value ?? ""} ${sig.implication ?? ""}`);
+            if (tokens.length < 5) return true;
+            if (
+              explicitSkillsTokens.some((st) => tokens.every((t) => st.has(t)))
+            ) {
+              return true;
+            }
+            const duplicated = detailTokens.some(
+              (dt) => tokens.filter((t) => dt.has(t)).length / tokens.length >= 0.6,
+            );
+            return !duplicated;
+          });
+          signalsBlock.payload.entries = kept;
+        }
+      }
+    }
+
     ctx.recall = recallFrom(understanding, {
       signals: entriesOf<SignalEntry>(built, "signals"),
       decisions: entriesOf<DecisionEntry>(built, "decisions"),
@@ -458,11 +536,15 @@ export function parseText(input: TextImportInput): Result<MemoryDocument> {
     for (const block of blocks) {
       if (block.kind !== "timeline" || !("entries" in block.payload)) continue;
       for (const entry of block.payload.entries as TimelineEntry[]) {
-        if (!/^(Dated|Due Date): /.test(entry.title)) continue;
+        if (!/^(Dated|Due Date)(?:: |$)/.test(entry.title)) continue;
         const exact = sections.some(section => section.lines.some(line => {
           const text = plainContentOf(line.text);
           const m = /^(Dated|Due date):\s*(\d{4}-\d{2}-\d{2})\s*$/i.exec(text);
-          return !!m && m[2] === entry.date && entry.title.toLowerCase() === `${m[1]}: ${m[2]}`.toLowerCase();
+          if (!m || m[2] !== entry.date) return false;
+          const label = m[1]!.replace(/\b\w/g, (c) => c.toUpperCase());
+          if (entry.title.toLowerCase() !== label.toLowerCase() && entry.title.toLowerCase() !== `${m[1]}: ${m[2]}`.toLowerCase()) return false;
+          entry.title = `${label}: ${m[2]}`;
+          return true;
         }));
         if (exact) { delete entry.state; entry.observationKind = "invoice-date"; }
       }
@@ -992,6 +1074,23 @@ function buildEntriesPayload(
         salvageProse: true,
         salvage: parseDecisionLineLenient,
       });
+      // Resume education sections file degrees as table rows
+      // ("| BITS Pilani | MSc Chemistry + BE Mechanical | CGPA: 8.70/10
+      // June 2026 |") which the decision line parsers cannot read - the
+      // whole row silently vanished. Recover each row as one entry.
+      if (ctx.understanding.archetype.archetype === "resume") {
+        const lines = groupingLines(matched, contentLines);
+        for (const l of lines) {
+          const edu = parseResumeEducationRow(l.text);
+          if (!edu) continue;
+          const text = `${edu.title} (${edu.date})${edu.trailing ? ` — ${edu.trailing}` : ""}`;
+          if (built.entries.some((e) => saysTheSame(e.text, text))) continue;
+          // A degree is a fact, not a floated decision: no status/commitment.
+          built.entries.push({ text });
+          built.lineOf.push(l.lineNo);
+        }
+        sortByLine(built);
+      }
       mergeDecisions(built, ctx, notes);
       applyResumeFacets(built, matched, ctx, ["status", "commitment"]);
       // Compress inside Decisions: Key Requirements ≈ Acceptance Criteria.
@@ -1004,12 +1103,25 @@ function buildEntriesPayload(
       // entry instead of becoming flat rows or "unrecognized" notes.
       const lines = groupingLines(matched, contentLines);
       const groups = detectEntityGroups(lines);
+      const omitState = ctx.understanding.archetype.archetype === "resume";
       const grouped = groups
-        .map((g) => ({ entry: buildTimelineFromGroup(g), lineNo: g.titleLine.lineNo, group: g }))
+        .map((g) => ({ entry: buildTimelineFromGroup(g, new Date(), { omitState }), lineNo: g.titleLine.lineNo, group: g }))
         .filter((g): g is { entry: TimelineEntry; lineNo: number; group: (typeof groups)[number] } =>
           g.entry !== null,
         );
       const skip = new Set(grouped.flatMap((g) => groupLineNumbers(g.group)));
+      if (ctx.understanding.archetype.archetype === "resume") {
+        // Open-tenure role headers and tenure-bearing project table rows are
+        // entities too; the generic pass only sees closed ranges.
+        for (const r of detectResumeEntityGroups(lines, skip)) {
+          grouped.push({
+            entry: r.entry,
+            lineNo: r.lineNo,
+            group: { titleLine: lines.find((l) => l.lineNo === r.lineNo)!, detailLines: [] },
+          });
+          for (const n of r.consumed) skip.add(n);
+        }
+      }
       const built = collectOver(lines, parseTimelineLine, parseTimelineLineLenient, { skip });
       for (const g of grouped) {
         built.entries.push(g.entry);
@@ -1018,6 +1130,7 @@ function buildEntriesPayload(
       sortByLine(built);
       mergeTimeline(built, ctx, notes);
       applyResumeFacets(built, matched, ctx, ["state"]);
+      if (omitState) for (const entry of built.entries) if (!entry.state && !entry.facet) entry.facet = "employment";
       if (ctx.extraTimeline.length > 0) {
         const room = LIMITS.maxEntriesPerBlock - built.entries.length;
         for (const extra of ctx.extraTimeline.slice(0, Math.max(0, room))) {
@@ -1042,12 +1155,44 @@ function buildEntriesPayload(
       // its details — never one flat pending todo per bullet.
       const lines = groupingLines(matched, contentLines);
       const groups = detectEntityGroups(lines);
+      const omitStatus = ctx.understanding.archetype.archetype === "resume";
       const grouped = groups.map((g) => ({
-        entry: buildActionFromGroup(g),
+        entry: buildActionFromGroup(g, new Date(), { omitStatus }),
         lineNo: g.titleLine.lineNo,
         group: g,
       }));
       const skip = new Set(grouped.flatMap((g) => groupLineNumbers(g.group)));
+      if (ctx.understanding.archetype.archetype === "resume") {
+        // A resume project filed as a table row ("| Forecaster | Live Demo |
+        // ML Product May 2024 – Present |") is one entity card: the row names
+        // the project, its bullets are the details. The generic title test
+        // rejects table rows, so without this the row becomes a positional
+        // owner/due todo and every bullet its own card.
+        for (const r of collectResumeProjectRows(lines, skip)) {
+          grouped.push({
+            entry: {
+              // Tenure dates are preserved verbatim in the title; the card
+              // carries NO status. A closed range does not prove the project
+              // finished and shipped/built bullets are accomplishments, not
+              // completion claims - any status here would be manufactured.
+              task: `${r.parsed.title} (${r.parsed.date} – ${r.parsed.end ?? "Present"})`,
+              ...(r.detailLines.length > 0 || r.parsed.trailing
+                ? {
+                    details: [
+                      ...(r.parsed.trailing ? [r.parsed.trailing] : []),
+                      ...r.detailLines
+                        .map((l) => plainContentOf(l.text))
+                        .filter((d) => d.length > 0),
+                    ].slice(0, LIMITS.maxEntriesPerBlock),
+                  }
+                : {}),
+            },
+            lineNo: r.titleLine.lineNo,
+            group: { titleLine: r.titleLine, detailLines: r.detailLines },
+          });
+          for (const n of r.consumed) skip.add(n);
+        }
+      }
       const built = collectOver(lines, parseActionLine, parseActionLineLenient, {
         skip,
         remapRow: remapActionEntryByHeader,
@@ -1140,6 +1285,7 @@ function buildEntriesPayload(
       }
       mergeActions(built, ctx, notes);
       applyResumeFacets(built, matched, ctx, ["status", "owner", "due"]);
+      if (omitStatus) for (const entry of built.entries) if (!entry.status && !entry.facet) entry.facet = "project";
       built.entries = dedupeByMeaning(built.entries, (e) => e.task);
       return finish(built);
     }
@@ -1330,13 +1476,80 @@ function mergeRisks(built: Collected<RiskEntry>, ctx: BuildContext, notes: strin
 function mergeTimeline(built: Collected<TimelineEntry>, ctx: BuildContext, notes: string[]): void {
   if (ctx.understanding.archetype.timelineMode === "none") return;
   let added = 0;
-  for (const candidate of ctx.understanding.timeline) {
+  // Segment identity stays timeline-local: real line number plus the real
+  // segment offset. A line claimed by an explicit entry or a non-segment
+  // candidate still blocks later candidates exactly as before.
+  const segmentClaims = new Set<string>();
+  const processedGroups = new Set<number>();
+  const candidates = ctx.understanding.timeline;
+  for (const candidate of candidates) {
     const { value, evidence } = candidate;
+    if (evidence.segmentStart !== undefined) {
+      // A segment group is admitted atomically: every segment or the single
+      // fused fallback — never a partial replacement.
+      if (processedGroups.has(evidence.lineNo)) continue;
+      processedGroups.add(evidence.lineNo);
+      const group = candidates.filter(
+        (c) => c.evidence.segmentStart !== undefined && c.evidence.lineNo === evidence.lineNo,
+      );
+      const fused = group[0]?.fusedFallback;
+      const fits =
+        added + group.length <= INFERRED_BUDGET &&
+        built.entries.length + group.length <= LIMITS.maxEntriesPerBlock;
+      const lineClaimed =
+        alreadyUsed(evidence.lineNo, built) &&
+        ![...segmentClaims].some((k) => k.startsWith(`${evidence.lineNo}:`));
+      const allClear =
+        fits &&
+        !lineClaimed &&
+        fused !== undefined &&
+        group.every(
+          (c) =>
+            !built.entries.some((e) => e.date === c.value.date && saysTheSame(e.title, c.value.title)),
+        );
+      if (allClear) {
+        for (const c of group) {
+          built.entries.push({
+            date: c.value.date,
+            title: c.value.title,
+            state: c.value.state ?? "planned",
+            ...(c.value.produces ? { produces: c.value.produces } : {}),
+            ...(c.value.requires ? { requires: c.value.requires } : {}),
+          });
+          built.lineOf.push(evidence.lineNo);
+          segmentClaims.add(`${evidence.lineNo}:${c.evidence.segmentStart!}`);
+          added++;
+        }
+        dropNote(notes, evidence.statementText ?? evidence.text);
+        continue;
+      }
+      // Fused fallback under the unchanged single-candidate rules.
+      if (fused === undefined) continue;
+      const existing = built.entries.findIndex((_, i) => built.lineOf[i] === evidence.lineNo);
+      if (existing >= 0) continue;
+      if (alreadyUsed(evidence.lineNo, built)) continue;
+      if (added >= INFERRED_BUDGET) continue;
+      if (built.entries.length >= LIMITS.maxEntriesPerBlock) break;
+      if (built.entries.some((e) => e.date === fused.date && saysTheSame(e.title, fused.title))) {
+        continue;
+      }
+      built.entries.push({
+        date: fused.date,
+        title: fused.title,
+        state: fused.state ?? "planned",
+        ...(fused.produces ? { produces: fused.produces } : {}),
+        ...(fused.requires ? { requires: fused.requires } : {}),
+      });
+      built.lineOf.push(evidence.lineNo);
+      dropNote(notes, evidence.statementText ?? evidence.text);
+      added++;
+      continue;
+    }
     const existing = built.entries.findIndex((_, i) => built.lineOf[i] === evidence.lineNo);
     if (existing >= 0) continue;
+    if (alreadyUsed(evidence.lineNo, built)) continue;
     if (added >= INFERRED_BUDGET) continue;
     if (built.entries.length >= LIMITS.maxEntriesPerBlock) break;
-    if (alreadyUsed(evidence.lineNo, built)) continue;
     if (built.entries.some((e) => e.date === value.date && saysTheSame(e.title, value.title))) {
       continue;
     }
@@ -1474,7 +1687,14 @@ function buildSnapshotPayload(
   // summary. Recall goes first; the original prose moves down into the notes
   // where nothing is lost and nothing pretends to be a memory.
   const opening = paragraphs.shift() ?? "";
-  const summary = recall?.summary || opening;
+  // Recall's summary can be honestly empty: an overlong opening is omitted
+  // whole rather than cut mid-sentence. The fallback must stay bounded
+  // without undoing the omission — no unbounded opening, and no word-count
+  // clamp either: cutting a conditional authorization after "only after
+  // legal counsel has …" reads as unconditional. Whole sentences within the
+  // same 22-word budget recall gives an opening-derived framing, or the
+  // honest empty-summary line below. The full text stays in the notes.
+  const summary = recall?.summary || sentenceCase(shortenWholeSentences(opening, 22));
   if (recall?.composed && opening !== "" && notes.length < LIMITS.maxNotesPerBlock) {
     notes.push(opening);
     ctx.keptOnPurpose += 1;

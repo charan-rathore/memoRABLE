@@ -113,6 +113,45 @@ describe("v6 cognitive pipeline", () => {
     expect(repaired.repairs.some((r) => r.mode === "backend_verbs_scrubbed")).toBe(true);
   });
 
+  it("omits status on resume actions the model left unstated, keeps it elsewhere", () => {
+    const base = {
+      snapshot: [{ content: "Product analyst with four years across analytics and 0-to-1 builds." }],
+      actions: [
+        { content: "ThermoSense - Predictive Analytics Product (September 2025 - November 2025)" },
+        { content: "Follow up with the hiring panel", status: "pending" },
+      ],
+    };
+    const asResume = parseV6Extraction({
+      document_meta: { archetype: "Resume", timeline_mode: "narrative_sequence", anchor_confidence: "none" },
+      ...base,
+    });
+    expect(asResume.ok).toBe(true);
+    if (!asResume.ok) return;
+    const projectedResume = projectV6ToMemorySource(validateAndRepairV6(asResume.value).extraction, "Resume", []);
+    expect(projectedResume.ok).toBe(true);
+    if (!projectedResume.ok) return;
+    const resumeActions = projectedResume.source.blocks.find((b) => b.kind === "actions")!;
+    const resumeEntries = (resumeActions.payload as { entries: Record<string, unknown>[] }).entries;
+    // Unstated stance on a resume item: key omitted, not an implicit pending.
+    expect("status" in resumeEntries[0]!).toBe(false);
+    // An explicitly stated status survives on any archetype.
+    expect(resumeEntries[1]!.status).toBe("pending");
+
+    const asGeneric = parseV6Extraction({
+      document_meta: { archetype: "Brief", timeline_mode: "narrative_sequence", anchor_confidence: "none" },
+      ...base,
+    });
+    expect(asGeneric.ok).toBe(true);
+    if (!asGeneric.ok) return;
+    const projectedGeneric = projectV6ToMemorySource(validateAndRepairV6(asGeneric.value).extraction, "Brief", []);
+    expect(projectedGeneric.ok).toBe(true);
+    if (!projectedGeneric.ok) return;
+    const genericActions = projectedGeneric.source.blocks.find((b) => b.kind === "actions")!;
+    const genericEntries = (genericActions.payload as { entries: Record<string, unknown>[] }).entries;
+    // Non-resume convention unchanged: unstated action status defaults pending.
+    expect(genericEntries[0]!.status).toBe("pending");
+  });
+
   it("projects into MemorySource for the existing UI contract", () => {
     const parsed = parseV6Extraction({
       document_meta: {

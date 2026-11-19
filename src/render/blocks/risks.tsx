@@ -56,8 +56,10 @@ export function renderRisksRows(block: MemoryBlock, ctx: BlockRenderContext): Re
 
   const hasSeverity = entries.some((e) => e.severity !== undefined);
   const hasMitigation = entries.some((e) => e.mitigation !== undefined);
+  // The column follows the section label: a resume projects this bucket as
+  // "Achievements", and calling an award a "Risk" misstates the source.
   const headers = [
-    "Risk",
+    /risks?/i.test(block.title) ? "Risk" : block.title,
     ...(hasSeverity ? ["Severity"] : []),
     ...(hasMitigation ? ["Mitigation"] : []),
   ];

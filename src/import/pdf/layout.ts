@@ -840,6 +840,15 @@ const SYLLABLE_SUFFIX =
 const SYLLABLE_WHOLE = /^(?:art|ods|lite|cus)$/i;
 
 export function dehyphenateText(text: string): string {
+  // Command options are literal syntax, not syllable fragments. In particular,
+  // a PDF bullet's --dry-run must never turn into the invalid --dryrun.
+  return text.split(/(--?[A-Za-z][A-Za-z0-9]*(?:-[A-Za-z0-9]+)+)/g)
+    .map((part) => /^--?[A-Za-z][A-Za-z0-9]*(?:-[A-Za-z0-9]+)+$/.test(part)
+      ? part
+      : dehyphenateProse(part)).join("");
+}
+
+function dehyphenateProse(text: string): string {
   return text
     .replace(/([A-Za-z])\u00AD([a-z])/g, "$1$2")
     // "AI- led" / "domain- specific": a hyphen split by glyph spacing inside

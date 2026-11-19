@@ -1557,6 +1557,7 @@ function mergeTimeline(built: Collected<TimelineEntry>, ctx: BuildContext, notes
       date: value.date,
       title: value.title,
       state: value.state ?? "planned",
+      ...(value.details ? { details: value.details } : {}),
       ...(value.produces ? { produces: value.produces } : {}),
       ...(value.requires ? { requires: value.requires } : {}),
     });

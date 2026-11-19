@@ -21,7 +21,7 @@ import { parseResumeRoleHeader } from "./role-headers";
 import { parseResumeProjectRow } from "@/import/text/entity-groups";
 import { inferReadiness, VERDICT_HEADING, type Inferred, type Statement } from "./inference";
 import { strongestCategory } from "./projection";
-import { clampWords, sentenceCase, unpunctuated, wordCount } from "./language";
+import { clampWords, dedupeByMeaning, sentenceCase, unpunctuated, wordCount } from "./language";
 
 export type InferredTimeline = TimelineEntry;
 export type InferredAction = ActionEntry;
@@ -254,6 +254,9 @@ export function inferTimeline(
         admitted.every((a): a is InferredTimeline => a !== null) &&
         admitted.some((a) => a.date === fused.date) &&
         retainsOriginal(segments, admitted) &&
+        // Both understanding and the final timeline use meaning deduplication.
+        // If either would collapse siblings, retain the complete fused source.
+        dedupeByMeaning(admitted, (entry) => `${entry.date} ${entry.title}`).length === admitted.length &&
         // A condition anywhere in a non-final segment may scope the whole
         // sentence group; splitting would pin it to its own entry only.
         !admitted.slice(0, -1).some((a) => CONDITION_SCOPING.test(a.title))

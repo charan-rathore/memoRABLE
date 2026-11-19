@@ -55,7 +55,7 @@ export function BrandSplash({ onFinished }: { onFinished: () => void }) {
         <div className="splash-word">
           memo<b>RABLE</b>
         </div>
-        <div className="splash-line">Turn a document into a source-backed brief.</div>
+        <div className="splash-line">A daily log for engineers.</div>
       </div>
     </div>
   );

@@ -24,7 +24,7 @@ const DOCS = [
   // Smaller controls first so we fail fast; research/PRD Docling are slow.
   { id: "resume", path: resolve(root, "Charan_Rathore.pdf"), expect: "resume" },
   { id: "invoice", path: resolve(root, "Hotel_and_Restaurant_Invoice_Format.pdf"), expect: "invoice" },
-  { id: "prd", path: resolve(root, "PRD for Indent_PO_GRN.pdf"), expect: "generic" },
+  { id: "prd", path: resolve(root, "tests/fixtures/indent-po-grn.pdf"), expect: "generic" },
   { id: "research", path: resolve(root, "Evaluating_LLMs_on_Scientific_event_argument_extraction-v1.pdf"), expect: "research" },
 ];
 

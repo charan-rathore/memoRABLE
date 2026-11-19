@@ -97,6 +97,10 @@ The taste is written down as rules and tested, so every document gets the same c
 - **Never two units on one axis.** Each measure is drawn on its own scale from zero.
 - **A chart only when it says more than a sentence.**
 
+**Try it on the site.** [Play the sample brief](https://memo-rable.vercel.app/story) or [a real research paper](https://memo-rable.vercel.app/story?sample=paper). You can also press **Play your file** (or drop a PDF, Markdown, text or JSON file on the page) and it plays right there. The file is read in your browser and nothing is uploaded.
+
+**The paper on one page.** For a research paper, the story adds a figure the paper doesn't have. The paper's question sits on the left, wired to each finding on the right. Each measured number is attached to the finding whose sentence states it, and the wires draw as you scroll. Everything in it is the paper's own sentences, read with no model.
+
 **Research papers read as papers.** I tested four real Google Research papers (PDFs from [google-research/google-research](https://github.com/google-research/google-research)): Streaming Parrotron, Jpegli, Near-Quadratic Sample Compression, and Gradient Based Pruning.
 
 Before this change:

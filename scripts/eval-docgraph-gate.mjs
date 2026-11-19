@@ -40,7 +40,7 @@ const DOCS = [
   },
   {
     id: "prd",
-    path: resolve(root, "PRD for Indent_PO_GRN.pdf"),
+    path: resolve(root, "tests/fixtures/indent-po-grn.pdf"),
     expectArchetype: null, // Generic Knowledge / whatever wins — not research
     kind: "control",
     forbidArchetype: "research",

@@ -1629,15 +1629,23 @@ function mergeDecisionPair(a: DecisionEntry, b: DecisionEntry): DecisionEntry {
   const statusRank = { rejected: 0, proposed: 1, requested: 2, approved: 3 } as const;
   const commitmentRank = { considered: 0, committed: 1 } as const;
   const rank = (x: DecisionEntry["status"]) => (x ? statusRank[x] : -1);
-  const status = rank(a.status) >= rank(b.status) ? a.status : b.status;
+  let status = rank(a.status) >= rank(b.status) ? a.status : b.status;
+  // A workflow state must be stated by the phrasing that survives the merge.
+  // When the longer text wins but the status came from the other line ("The
+  // board rejected X" + "The board rejected X, but subsequently approved it"),
+  // carrying it over would mislabel a reversal. Both entries agreeing is fine.
+  const textFromA = a.text.length >= b.text.length;
+  const statusFromA = rank(a.status) >= rank(b.status);
+  if (status && textFromA !== statusFromA && a.status !== b.status) status = undefined;
   const aCommit = a.commitment ?? "considered";
   const bCommit = b.commitment ?? "considered";
   const commitment =
     commitmentRank[aCommit] >= commitmentRank[bCommit] ? a.commitment : b.commitment;
   // Prefer the longer, more specific phrasing as the canonical text.
   const text = a.text.length >= b.text.length ? a.text : b.text;
+  const { status: _carriedStatus, ...restOfA } = a;
   return {
-    ...a,
+    ...restOfA,
     text,
     ...(status ? { status } : {}),
     ...(commitment ? { commitment } : {}),

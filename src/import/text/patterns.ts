@@ -711,6 +711,14 @@ export function parseDecisionLine(raw: string): DecisionEntry | null {
   // explicit status, a decision has to read like a statement.
   if (!ref && !foundStatus && rest.split(/\s+/).length < 3 && !/[.!?]$/.test(rest)) return null;
   if (rest.length < 2) return null;
+  // A direct past-tense rejection is itself source-stated status. Keep this
+  // narrower than a keyword match: reported, questioned, negated, conditional,
+  // and reversed rejections must not become an affirmative workflow state.
+  if (!foundStatus && /^(?:the (?:board|team|committee)|leadership) rejected\s+[^?]+\.?$/i.test(rest)) {
+    const uncertain = /\b(?:if|unless|provided|assuming|would|could|might|may|not|never|no|none|nothing|neither|nor|without|but|although|however|before|subject to|pending)\b/i.test(rest);
+    const reversed = /\b(?:reinstat(?:e[ds]?|ing)|overturn(?:ed|ing|s)?|revers(?:e[ds]?|ing)|approv(?:e[ds]?|ing|al)|accept(?:ed|ing|s)?)\b/i.test(rest);
+    if (!uncertain && !reversed) status = "rejected";
+  }
   // Status (proposed/approved/…) and commitment (committed/considered) are
   // both kept — compressing them into one field loses the cognitive layer.
   const commitment =

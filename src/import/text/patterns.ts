@@ -1148,16 +1148,28 @@ function stateFromText(text: string): TimelineEntry["state"] | undefined {
 /* ---------------------------------- risks ----------------------------------- */
 
 const SEVERITY = /\b(high|medium|med|low)\b/i;
+/** A severity label only when the source is not negating it. */
+function statesSeverity(text: string): boolean {
+  return SEVERITY.test(text) && !/\bnot\b/i.test(text);
+}
 
 export function parseRiskLine(raw: string): RiskEntry | null {
   const cells = splitTableRow(raw);
   if (cells && cells.length >= 2) {
-    const sevCell = cells.findIndex((c) => SEVERITY.test(c));
+    const sevCell = cells.findIndex((c) => statesSeverity(c));
     if (sevCell > 0 && cells[0]) {
       const severity = normalizeSeverity(cells[sevCell]!);
       const mitigation = cells.slice(sevCell + 1).join(" · ").trim();
       if (mitigation.length === 0) return null;
       return { ...splitReasoning(cells[0]), severity, mitigation };
+    }
+    // A negated severity cell ("not high") is no severity at all: keep the
+    // row's substance (risk + mitigation) with the severity omitted.
+    const negCell = cells.findIndex((c) => SEVERITY.test(c) && /\bnot\b/i.test(c));
+    if (negCell > 0 && cells[0]) {
+      const mitigation = cells.slice(negCell + 1).join(" · ").trim();
+      if (mitigation.length === 0) return null;
+      return { ...splitReasoning(cells[0]), mitigation };
     }
     return null;
   }
@@ -1166,7 +1178,7 @@ export function parseRiskLine(raw: string): RiskEntry | null {
   const { body, suffix } = extractParenSuffix(text);
   let severity: RiskEntry["severity"] | null = null;
   let rest = text;
-  if (suffix && SEVERITY.test(suffix)) {
+  if (suffix && statesSeverity(suffix)) {
     severity = normalizeSeverity(suffix);
     rest = body;
   }

@@ -300,9 +300,18 @@ export const VERDICT_HEADING =
 export const OPEN_QUESTION =
   /^(?:(?:open questions?|tbd|to be (?:decided|determined))\b|(?:unresolved|undecided)\s*(?:[:\-–—?]|$))/i;
 
+/** A verb-first statement that a decision was made ("Decided to ...", "Agreed: ..."). */
+const BARE_DECIDED = /^(?:(?:decided|agreed|resolved)\s+(?:to|that|on|with)\b|agreed\s*[:—-])/i;
+
+/** Wording that makes a bare "Decided to ..." conditional, questioned, reversed or unsettled. */
+const BARE_DECIDED_HEDGE =
+  /\?|\b(?:if|unless|until|pending|subject to|disagree|reconsider|revisit|revers\w*|tentative\w*|provisional\w*)\b/i;
+
 export function readCommitment(text: string): "committed" | "considered" {
   if (CONSIDERED.test(text)) return "considered";
   if (COMMITTED.test(text)) return "committed";
+  const bare = text.trim();
+  if (BARE_DECIDED.test(bare) && !BARE_DECIDED_HEDGE.test(bare)) return "committed";
   return IMPERATIVE.test(text.trim()) ? "committed" : "considered";
 }
 

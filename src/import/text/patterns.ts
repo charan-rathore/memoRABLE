@@ -574,6 +574,18 @@ export function parseOpenQuestionLine(raw: string): SignalEntry | null {
     /\bopen question\b/i.test(text) ||
     /^(should|what|who|when|where|why|how)\b/i.test(text);
   if (!looksLikeQuestion) return null;
+  // A question the source already answers or resolves is not open: label it
+  // with the state the source states, never "Open question".
+  const { suffix } = extractParenSuffix(text);
+  const parenMarker = suffix ? /^(answered|resolved)\b/i.exec(suffix) : null;
+  const dashTail = splitTrailingKeyword(text, /^(answered|resolved)\b/i);
+  const marker = parenMarker?.[1] ?? dashTail?.keyword;
+  if (marker) {
+    return {
+      label: marker.toLowerCase() === "resolved" ? "Resolved question" : "Answered question",
+      implication: text.replace(/^\s*open questions?\s*[:—–-]\s*/i, "").slice(0, 400),
+    };
+  }
   return {
     label: "Open question",
     implication: text.replace(/^\s*open questions?\s*[:—–-]\s*/i, "").slice(0, 400),

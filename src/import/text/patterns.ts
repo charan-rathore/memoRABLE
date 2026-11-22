@@ -1446,11 +1446,25 @@ export function parseTimelineLineLenient(raw: string): TimelineEntry | null {
   };
 }
 
+const RISK_HEADER_CELL =
+  /^(risks?|severity|severities|mitigations?|impacts?|likelihoods?|probabilit(?:y|ies)|consequences?|owners?|status|notes?)$/i;
+
+/** A risk table's heading row ("Risk | Severity | Mitigation") is furniture. */
+export function isRiskTableHeaderRow(raw: string): boolean {
+  const cells = splitTableRow(raw);
+  if (!cells || cells.length < 2 || !cells[0] || !cells[1]) return false;
+  return cells
+    .slice(0, Math.min(3, cells.length))
+    .every((c) => RISK_HEADER_CELL.test(c.trim()));
+}
+
 export function parseRiskLineLenient(raw: string): RiskEntry | null {
   const text = entryText(raw);
   if (!text) return null;
   const strict = parseRiskLine(raw);
   if (strict) return strict;
+  // Header furniture is not a leftover either.
+  if (isRiskTableHeaderRow(raw)) return null;
   // Severity and mitigation stay undefined when the source never graded it.
   // The reasoning halves appear only when the line actually stated them.
   return splitReasoning(text);

@@ -77,6 +77,7 @@ import {
   parseDecisionLine,
   parseDecisionLineLenient,
   parseObligationDateLine,
+  isRiskTableHeaderRow,
   parseRiskLine,
   parseRiskLineLenient,
   parseSignalLine,
@@ -1456,6 +1457,8 @@ function mergeRisks(built: Collected<RiskEntry>, ctx: BuildContext, notes: strin
   let added = 0;
   for (const candidate of ctx.understanding.risks) {
     const { value, evidence } = candidate;
+    // A risk table's heading row is furniture, never an inferred risk.
+    if (isRiskTableHeaderRow(evidence.text)) continue;
     const existing = built.entries.findIndex((_, i) => built.lineOf[i] === evidence.lineNo);
     if (existing >= 0) {
       const entry = built.entries[existing]!;

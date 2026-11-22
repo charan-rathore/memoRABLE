@@ -23,7 +23,7 @@ export interface ListItem {
 
 const BULLET = /^\s*(?:[-*•])\s+(.*)$/;
 const NUMBERED = /^\s*(\d{1,3})[.)]\s+(.*)$/;
-const TASK = /^\s*[-*]\s+\[([ xX])\]\s+(.*)$/;
+const TASK = /^\s*(?:[-*•]|\d{1,3}[.)])\s+\[([ xX])\]\s+(.*)$/;
 
 export function splitListItem(line: string): ListItem | null {
   const task = TASK.exec(line);

@@ -1097,6 +1097,9 @@ function buildEntriesPayload(
         sortByLine(built);
       }
       mergeDecisions(built, ctx, notes);
+      // Inferred decisions are appended after the flat-parsed ones; put every
+      // entry back where the source states it.
+      sortByLine(built);
       applyResumeFacets(built, matched, ctx, ["status", "commitment"]);
       // Compress inside Decisions: Key Requirements ≈ Acceptance Criteria.
       built.entries = compressDecisions(built.entries);

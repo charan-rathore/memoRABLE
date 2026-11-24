@@ -243,6 +243,11 @@ export function matchHeading(line: string, nextLine?: string): HeadingMatch | nu
   const atx = /^\s{0,3}(#{1,6})\s+(.+?)\s*#*\s*$/.exec(line);
   if (atx) return { text: atx[2]!.trim(), level: atx[1]!.length };
   if (nextLine !== undefined && /^\s{0,3}(=+|-+)\s*$/.test(nextLine) && line.trim().length > 0) {
+    // CommonMark: only a plain paragraph line can be setext heading text. A
+    // line that opens its own block (list item, quote, fence, table row)
+    // keeps that meaning; the dashes after it are a divider, not an
+    // underline, so the entry is never swallowed as a fake heading.
+    if (splitListItem(line) || /^\s{0,3}>/.test(line) || /^\s*```/.test(line)) return null;
     return { text: line.trim(), level: nextLine.trim().startsWith("=") ? 1 : 2 };
   }
   // Plain keyword heading: short line, no terminal period.

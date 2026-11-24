@@ -63,6 +63,8 @@ const GLYPH_PREFIX = /^\s*[✓✔✅×✗✘→⇒▸▪▫◦·+]\s*/;
 /** Remove markdown emphasis so rendered output never shows raw `**` or backticks. */
 export function stripEmphasis(text: string): string {
   return text
+    .replace(/!\[([^\]]*)\]\([^()]*(?:\([^()]*\)[^()]*)*\)/g, "$1") // images keep their alt text
+    .replace(/\[([^\]]+)\]\([^()]*(?:\([^()]*\)[^()]*)*\)/g, "$1") // inline links keep their text
     .replace(/\*\*(.+?)\*\*/g, "$1")
     .replace(/__(.+?)__/g, "$1")
     .replace(/(^|\W)\*(\S(?:.*?\S)?)\*(?=\W|$)/g, "$1$2")
@@ -724,7 +726,7 @@ export function parseDecisionLine(raw: string): DecisionEntry | null {
   const commitment =
     explicitCommitment ?? (status === "approved" ? "committed" : readCommitment(rest));
   // A workflow state only when the line states one.
-  const entry: DecisionEntry = { text: rest, ...(status ? { status } : {}), commitment };
+  const entry: DecisionEntry = { text: stripEmphasis(rest), ...(status ? { status } : {}), commitment };
   if (ref) entry.ref = ref;
   return entry;
 }
@@ -925,6 +927,10 @@ export function titleAroundRemovedDate(text: string, index: number, length: numb
 }
 
 export function parseTimelineLine(raw: string): TimelineEntry | null {
+  // Bolded dates and titles ("**Nov 3**: kickoff") parse on clean text:
+  // emphasis never changes a date, state or title, only how they render.
+  raw = stripEmphasis(raw);
+
   const item = splitListItem(raw);
   const cells = splitTableRow(raw);
   if (cells && cells.length >= 2 && cells[0] && looksLikeDate(cells[0]) && !startsWithQuantityFraction(cells[0])) {

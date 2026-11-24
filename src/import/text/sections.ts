@@ -1,5 +1,5 @@
 import type { BlockKind, EntryFacet } from "@/domain/memory/schema";
-import { splitListItem } from "./patterns";
+import { isListLike, splitListItem } from "./patterns";
 
 /**
  * Section recognition for the local text/Markdown parser.
@@ -247,7 +247,7 @@ export function matchHeading(line: string, nextLine?: string): HeadingMatch | nu
     // line that opens its own block (list item, quote, fence, table row)
     // keeps that meaning; the dashes after it are a divider, not an
     // underline, so the entry is never swallowed as a fake heading.
-    if (splitListItem(line) || /^\s{0,3}>/.test(line) || /^\s*```/.test(line)) return null;
+    if (isListLike(line) || /^\s{0,3}>/.test(line) || /^\s*```/.test(line)) return null;
     return { text: line.trim(), level: nextLine.trim().startsWith("=") ? 1 : 2 };
   }
   // Plain keyword heading: short line, no terminal period.

@@ -80,6 +80,9 @@ export function checkJsonSafety(value: unknown): Diagnostic[] {
             { path },
           ),
         );
+        // The import is already rejected. Do not walk an oversized subtree
+        // or allocate a diagnostic for every invalid entry inside it.
+        return;
       }
       node.forEach((item, i) => visit(item, depth + 1, `${path}[${i}]`));
       return;

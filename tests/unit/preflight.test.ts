@@ -89,3 +89,15 @@ describe("lineColumnOf", () => {
     expect(lineColumnOf("abc\ndef\nghi", 9)).toEqual({ line: 3, column: 2 });
   });
 });
+
+
+describe("oversized JSON subtrees", () => {
+  it("rejects the collection without producing one diagnostic per rejected entry", () => {
+    const parsed = JSON.parse('{"entries":[' + Array.from({ length: 20000 }, () => '{"constructor":"invalid"}').join(",") + '],"sibling":{"prototype":1}}');
+    const problems = checkJsonSafety(parsed);
+    expect(problems.map(p => [p.code, p.path])).toEqual([
+      ["input.too-many-entries", "$.entries"],
+      ["input.unsafe-key", "$.sibling.prototype"],
+    ]);
+  });
+});

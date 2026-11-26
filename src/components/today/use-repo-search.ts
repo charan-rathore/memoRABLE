@@ -131,14 +131,14 @@ export function useRepoSearch(engine: DailyEngine | null, rev: number) {
     const cached = store.current ? await store.current.getVectors(keys) : new Map();
     if (!owns()) return;
     const todo: SearchDoc[] = [];
-    docs.forEach((d, i) => { const c = cached.get(keys[i]!); if (c) idx.setVector(d.id, dequantize(c)); else todo.push(d); });
+    docs.forEach((d, i) => { const c = cached.get(keys[i]!); if (c) idx.setVector(d.id, dequantize(c), embedText(d)); else todo.push(d); });
     let done = docs.length - todo.length;
     if (todo.length > 8) setModel({ state: "embedding", done, total: docs.length });
     for (let i = 0; i < todo.length; i += 16) {
       const batch = todo.slice(i, i + 16);
       const vecs = await emb.embedDocs(batch.map(embedText));
       if (!owns()) return;
-      const toStore = batch.map((d, j) => { idx.setVector(d.id, vecs[j]!); const q = quantize(vecs[j]!); return { key: vectorKey(emb.id, d.id, embedText(d)), i8: q.i8, scale: q.scale }; });
+      const toStore = batch.map((d, j) => { idx.setVector(d.id, vecs[j]!, embedText(d)); const q = quantize(vecs[j]!); return { key: vectorKey(emb.id, d.id, embedText(d)), i8: q.i8, scale: q.scale }; });
       await store.current?.putVectors(toStore).catch(() => undefined);
       if (!owns()) return;
       done += batch.length;

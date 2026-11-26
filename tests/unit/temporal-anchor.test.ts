@@ -27,3 +27,19 @@ it("an explicit in-text anchor still wins over a bad filename date",()=>{
  const r=findAnchorDate("As of 2026-03-01 the plan changed","report-12345678.pdf");
  expect(r).toEqual({value:"2026-03-01",confidence:"high",source:"explicit"});
 });
+
+it("does not use impossible dates from explicit lines or ordinary body text", () => {
+  expect(findAnchorDate("As of 2026-02-30 the plan changed").value).toBeNull();
+  expect(findAnchorDate("Snapshot 2023-02-29.").value).toBeNull();
+});
+
+it("continues searching for a valid ISO anchor and preserves source precedence", () => {
+  expect(findAnchorDate("As of 2026-02-30. Dated 2024-02-29.")).toEqual({
+    value: "2024-02-29", confidence: "high", source: "explicit",
+  });
+  expect(findAnchorDate("Snapshot 2026-02-30. Recorded 2026-03-01.")).toEqual({
+    value: "2026-03-01", confidence: "medium", source: "body",
+  });
+  expect(findAnchorDate("As of 2026-02-30.", "notes-2026-03-01.md").source).toBe("filename");
+  expect(findAnchorDate("Historical record 1969-07-20.").value).toBe("1969-07-20");
+});

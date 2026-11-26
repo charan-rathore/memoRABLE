@@ -16,10 +16,10 @@ export interface AnchorDate {
 }
 
 const EXPLICIT_ANCHOR =
-  /\b(?:as of|dated|date[:\s]|prepared.*?·|letterhead)\s*([A-Z][a-z]{2,8}\.?\s+\d{1,2},?\s+\d{4}|\d{4}-\d{2}-\d{2}|\d{1,2}\/\d{1,2}\/\d{2,4}|[A-Z][a-z]{2,8}\s+\d{4})/i;
+  /\b(?:as of|dated|date[:\s]|prepared.*?·|letterhead)\s*([A-Z][a-z]{2,8}\.?\s+\d{1,2},?\s+\d{4}|\d{4}-\d{2}-\d{2}|\d{1,2}\/\d{1,2}\/\d{2,4}|[A-Z][a-z]{2,8}\s+\d{4})/gi;
 
 const ISO_OR_FULL =
-  /\b((?:19|20)\d{2}-\d{2}-\d{2}|(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\.?\s+\d{1,2},?\s+\d{4})\b/i;
+  /\b((?:19|20)\d{2}-\d{2}-\d{2}|(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\.?\s+\d{1,2},?\s+\d{4})\b/gi;
 
 const RELATIVE_ONLY =
   /^(?:today|tomorrow|yesterday|tonight|(?:this|next|last)\s+(?:week|month|quarter|year)|end\s+of\s+(?:the\s+)?(?:week|month|quarter|year)|in\s+\d{1,3}\s+(?:days?|weeks?|months?|years?)|soon|eventually|asap)$/i;
@@ -38,17 +38,26 @@ function isRealCalendarDate(value: string): boolean {
   const year = Number(m[1]);
   const month = Number(m[2]);
   const day = Number(m[3]);
-  if (year < 1990 || year > 2100) return false;
   if (month < 1 || month > 12) return false;
   const isLeap = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
   const maxDay = month === 2 && isLeap ? 29 : DAYS_IN_MONTH[month - 1];
   return maxDay !== undefined && day >= 1 && day <= maxDay;
 }
 
+function firstValidAnchor(text: string, pattern: RegExp): string | undefined {
+  for (const match of text.matchAll(pattern)) {
+    const value = match[1]?.trim();
+    if (value && (!/^\d{4}-\d{2}-\d{2}$/.test(value) || isRealCalendarDate(value))) {
+      return value;
+    }
+  }
+  return undefined;
+}
+
 export function findAnchorDate(text: string, filename?: string): AnchorDate {
-  const explicit = EXPLICIT_ANCHOR.exec(text);
-  if (explicit?.[1]) {
-    return { value: explicit[1].trim(), confidence: "high", source: "explicit" };
+  const explicit = firstValidAnchor(text, EXPLICIT_ANCHOR);
+  if (explicit) {
+    return { value: explicit, confidence: "high", source: "explicit" };
   }
 
   const fileDate = filename ? /(\d{4}-\d{2}-\d{2}|\d{8})/.exec(filename) : null;
@@ -59,14 +68,15 @@ export function findAnchorDate(text: string, filename?: string): AnchorDate {
     // Only trust the filename when it is a real calendar date - an 8-digit
     // run like "report-12345678" or an impossible "2026-13-45" must not
     // fabricate an anchor for the temporal-honesty gate.
-    if (isRealCalendarDate(value)) {
+    const year = Number(value.slice(0, 4));
+    if (year >= 1990 && year <= 2100 && isRealCalendarDate(value)) {
       return { value, confidence: "medium", source: "filename" };
     }
   }
 
-  const body = ISO_OR_FULL.exec(text);
-  if (body?.[1]) {
-    return { value: body[1].trim(), confidence: "medium", source: "body" };
+  const body = firstValidAnchor(text, ISO_OR_FULL);
+  if (body) {
+    return { value: body, confidence: "medium", source: "body" };
   }
 
   return { value: null, confidence: "none", source: "none" };

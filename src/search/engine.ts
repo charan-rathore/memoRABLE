@@ -79,12 +79,15 @@ export class SearchIndex {
   }
 
   /** Insert a precomputed vector (e.g. from the IndexedDB cache). */
-  setVector(id: string, v: ArrayLike<number>): void {
-    if (this.vectors && this.docs.has(id)) this.vectors.upsert(id, v);
+  setVector(id: string, v: ArrayLike<number>, expectedText?: string): void {
+    const current = this.docs.get(id);
+    if (this.vectors && current && (expectedText === undefined || embedText(current) === expectedText)) this.vectors.upsert(id, v);
   }
 
   /** Lexical side is synchronous; call `embed` afterwards for the dense side. */
   upsert(doc: SearchDoc): void {
+    const previous = this.docs.get(doc.id);
+    if (previous && embedText(previous) !== embedText(doc)) this.vectors?.remove(doc.id);
     this.removeSigs(doc.id);
     this.docs.set(doc.id, doc);
     const sigs = errorSignatures(`${doc.title}\n${doc.body}`);
@@ -100,12 +103,22 @@ export class SearchIndex {
 
   async embed(ids: string[], batch = 32): Promise<number> {
     if (!this.embedder || !this.vectors) return 0;
+    const model = this.embedder;
+    const vectors = this.vectors;
     let n = 0;
     for (let i = 0; i < ids.length; i += batch) {
       const slice = ids.slice(i, i + batch).filter((id) => this.docs.has(id));
-      const vecs = await this.embedder.embedDocs(slice.map((id) => embedText(this.docs.get(id)!)));
-      slice.forEach((id, j) => this.vectors!.upsert(id, vecs[j]!));
-      n += slice.length;
+      if (!slice.length) continue;
+      const texts = slice.map((id) => embedText(this.docs.get(id)!));
+      const vecs = await model.embedDocs(texts);
+      if (this.embedder !== model || this.vectors !== vectors) return n;
+      slice.forEach((id, j) => {
+        const current = this.docs.get(id);
+        if (current && embedText(current) === texts[j]) {
+          vectors.upsert(id, vecs[j]!);
+          n++;
+        }
+      });
     }
     return n;
   }

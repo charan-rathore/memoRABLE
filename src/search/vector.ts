@@ -41,6 +41,14 @@ export class VectorIndex {
   /** Vectors are L2-normalized on insert, so dot product equals cosine. */
   upsert(id: string, v: ArrayLike<number>): void {
     if (v.length !== this.dim) throw new Error(`expected ${this.dim} dims, got ${v.length}`);
+    let norm = 0;
+    for (let d = 0; d < this.dim; d++) {
+      const value = v[d]!;
+      if (!Number.isFinite(value)) throw new Error("non-finite document vector");
+      norm += value * value;
+    }
+    if (!Number.isFinite(norm)) throw new Error("document vector norm overflow");
+    norm = Math.sqrt(norm) || 1;
     let i = this.pos.get(id);
     if (i === undefined) {
       if (this.n >= this.scale.length) this.grow();
@@ -48,9 +56,6 @@ export class VectorIndex {
       this.ids[i] = id;
       this.pos.set(id, i);
     }
-    let norm = 0;
-    for (let d = 0; d < this.dim; d++) norm += v[d]! * v[d]!;
-    norm = Math.sqrt(norm) || 1;
     const off = i * this.dim;
     if (this.quantize) {
       let max = 0;
@@ -82,8 +87,15 @@ export class VectorIndex {
   }
 
   search(q: ArrayLike<number>, k = 50, allow?: (id: string) => boolean): VectorHit[] {
+    if (q.length !== this.dim) throw new Error(`expected ${this.dim} query dims, got ${q.length}`);
+    if (k <= 0) return [];
     let norm = 0;
-    for (let d = 0; d < this.dim; d++) norm += q[d]! * q[d]!;
+    for (let d = 0; d < this.dim; d++) {
+      const value = q[d]!;
+      if (!Number.isFinite(value)) throw new Error("non-finite query vector");
+      norm += value * value;
+    }
+    if (!Number.isFinite(norm)) throw new Error("query vector norm overflow");
     norm = Math.sqrt(norm) || 1;
     const qn = new Float32Array(this.dim);
     for (let d = 0; d < this.dim; d++) qn[d] = q[d]! / norm;

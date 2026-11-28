@@ -156,7 +156,7 @@ export function LookBackPanel({ engine, rev, onHandle }: { engine: DailyEngine; 
       <h2 id="lookback-h" className="td-panel-h">Look back</h2>
       <label className="td-date-field">
         <span>What had we decided on</span>
-        <input type="date" value={date} max={new Date().toISOString().slice(0, 10)} onChange={(e) => setDate(e.target.value)} />
+        <input type="date" value={date} max={dayKey(new Date().toISOString())} onChange={(e) => setDate(e.target.value)} />
       </label>
       {!date ? (
         <p className="td-empty-note">Pick a day to see the decisions in force then, and which ones have since been replaced.</p>

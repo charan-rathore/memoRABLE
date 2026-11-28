@@ -36,7 +36,7 @@ export interface LetterRecheck {
 
 export interface LetterValues {
   owner: string;
-  /** Monday of the week, YYYY-MM-DD (UTC). */
+  /** Monday of the week, YYYY-MM-DD in the reader's local calendar. */
   weekOf: string;
   weekEnd: string;
   /** ISO week number. */
@@ -60,27 +60,40 @@ export interface WeekOptions {
   weekContaining?: Date;
 }
 
+/*
+ * Weeks and days are the reader's local calendar. The letter is opened in the
+ * browser, so "Monday" must be the Monday the person lived: with UTC days an
+ * entry written at 01:30 IST on Monday was filed under the previous Sunday,
+ * in the previous week's letter.
+ */
+
+/** Local midnight of the Monday on or before `d`. */
 export function mondayOf(d: Date): Date {
-  const t = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
-  const dow = (new Date(t).getUTCDay() + 6) % 7; // Monday = 0
-  return new Date(t - dow * DAY);
+  const dow = (d.getDay() + 6) % 7; // Monday = 0
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate() - dow);
 }
 
+/** Whole local calendar days from `a` to `b` (DST-safe). */
+const dayIndex = (a: Date, b: Date) =>
+  Math.round((Date.UTC(b.getFullYear(), b.getMonth(), b.getDate()) - Date.UTC(a.getFullYear(), a.getMonth(), a.getDate())) / DAY);
+
+/** ISO-8601 week number of the local date of `d`. */
 export function isoWeek(d: Date): number {
-  const t = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+  const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
   const dow = (t.getUTCDay() + 6) % 7;
   t.setUTCDate(t.getUTCDate() - dow + 3); // Thursday decides the year
   const firstThursday = new Date(Date.UTC(t.getUTCFullYear(), 0, 4));
   return 1 + Math.round(((t.getTime() - firstThursday.getTime()) / DAY - 3 + ((firstThursday.getUTCDay() + 6) % 7)) / 7);
 }
 
-const ymd = (d: Date) => d.toISOString().slice(0, 10);
+/** Local YYYY-MM-DD. */
+export const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 /** Letters quote what you wrote; trim only trailing punctuation the design adds back. */
 const clean = (s: string) => s.replace(/\s+/g, " ").trim().replace(/[.。]+$/, "");
 
 export function weekLetter(state: WorkspaceState, now: Date, opts: WeekOptions = {}): LetterValues {
   const start = mondayOf(opts.weekContaining ?? now);
-  const end = new Date(start.getTime() + 7 * DAY);
+  const end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 7);
   const inWeek = (iso: string) => {
     const t = Date.parse(iso);
     return t >= start.getTime() && t < end.getTime();
@@ -89,7 +102,7 @@ export function weekLetter(state: WorkspaceState, now: Date, opts: WeekOptions =
   const thisWeek = live.filter((e) => inWeek(e.createdAt)).sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1));
 
   const days = DAYS.map(() => 0);
-  for (const e of thisWeek) days[Math.floor((Date.parse(e.createdAt) - start.getTime()) / DAY)]! += 1;
+  for (const e of thisWeek) days[dayIndex(start, new Date(e.createdAt))]! += 1;
 
   const byId = new Map(live.map((e) => [e.id, e]));
   const decided: LetterDecision[] = thisWeek
@@ -99,7 +112,7 @@ export function weekLetter(state: WorkspaceState, now: Date, opts: WeekOptions =
       return {
         handle: e.handle,
         text: clean(e.text),
-        day: DAYS[Math.floor((Date.parse(e.createdAt) - start.getTime()) / DAY)]!,
+        day: DAYS[dayIndex(start, new Date(e.createdAt))]!,
         ...(next ? { replacedBy: next.handle, replacedText: clean(next.text) } : {}),
       };
     });
@@ -116,7 +129,7 @@ export function weekLetter(state: WorkspaceState, now: Date, opts: WeekOptions =
   return {
     owner: opts.owner ?? "you",
     weekOf: ymd(start),
-    weekEnd: ymd(new Date(end.getTime() - DAY)),
+    weekEnd: ymd(new Date(end.getFullYear(), end.getMonth(), end.getDate() - 1)),
     week: isoWeek(start),
     appUrl: (opts.appUrl ?? "https://memo-rable.vercel.app").replace(/\/+$/, ""),
     worked: thisWeek.filter((e) => e.kind === "worked").length,

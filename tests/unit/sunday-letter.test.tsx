@@ -4,7 +4,7 @@ import { render } from "@hyper-elements/react";
 import { check } from "@hyper-elements/react/template";
 import { DailyEngine } from "@/daily/engine";
 import { MemoryStore } from "@/daily/store";
-import { answerLink, isoWeek, mondayOf, weekLetter } from "@/letter/week";
+import { answerLink, isoWeek, mondayOf, weekLetter, ymd } from "@/letter/week";
 import { readLetterRequest, withoutLetterParams } from "@/letter/deep-link";
 import WeekLetter, { headlineCount, LetterEmail } from "@/letter/email";
 import WeekPage from "@/letter/page";
@@ -23,7 +23,7 @@ async function week() {
 
 describe("the week's values", () => {
   it("finds Monday and the ISO week", () => {
-    expect(mondayOf(new Date("2026-11-22T20:00:00Z")).toISOString().slice(0, 10)).toBe("2026-11-16");
+    expect(ymd(mondayOf(new Date("2026-11-20T12:00:00Z")))).toBe("2026-11-16"); // a Friday in every zone
     expect(isoWeek(new Date("2026-11-18T12:00:00Z"))).toBe(47);
     expect(isoWeek(new Date("2027-01-01T12:00:00Z"))).toBe(53);
   });

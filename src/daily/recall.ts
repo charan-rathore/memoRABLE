@@ -44,8 +44,17 @@ export class Recall {
   private cache = new Map<string, RecallResult>();
   private byTerm = new Map<string, Set<string>>();
   private byEntry = new Map<string, Set<string>>();
+  /** What each cached key was linked under, so eviction can unlink it. */
+  private deps = new Map<string, { terms: string[]; entries: string[] }>();
 
   get cacheSize() { return this.cache.size; }
+  /** Keys held by the reverse maps; must stay bounded by the cache. */
+  get reverseLinks() {
+    let n = 0;
+    for (const s of this.byTerm.values()) n += s.size;
+    for (const s of this.byEntry.values()) n += s.size;
+    return n;
+  }
 
   private link(map: Map<string, Set<string>>, k: string, key: string) {
     let s = map.get(k);
@@ -53,9 +62,28 @@ export class Recall {
     s.add(key);
   }
 
+  private unlink(map: Map<string, Set<string>>, k: string, key: string) {
+    const s = map.get(k);
+    if (!s) return;
+    s.delete(key);
+    if (!s.size) map.delete(k);
+  }
+
+  /** Remove a cached answer and every reverse link that pointed at it. */
+  private forget(key: string): boolean {
+    if (!this.cache.delete(key)) return false;
+    const d = this.deps.get(key);
+    if (d) {
+      for (const t of d.terms) this.unlink(this.byTerm, t, key);
+      for (const id of d.entries) this.unlink(this.byEntry, id, key);
+      this.deps.delete(key);
+    }
+    return true;
+  }
+
   private drop(keys: Iterable<string>): number {
     let n = 0;
-    for (const key of keys) if (this.cache.delete(key)) n++;
+    for (const key of [...keys]) if (this.forget(key)) n++;
     return n;
   }
 
@@ -111,7 +139,7 @@ export class Recall {
   /** Drop every cached answer (permission change, config change). */
   clear(): number {
     const n = this.cache.size;
-    this.cache.clear(); this.byTerm.clear(); this.byEntry.clear();
+    this.cache.clear(); this.byTerm.clear(); this.byEntry.clear(); this.deps.clear();
     return n;
   }
 
@@ -120,16 +148,24 @@ export class Recall {
     const permission = p.permission ?? "owner";
     const key = recallKey({ workspaceId: state.workspaceId, permission, query: p.query, k, epoch: this.index.stats.epoch });
     const cached = this.cache.get(key);
-    if (cached) return { ...cached, query: p.query, cache: "hit", scanned: 0 };
+    if (cached) {
+      // Least-recently-used: a hit moves to the back of the eviction order.
+      this.cache.delete(key); this.cache.set(key, cached);
+      return { ...cached, query: p.query, cache: "hit", scanned: 0 };
+    }
 
     const { hits, scanned } = this.compute(state, p.query, k);
     const result: RecallResult = { query: p.query, hits, cache: "miss", scanned, configId: RECALL_CONFIG_ID };
 
     this.cache.set(key, result);
-    // Bounded: live recall while typing creates many one-off queries.
-    if (this.cache.size > MAX_CACHED) this.cache.delete(this.cache.keys().next().value as string);
-    for (const t of new Set(tokenize(p.query))) this.link(this.byTerm, t, key);
-    for (const h of result.hits) this.link(this.byEntry, h.entryId, key);
+    const terms = [...new Set(tokenize(p.query))];
+    const entries = [...new Set(result.hits.map((h) => h.entryId))];
+    for (const t of terms) this.link(this.byTerm, t, key);
+    for (const id of entries) this.link(this.byEntry, id, key);
+    this.deps.set(key, { terms, entries });
+    // Bounded: live recall while typing creates many one-off queries. The
+    // reverse maps are pruned with the answer, or they grow with every keystroke.
+    while (this.cache.size > MAX_CACHED) this.forget(this.cache.keys().next().value as string);
     return result;
   }
 }

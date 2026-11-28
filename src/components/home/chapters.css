@@ -135,12 +135,15 @@
 
 /* ---------- chapter 3: find (paper) ---------- */
 .ch-flood { position: absolute; inset: 0; z-index: 0; background: var(--paper-flood); clip-path: circle(0 at 50% 20%); }
-.ch-find .ch-copy { color: var(--ink-flood); }
-.ch-find .ch-display, .ch-find .ch-steps h3 { color: var(--ink-flood); }
-.ch-find .ch-steps p { color: var(--ink-flood-2); }
-.ch-find .ch-steps li:not(.is-on) h3 { color: #4a4f6a; }
-.ch-find .ch-steps li:not(.is-on) p { color: #5c6180; }
-.ch-find .ch-steps li::before { background: var(--ink-flood); }
+/* The copy is on black until the flood reaches it, then on lavender: the
+   scene sets data-flooded and the ink follows, so it is legible on both. */
+.ch-find .ch-copy :is(.ch-display, h3, p) { transition: color 260ms cubic-bezier(0.23, 1, 0.32, 1); }
+.ch-find .ch-copy[data-flooded="1"] { color: var(--ink-flood); }
+.ch-find [data-flooded="1"] .ch-display, .ch-find [data-flooded="1"] .ch-steps h3 { color: var(--ink-flood); }
+.ch-find [data-flooded="1"] .ch-steps p { color: var(--ink-flood-2); }
+.ch-find [data-flooded="1"] .ch-steps li:not(.is-on) h3 { color: #4a4f6a; }
+.ch-find [data-flooded="1"] .ch-steps li:not(.is-on) p { color: #5c6180; }
+.ch-find [data-flooded="1"] .ch-steps li::before { background: var(--ink-flood); }
 .ch-find { --worked: #2a56c6; --learned: #8a5a00; --decided: #6a37c8; --task: #0b7d5a; }
 .ch-find .kind-issue, .ch-find .k-issue { --k: #5d6378; }
 .ch-field {

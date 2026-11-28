@@ -86,6 +86,16 @@ describe("fusion and metrics", () => {
     expect(weightedSum([[{ id: "x", score: 9 }, { id: "y", score: 1 }]], [1])[0]!.id).toBe("x");
   });
 
+  it("weighted sum keeps a single keyword hit instead of zeroing it", () => {
+    // Lexical found exactly one document; dense ranks it second of three.
+    const lex = [{ id: "sig-match", score: 7.3 }];
+    const dense = [{ id: "near-a", score: 0.82 }, { id: "sig-match", score: 0.6 }, { id: "near-b", score: 0.41 }];
+    const fused = weightedSum([lex, dense], [0.5, 0.5]);
+    expect(fused[0]!.id).toBe("sig-match");
+    // All-equal scores are equally relevant, not all irrelevant.
+    expect(weightedSum([[{ id: "a", score: 2 }, { id: "b", score: 2 }]], [1]).map((h) => h.score)).toEqual([1, 1]);
+  });
+
   it("computes recall, MRR, nDCG and a paired bootstrap", () => {
     const rel = new Set(["b"]);
     expect(recallAt(["a", "b"], rel, 1)).toBe(0);

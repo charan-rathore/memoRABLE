@@ -19,14 +19,22 @@ export function rrf(lists: Ranked[][], k = 60, weights?: number[]): Ranked[] {
   return [...acc].map(([id, score]) => ({ id, score })).sort((a, b) => b.score - a.score || (a.id < b.id ? -1 : 1));
 }
 
-/** Min-max normalize each list, then weighted sum. */
+/**
+ * Min-max normalize each list, then weighted sum.
+ *
+ * A list whose scores are all equal (most often a single hit, e.g. one exact
+ * error-signature match) has no spread to normalize. It counts as fully
+ * relevant (1), not as the minimum (0): otherwise the only keyword match
+ * contributed nothing and lost to any dense neighbour.
+ */
 export function weightedSum(lists: Ranked[][], weights: number[]): Ranked[] {
   const acc = new Map<string, number>();
   lists.forEach((list, li) => {
     if (!list.length) return;
-    const max = list[0]!.score, min = list.at(-1)!.score;
-    const span = max - min || 1;
-    for (const h of list) acc.set(h.id, (acc.get(h.id) ?? 0) + (weights[li] ?? 1) * ((h.score - min) / span));
+    let max = -Infinity, min = Infinity;
+    for (const h of list) { if (h.score > max) max = h.score; if (h.score < min) min = h.score; }
+    const span = max - min;
+    for (const h of list) acc.set(h.id, (acc.get(h.id) ?? 0) + (weights[li] ?? 1) * (span > 0 ? (h.score - min) / span : 1));
   });
   return [...acc].map(([id, score]) => ({ id, score })).sort((a, b) => b.score - a.score || (a.id < b.id ? -1 : 1));
 }

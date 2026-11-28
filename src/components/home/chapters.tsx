@@ -398,10 +398,14 @@ export function FindChapter() {
     const R = Math.hypot(Math.max(fc.x, w - fc.x), Math.max(fc.y, h - fc.y));
     const fr = EASE_OUT(span(p, 0, 0.16));
     if (flood.current) flood.current.style.clipPath = `circle(${(fr * R).toFixed(1)}px at ${fc.x.toFixed(0)}px ${fc.y.toFixed(0)}px)`;
-    const shown = EASE_OUT(span(p, 0.08, 0.2));
-    if (copy.current) { copy.current.style.opacity = shown.toFixed(3); copy.current.style.transform = `translateY(${((1 - shown) * 16).toFixed(1)}px)`; }
+    // The stage scrolls into view at p = 0, before it pins. That frame must
+    // already say what the chapter is about: the heading and the search field
+    // are present from the start (an all-black viewport read as the end of
+    // the page), and the flood then grows out of the field.
+    const shown = EASE_OUT(span(p, 0, 0.12));
+    if (copy.current) copy.current.dataset.flooded = fr > 0.8 ? "1" : "0";
 
-    place(field.current, v.x, v.y, lerp(0.97, 1, shown), 0, shown);
+    place(field.current, v.x, v.y, lerp(0.985, 1, shown), 0, 1);
     if (field.current) field.current.style.width = `${v.w}px`;
     const typedN = Math.round(QUERY.length * span(p, 0.16, 0.32));
     if (q.current) q.current.textContent = QUERY.slice(0, typedN);
@@ -471,7 +475,7 @@ export function FindChapter() {
     <section id="find" ref={ref} className="ch ch-find" aria-labelledby="find-h">
       <div className="ch-stage">
         <div ref={flood} className="ch-flood" />
-        <div ref={copy} className="ch-copy" style={{ opacity: 0 }}>
+        <div ref={copy} className="ch-copy" data-flooded="0">
           <h2 id="find-h" className="ch-display ch-h2">Find it again, current answer first.</h2>
           <Steps
             refs={steps}
@@ -606,12 +610,14 @@ export function NumberChapter() {
   const nums = useRef<(HTMLSpanElement | null)[]>([]);
   const bars = useRef<(HTMLElement | null)[]>([]);
   const vals = [base.r10, ours.r10];
+  // The numbers are the claim, so they never count: a big "0%" mid-scroll
+  // reads as a result. The measured values are printed as they are; the bars
+  // draw to them, keyword first, so the gap is what moves.
   const ref = useScrollScene<HTMLElement>((p) => {
     vals.forEach((v, i) => {
       const t = EASE_OUT(span(p, 0.08 + i * 0.16, 0.5 + i * 0.16));
-      const val = v * t;
-      if (nums.current[i]) nums.current[i]!.textContent = `${Math.round(val * 100)}%`;
-      if (bars.current[i]) bars.current[i]!.style.transform = `scaleX(${val.toFixed(4)})`;
+      if (bars.current[i]) bars.current[i]!.style.transform = `scaleX(${(v * t).toFixed(4)})`;
+      if (nums.current[i]) nums.current[i]!.style.opacity = (0.35 + 0.65 * EASE_OUT(span(p, 0.08 + i * 0.16, 0.3 + i * 0.16))).toFixed(3);
     });
   });
   return (

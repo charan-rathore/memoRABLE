@@ -69,9 +69,11 @@
 .hx-card-text { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; font-size: 13px; line-height: 1.42; color: var(--ink-2); }
 
 .hx-copy { position: relative; z-index: 2; width: min(1000px, 100%); text-align: center; display: flex; flex-direction: column; align-items: center; }
+/* Section headings share the chapters' display serif: one voice from the
+   hero to the footer instead of serif chapters followed by a heavy sans. */
 .hx-title {
-  font: 560 clamp(44px, 7.2vw, 92px)/0.96 var(--sans);
-  letter-spacing: -0.048em; color: var(--ink); text-wrap: balance;
+  font: 400 clamp(48px, 7.2vw, 96px)/0.98 var(--font-display), "Instrument Serif", Georgia, serif;
+  letter-spacing: -0.02em; color: var(--ink); text-wrap: balance;
   animation: hx-rise 900ms var(--ease-enter) both;
 }
 .hx-sub { margin-top: 22px; max-width: 54ch; font-size: clamp(16px, 1.4vw, 18px); line-height: 1.55; color: var(--ink-2); text-wrap: pretty; animation: hx-rise 900ms 80ms var(--ease-enter) both; }
@@ -133,7 +135,7 @@ a.hx-result-title:hover { text-decoration: underline; text-decoration-color: rgb
 
 /* ---------- sections ---------- */
 .lp-section { width: min(1200px, 100%); margin: 0 auto; padding: clamp(56px, 7vw, 96px) clamp(20px, 3vw, 32px) 0; scroll-margin-top: 60px; }
-.st-h { font: 560 clamp(32px, 4.6vw, 58px)/1.02 var(--sans); letter-spacing: -0.042em; color: var(--ink); max-width: 18ch; text-wrap: balance; }
+.st-h { font: 400 clamp(36px, 4.4vw, 64px)/1.02 var(--font-display), "Instrument Serif", Georgia, serif; letter-spacing: -0.015em; color: var(--ink); max-width: 18ch; text-wrap: balance; }
 .st-lede { margin-top: 16px; max-width: 58ch; font-size: 17px; line-height: 1.6; color: var(--ink-2); text-wrap: pretty; }
 
 /* three moves */
